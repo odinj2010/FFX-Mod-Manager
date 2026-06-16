@@ -1,0 +1,12 @@
+{
+  "name": "Auron Crimson",
+  "bg_color": "#160f0f",
+  "card_color": "#2d1717",
+  "accent_color": "#ef4444",
+  "accent_hover": "#f87171",
+  "text_color": "#f3f4f6",
+  "text_dim": "#9ca3af",
+  "border_color": "#4a2222",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

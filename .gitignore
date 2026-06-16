@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # PyInstaller build files
 build/
@@ -13,3 +14,8 @@ dist/
 .idea/
 .vscode/
 Thumbs.db
+
+# Local user configs (don't overwrite users' directory settings!)
+ffx_mod_manager_config.json
+ffx_modding_toolbox_config.json
+ffx_phyre_tool_config.json

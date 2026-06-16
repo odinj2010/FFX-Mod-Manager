@@ -1,0 +1,12 @@
+{
+  "name": "Spira Cobalt",
+  "bg_color": "#0a1128",
+  "card_color": "#001f54",
+  "accent_color": "#00b4d8",
+  "accent_hover": "#90e0ef",
+  "text_color": "#f8f9fa",
+  "text_dim": "#93b7be",
+  "border_color": "#0077b6",
+  "success_color": "#06d6a0",
+  "error_color": "#ff5a5f"
+}
