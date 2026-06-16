@@ -1,0 +1,15 @@
+# Python temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build files
+build/
+dist/
+*.manifest
+*.spec
+
+# System/IDE files
+.idea/
+.vscode/
+Thumbs.db
