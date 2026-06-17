@@ -494,10 +494,16 @@ class FFXModManagerGUI:
         else:
             self.game_dir = self.config["game_dir"]
             
+        self.is_fahrenheit_mode = False
         if self.game_dir:
             self.mods_dir = os.path.join(self.game_dir, "data", "mods")
             self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
             
+            # Check for Fahrenheit
+            fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
+            if os.path.exists(fh_launcher):
+                self.is_fahrenheit_mode = True
+                
             # Create directories if they don't exist
             try:
                 os.makedirs(self.mods_dir, exist_ok=True)
@@ -512,6 +518,13 @@ class FFXModManagerGUI:
         if not self.game_dir:
             return "Unknown (Configure Game Folder)", self.error_color
             
+        # Check for Fahrenheit
+        fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
+        if os.path.exists(fh_launcher):
+            self.is_fahrenheit_mode = True
+            return "🟢 Active Mod Loader Detected (Fahrenheit Framework)", self.success_color
+            
+        self.is_fahrenheit_mode = False
         # Check for UnX / External Loader DLLs
         loaders = ["d3d11.dll", "dinput8.dll", "dxgi.dll"]
         found = []
@@ -706,6 +719,19 @@ class FFXModManagerGUI:
         btn_del._is_danger = True
         btn_del.pack(fill="x", pady=2)
         self.bind_hover(btn_del)
+        
+        # Load Order control frame (only packed when in Fahrenheit mode)
+        self.load_order_frame = ttk.Frame(btn_p_frame)
+        
+        btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
+                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_up.pack(side="left", fill="x", expand=True, padx=(0, 2), pady=2)
+        self.bind_hover(btn_move_up)
+        
+        btn_move_down = tk.Button(self.load_order_frame, text="🔽 Move Down", command=self.move_mod_down, bg=self.card_color,
+                                  fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_down.pack(side="right", fill="x", expand=True, padx=(2, 0), pady=2)
+        self.bind_hover(btn_move_down)
         
         btn_refresh = tk.Button(btn_p_frame, text="🔄 Refresh Mod List", command=self.refresh_list, bg=self.card_color,
                                 fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
@@ -971,6 +997,12 @@ class FFXModManagerGUI:
             self.scan_mods()
 
     def refresh_list(self):
+        self.update_loader_status_ui()
+        if getattr(self, "is_fahrenheit_mode", False):
+            self.load_order_frame.pack(fill="x", pady=2)
+        else:
+            self.load_order_frame.pack_forget()
+            
         selected_id = self.selected_mod_id
         self.scan_mods()
         
@@ -995,18 +1027,34 @@ class FFXModManagerGUI:
         for widget in self.mod_cards_container.winfo_children():
             widget.destroy()
             
-        if not self.mods_dir or not self.mods_disabled_dir:
+        if not self.mods_disabled_dir:
             return
             
         mods = {}
         
-        # 1. Scan enabled mods in mods folder (looking for tracking ffxmod / json files)
-        try:
-            for file in os.listdir(self.mods_dir):
-                if file.endswith((".ffxmod", ".json")) and not file.startswith("modinfo"):
-                    mod_id, _ = os.path.splitext(file)
+        # Detect if we are in Fahrenheit mode
+        self.is_fahrenheit_mode = False
+        if self.game_dir:
+            fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
+            if os.path.exists(fh_launcher):
+                self.is_fahrenheit_mode = True
+                
+        # 1. Scan enabled mods
+        if self.is_fahrenheit_mode:
+            loadorder_path = os.path.join(self.game_dir, "fahrenheit", "mods", "loadorder")
+            active_ids = []
+            if os.path.exists(loadorder_path):
+                try:
+                    with open(loadorder_path, "r", encoding="utf-8") as f:
+                        active_ids = [line.strip() for line in f if line.strip()]
+                except Exception:
+                    pass
+            
+            for mod_id in active_ids:
+                modinfo_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                if os.path.exists(modinfo_path):
                     try:
-                        with open(os.path.join(self.mods_dir, file), "r") as f:
+                        with open(modinfo_path, "r") as f:
                             data = decode_metadata(f.read())
                             mods[mod_id] = {
                                 "name": data.get("name", mod_id),
@@ -1016,14 +1064,46 @@ class FFXModManagerGUI:
                             }
                     except Exception:
                         pass
-        except Exception:
-            pass
+                else:
+                    # Fallback if manifest exists but modinfo.ffxmod doesn't
+                    manifest_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, f"{mod_id}.manifest.json")
+                    if os.path.exists(manifest_path):
+                        try:
+                            with open(manifest_path, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                            mods[mod_id] = {
+                                "name": data.get("Name", mod_id),
+                                "status": "Enabled",
+                                "files": [],
+                                "size": 0
+                            }
+                        except Exception:
+                            pass
+        else:
+            if self.mods_dir:
+                try:
+                    for file in os.listdir(self.mods_dir):
+                        if file.endswith((".ffxmod", ".json")) and not file.startswith("modinfo"):
+                            mod_id, _ = os.path.splitext(file)
+                            try:
+                                with open(os.path.join(self.mods_dir, file), "r") as f:
+                                    data = decode_metadata(f.read())
+                                    mods[mod_id] = {
+                                        "name": data.get("name", mod_id),
+                                        "status": "Enabled",
+                                        "files": data.get("files", []),
+                                        "size": data.get("size", 0)
+                                    }
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
             
         # 2. Scan disabled mods in mods_disabled folder
         try:
             for d in os.listdir(self.mods_disabled_dir):
                 dpath = os.path.join(self.mods_disabled_dir, d)
-                if os.path.isdir(dpath):
+                if os.path.isdir(dpath) and not d.startswith("_"):
                     info_path = os.path.join(dpath, "modinfo.ffxmod")
                     if not os.path.exists(info_path):
                         info_path = os.path.join(dpath, "modinfo.json")
@@ -1060,6 +1140,9 @@ class FFXModManagerGUI:
                             }
         except Exception:
             pass
+            
+        # Update self.mod_list
+        self.mod_list = list(mods.keys())
             
         # Render Mod Cards
         for mod_id, info in mods.items():
@@ -1206,7 +1289,7 @@ class FFXModManagerGUI:
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
 
     def auto_import_loose_files(self):
-        if not self.mods_dir:
+        if not self.mods_dir or getattr(self, "is_fahrenheit_mode", False):
             return
             
         # 1. Gather all files that belong to currently enabled mods
@@ -1312,9 +1395,13 @@ class FFXModManagerGUI:
                 
         # If not in repo, try active tracker
         if not info:
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-            old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-            read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+            if self.is_fahrenheit_mode:
+                read_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+            else:
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
+                read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+                
             if os.path.exists(read_tracker):
                 try:
                     with open(read_tracker, "r") as f:
@@ -1327,7 +1414,7 @@ class FFXModManagerGUI:
         
         self.ent_mod_creator.config(state="normal")
         self.ent_mod_creator.delete(0, tk.END)
-        creator_name = info.get("creator", "")
+        creator_name = info.get("creator", info.get("author", ""))
         self.ent_mod_creator.insert(0, creator_name)
         
         # Lock Creator field in GUI if it is set to anything other than the default ('User' or empty)
@@ -1352,15 +1439,26 @@ class FFXModManagerGUI:
         for rel in files_list:
             # Check size from repo if disabled, or active mods folder if enabled
             fsize = 0
-            src_path = os.path.join(mod_repo_path if mod_status == "Disabled" else self.mods_dir, rel)
+            if mod_status == "Disabled":
+                src_path = os.path.join(mod_repo_path, rel)
+            else:
+                if self.is_fahrenheit_mode:
+                    src_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data", rel)
+                else:
+                    src_path = os.path.join(self.mods_dir, rel)
+                    
             if os.path.exists(src_path):
                 fsize = os.path.getsize(src_path)
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
  
     def get_mod_status(self, mod_id):
-        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-        old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-        return "Enabled" if (os.path.exists(tracker_path) or os.path.exists(old_tracker_path)) else "Disabled"
+        if getattr(self, "is_fahrenheit_mode", False):
+            order = self.read_load_order()
+            return "Enabled" if mod_id in order else "Disabled"
+        else:
+            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+            old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
+            return "Enabled" if (os.path.exists(tracker_path) or os.path.exists(old_tracker_path)) else "Disabled"
  
     def clear_metadata_fields(self):
         self.ent_mod_creator.config(state="normal")
@@ -1391,7 +1489,7 @@ class FFXModManagerGUI:
                 pass
                 
         # Double check if Creator field is locked in GUI but they tried to bypass it
-        creator_before = info.get("creator", "")
+        creator_before = info.get("creator", info.get("author", ""))
         creator_input = self.ent_mod_creator.get().strip()
         
         # If creator was already set (not empty/User), do not allow modifying it
@@ -1400,6 +1498,7 @@ class FFXModManagerGUI:
             
         info["name"] = self.ent_mod_name.get().strip() or mod_id
         info["creator"] = creator_input
+        info["author"] = creator_input
         info["version"] = self.ent_mod_version.get().strip() or "1.0"
         info["description"] = self.ent_mod_desc.get().strip()
         
@@ -1414,23 +1513,49 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
                 
-            # If enabled, also sync name to tracking ffxmod
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-            old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-            read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
-            
-            if os.path.exists(read_tracker):
-                try:
-                    with open(read_tracker, "r") as f:
-                        track = decode_metadata(f.read())
-                    track["name"] = info["name"]
-                    with open(tracker_path, "w") as f:
-                        f.write(encode_metadata(track))
-                    # Clean up old tracker file if migrated
-                    if tracker_path != old_tracker_path and os.path.exists(old_tracker_path):
-                        os.remove(old_tracker_path)
-                except Exception:
-                    pass
+            # If enabled, also sync name to tracking ffxmod / manifest
+            if self.is_fahrenheit_mode:
+                active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
+                tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+                manifest_path = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
+                if os.path.exists(tracker_path):
+                    try:
+                        with open(tracker_path, "r") as f:
+                            track = decode_metadata(f.read())
+                        track["name"] = info["name"]
+                        with open(tracker_path, "w") as f:
+                            f.write(encode_metadata(track))
+                    except Exception:
+                        pass
+                if os.path.exists(manifest_path):
+                    try:
+                        with open(manifest_path, "r", encoding="utf-8") as f:
+                            man = json.load(f)
+                        man["Name"] = info["name"]
+                        man["Desc"] = info["description"]
+                        man["Authors"] = info["creator"]
+                        man["Version"] = info["version"]
+                        with open(manifest_path, "w", encoding="utf-8") as f:
+                            json.dump(man, f, indent=2)
+                    except Exception:
+                        pass
+            else:
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
+                read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+                
+                if os.path.exists(read_tracker):
+                    try:
+                        with open(read_tracker, "r") as f:
+                            track = decode_metadata(f.read())
+                        track["name"] = info["name"]
+                        with open(tracker_path, "w") as f:
+                            f.write(encode_metadata(track))
+                        # Clean up old tracker file if migrated
+                        if tracker_path != old_tracker_path and os.path.exists(old_tracker_path):
+                            os.remove(old_tracker_path)
+                    except Exception:
+                        pass
                     
             self.log(f"Saved metadata for mod '{mod_id}' successfully.", "success")
             self.scan_mods()
@@ -1496,24 +1621,46 @@ class FFXModManagerGUI:
             self.log(f"Failed to delete mod folder: {e}", "error")
 
     def find_active_file_owner(self, rel_path, exclude_mod_id=None):
-        if not os.path.exists(self.mods_dir):
-            return None
         rel_norm = os.path.normpath(rel_path).lower()
-        for f in os.listdir(self.mods_dir):
-            if f.endswith(".ffxmod") or f.endswith(".json"):
-                other_mod_id = f[:-7] if f.endswith(".ffxmod") else f[:-5]
-                if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
-                    continue
-                tracker_path = os.path.join(self.mods_dir, f)
-                try:
-                    with open(tracker_path, "r", encoding="utf-8") as tf:
-                        track = decode_metadata(tf.read())
-                    track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
-                    if rel_norm in track_files:
-                        return other_mod_id
-                except Exception:
-                    pass
-        return None
+        if getattr(self, "is_fahrenheit_mode", False):
+            fh_mods_dir = os.path.join(self.game_dir, "fahrenheit", "mods")
+            if not os.path.exists(fh_mods_dir):
+                return None
+            try:
+                for other_mod_id in os.listdir(fh_mods_dir):
+                    if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
+                        continue
+                    tracker_path = os.path.join(fh_mods_dir, other_mod_id, "modinfo.ffxmod")
+                    if os.path.exists(tracker_path):
+                        try:
+                            with open(tracker_path, "r", encoding="utf-8") as tf:
+                                track = decode_metadata(tf.read())
+                            track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
+                            if rel_norm in track_files:
+                                return other_mod_id
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            return None
+        else:
+            if not self.mods_dir or not os.path.exists(self.mods_dir):
+                return None
+            for f in os.listdir(self.mods_dir):
+                if f.endswith((".ffxmod", ".json")) and not f.startswith("modinfo"):
+                    other_mod_id = f[:-7] if f.endswith(".ffxmod") else f[:-5]
+                    if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
+                        continue
+                    tracker_path = os.path.join(self.mods_dir, f)
+                    try:
+                        with open(tracker_path, "r", encoding="utf-8") as tf:
+                            track = decode_metadata(tf.read())
+                        track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
+                        if rel_norm in track_files:
+                            return other_mod_id
+                    except Exception:
+                        pass
+            return None
 
     def enable_mod_logic(self, mod_id):
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
@@ -1540,9 +1687,16 @@ class FFXModManagerGUI:
         success_count = 0
         total_size = 0
         
+        # Determine target active folder
+        if self.is_fahrenheit_mode:
+            active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
+            active_files_dir = os.path.join(active_mod_dir, "efl", "x", "FFX_Data")
+        else:
+            active_files_dir = self.mods_dir
+            
         for rel in files:
             src = os.path.join(mod_repo, rel)
-            dest = os.path.join(self.mods_dir, rel)
+            dest = os.path.join(active_files_dir, rel)
             if os.path.exists(src):
                 try:
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -1589,15 +1743,40 @@ class FFXModManagerGUI:
             "size": total_size
         }
         try:
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-            with open(tracker_path, "w", encoding="utf-8") as f:
-                f.write(encode_metadata(tracker))
-            old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
-            if os.path.exists(old_tracker):
-                try:
-                    os.remove(old_tracker)
-                except Exception:
-                    pass
+            if self.is_fahrenheit_mode:
+                # Write tracker file to fahrenheit/mods/{mod_id}/modinfo.ffxmod
+                tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+                with open(tracker_path, "w", encoding="utf-8") as f:
+                    f.write(encode_metadata(tracker))
+                    
+                # Write manifest file to fahrenheit/mods/{mod_id}/{mod_id}.manifest.json
+                manifest_path = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
+                manifest_data = {
+                    "Id": mod_id,
+                    "Name": info.get("name", mod_id),
+                    "Desc": info.get("description", ""),
+                    "Authors": info.get("author", info.get("creator", "Unknown")),
+                    "Version": info.get("version", "1.0"),
+                    "Link": "",
+                    "Dependencies": [],
+                    "LoadAfter": [],
+                    "Flags": "NONE"
+                }
+                with open(manifest_path, "w", encoding="utf-8") as f:
+                    json.dump(manifest_data, f, indent=2)
+                    
+                # Append to loadorder file
+                self.add_to_load_order(mod_id)
+            else:
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                with open(tracker_path, "w", encoding="utf-8") as f:
+                    f.write(encode_metadata(tracker))
+                old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
+                if os.path.exists(old_tracker):
+                    try:
+                        os.remove(old_tracker)
+                    except Exception:
+                        pass
             self.log(f"Successfully enabled mod '{mod_id}' ({success_count} of {len(files)} files activated).", "success")
             return True
         except Exception as e:
@@ -1635,10 +1814,16 @@ class FFXModManagerGUI:
 
     def disable_mod_logic(self, mod_id):
         self.log(f"Disabling mod '{mod_id}'...")
-        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-        old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-        
-        read_path = tracker_path if os.path.exists(tracker_path) else old_tracker_path
+        if self.is_fahrenheit_mode:
+            active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
+            read_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+            active_files_dir = os.path.join(active_mod_dir, "efl", "x", "FFX_Data")
+        else:
+            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+            old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
+            read_path = tracker_path if os.path.exists(tracker_path) else old_tracker_path
+            active_files_dir = self.mods_dir
+            
         if not os.path.exists(read_path):
             self.log("Error: Active tracking file missing. Cannot uninstall cleanly.", "error")
             return
@@ -1655,7 +1840,7 @@ class FFXModManagerGUI:
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
         
         for rel in files:
-            dest = os.path.join(self.mods_dir, rel)
+            dest = os.path.join(active_files_dir, rel)
             src_back = os.path.join(mod_repo, rel)
             if os.path.exists(dest):
                 try:
@@ -1684,7 +1869,7 @@ class FFXModManagerGUI:
                                 self.log(f"[Conflict Error] Failed to restore file '{rel}' for '{other_owner}': {re}", "error")
                                 
                     parent = os.path.dirname(dest)
-                    while parent and parent != self.mods_dir:
+                    while parent and parent != active_files_dir:
                         if not os.listdir(parent):
                             os.rmdir(parent)
                             parent = os.path.dirname(parent)
@@ -1694,10 +1879,17 @@ class FFXModManagerGUI:
                     self.log(f"Failed to move back '{rel}': {e}", "error")
                     
         try:
-            if os.path.exists(tracker_path):
-                os.remove(tracker_path)
-            if os.path.exists(old_tracker_path):
-                os.remove(old_tracker_path)
+            if self.is_fahrenheit_mode:
+                # Remove from loadorder
+                self.remove_from_load_order(mod_id)
+                # Remove active mod directory
+                if os.path.exists(active_mod_dir):
+                    shutil.rmtree(active_mod_dir, ignore_errors=True)
+            else:
+                if os.path.exists(tracker_path):
+                    os.remove(tracker_path)
+                if os.path.exists(old_tracker_path):
+                    os.remove(old_tracker_path)
             self.log(f"Successfully disabled mod '{mod_id}' (deactivated {remove_count} files).", "success")
         except Exception as e:
             self.log(f"Failed to delete tracking file: {e}", "error")
@@ -2347,9 +2539,16 @@ class FFXModManagerGUI:
                 # If currently enabled, also sync files to mods folder and tracker
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
+                    if self.is_fahrenheit_mode:
+                        active_files_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data")
+                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                    else:
+                        active_files_dir = self.mods_dir
+                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                        
                     for rel in files_list:
                         src = os.path.join(mod_repo, rel)
-                        dest = os.path.join(self.mods_dir, rel)
+                        dest = os.path.join(active_files_dir, rel)
                         if os.path.exists(src):
                             try:
                                 os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -2358,19 +2557,20 @@ class FFXModManagerGUI:
                             except Exception:
                                 pass
                                 
-                    tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-                    old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
                     with open(tracker_path, "w") as f:
                         f.write(encode_metadata({
                             "name": info.get("name", mod_id),
                             "files": files_list,
                             "size": total_size
                         }))
-                    if os.path.exists(old_tracker):
-                        try:
-                            os.remove(old_tracker)
-                        except Exception:
-                            pass
+                        
+                    if not self.is_fahrenheit_mode:
+                        old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
+                        if os.path.exists(old_tracker):
+                            try:
+                                os.remove(old_tracker)
+                            except Exception:
+                                pass
             except Exception:
                 pass
                 
@@ -2469,9 +2669,16 @@ class FFXModManagerGUI:
                 # If currently enabled, also sync files to mods folder and tracker
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
+                    if self.is_fahrenheit_mode:
+                        active_files_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data")
+                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                    else:
+                        active_files_dir = self.mods_dir
+                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                        
                     for rel in files_list:
                         src = os.path.join(mod_repo, rel)
-                        dest = os.path.join(self.mods_dir, rel)
+                        dest = os.path.join(active_files_dir, rel)
                         if os.path.exists(src):
                             try:
                                 os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -2480,19 +2687,20 @@ class FFXModManagerGUI:
                             except Exception:
                                 pass
                                 
-                    tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-                    old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
                     with open(tracker_path, "w") as f:
                         f.write(encode_metadata({
                             "name": info.get("name", mod_id),
                             "files": files_list,
                             "size": total_size
                         }))
-                    if os.path.exists(old_tracker):
-                        try:
-                            os.remove(old_tracker)
-                        except Exception:
-                            pass
+                        
+                    if not self.is_fahrenheit_mode:
+                        old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
+                        if os.path.exists(old_tracker):
+                            try:
+                                os.remove(old_tracker)
+                            except Exception:
+                                pass
             except Exception:
                 pass
                 
@@ -2570,20 +2778,118 @@ class FFXModManagerGUI:
         btn.bind("<Enter>", lambda e: btn.config(bg=hover))
         btn.bind("<Leave>", lambda e: btn.config(bg=normal))
 
+    def read_load_order(self):
+        if not self.game_dir:
+            return []
+        loadorder_path = os.path.join(self.game_dir, "fahrenheit", "mods", "loadorder")
+        if not os.path.exists(loadorder_path):
+            return []
+        try:
+            with open(loadorder_path, "r", encoding="utf-8") as f:
+                return [line.strip() for line in f if line.strip()]
+        except Exception as e:
+            self.log(f"Failed to read loadorder file: {e}", "error")
+            return []
+
+    def write_load_order(self, order_list):
+        if not self.game_dir:
+            return
+        loadorder_path = os.path.join(self.game_dir, "fahrenheit", "mods", "loadorder")
+        try:
+            os.makedirs(os.path.dirname(loadorder_path), exist_ok=True)
+            with open(loadorder_path, "w", encoding="utf-8") as f:
+                for mod_id in order_list:
+                    f.write(f"{mod_id}\n")
+        except Exception as e:
+            self.log(f"Failed to write loadorder file: {e}", "error")
+
+    def add_to_load_order(self, mod_id):
+        order = self.read_load_order()
+        if mod_id not in order:
+            order.append(mod_id)
+            self.write_load_order(order)
+
+    def remove_from_load_order(self, mod_id):
+        order = self.read_load_order()
+        if mod_id in order:
+            order.remove(mod_id)
+            self.write_load_order(order)
+
+    def move_mod_up(self):
+        mod_id = self.selected_mod_id
+        if not mod_id:
+            messagebox.showwarning("Warning", "Select an enabled mod to move.")
+            return
+        if self.get_mod_status(mod_id) != "Enabled":
+            messagebox.showwarning("Warning", "Only enabled mods can be moved in the load order.")
+            return
+            
+        order = self.read_load_order()
+        if mod_id not in order:
+            return
+            
+        idx = order.index(mod_id)
+        if idx > 0:
+            order[idx], order[idx - 1] = order[idx - 1], order[idx]
+            self.write_load_order(order)
+            self.log(f"Moved '{mod_id}' up in load order.", "success")
+            self.refresh_list()
+            self.select_mod(mod_id)
+
+    def move_mod_down(self):
+        mod_id = self.selected_mod_id
+        if not mod_id:
+            messagebox.showwarning("Warning", "Select an enabled mod to move.")
+            return
+        if self.get_mod_status(mod_id) != "Enabled":
+            messagebox.showwarning("Warning", "Only enabled mods can be moved in the load order.")
+            return
+            
+        order = self.read_load_order()
+        if mod_id not in order:
+            return
+            
+        idx = order.index(mod_id)
+        if idx < len(order) - 1:
+            order[idx], order[idx + 1] = order[idx + 1], order[idx]
+            self.write_load_order(order)
+            self.log(f"Moved '{mod_id}' down in load order.", "success")
+            self.refresh_list()
+            self.select_mod(mod_id)
+
     def launch_game(self):
         if not self.game_dir:
             messagebox.showwarning("Warning", "Please configure your FFX Game Folder first.")
             return
             
-        self.log("Launching Final Fantasy X via Steam...", "info")
-        try:
-            import webbrowser
-            webbrowser.open("steam://run/359870")
-            
-            # Start background monitoring for game process & plugin trackers
-            self.root.after(2000, self.start_game_monitoring)
-        except Exception as e:
-            self.log(f"Failed to launch game: {e}", "error")
+        fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
+        if os.path.exists(fh_launcher):
+            self.is_fahrenheit_mode = True
+            self.log("Launching Final Fantasy X via Fahrenheit Framework...", "info")
+            try:
+                game_exe = os.path.join(self.game_dir, "FFX.exe")
+                fh_dir = os.path.join(self.game_dir, "fahrenheit", "bin")
+                p = subprocess.Popen(
+                    [fh_launcher, game_exe],
+                    cwd=fh_dir
+                )
+                self.log(f"Fahrenheit launcher started (PID: {p.pid}). Monitoring game process...", "success")
+                
+                # Start background monitoring for game process & plugin trackers
+                self.root.after(2000, self.start_game_monitoring)
+            except Exception as e:
+                self.log(f"Failed to launch Fahrenheit: {e}", "error")
+        else:
+            self.is_fahrenheit_mode = False
+            self.log("Launching Final Fantasy X via Steam...", "info")
+            try:
+                import webbrowser
+                webbrowser.open("steam://run/359870")
+                
+                # Start background monitoring for game process & plugin trackers
+                self.root.after(2000, self.start_game_monitoring)
+            except Exception as e:
+                self.log(f"Failed to launch game: {e}", "error")
 
     def start_game_monitoring(self):
         import threading
