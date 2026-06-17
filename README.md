@@ -6,8 +6,8 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 ## 🌟 Key Features
 
-* **Fahrenheit Framework Support (New v2.1.0! **Untested**):** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
-* **Backward Compatibility (**Untested**):** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
+* **Fahrenheit Framework Support (New v2.1.0!):** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
+* **Backward Compatibility:** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
 * **Move-on-Enable Architecture:** Saves massive amounts of disk space. Mod packages are kept in a unified, loader-agnostic repository and moved into active game directories only when enabled.
 * **ZIP & RAR Auto-Unwrapping:** Drag-and-drop support for standard `.zip` and `.rar` mod archives. Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
 * **Auto-Conflict Resolution & Backups:** Detects file overwrite collisions. Overwritten active files are backed up automatically into their respective owner's repository folder and restored when the overriding mod is disabled.
@@ -16,7 +16,7 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 ---
 
-## ⚙️ Fahrenheit Modding Framework Support (**Untested**)
+## ⚙️ Fahrenheit Modding Framework Support
 
 When the manager detects `fahrenheit/bin/fhstage0.exe` in the game folder:
 1. **Status detection:** Changes the status pill to `🟢 Active Mod Loader Detected (Fahrenheit Framework)`.
@@ -49,7 +49,7 @@ When the manager detects `fahrenheit/bin/fhstage0.exe` in the game folder:
 The manager introduces a unified loader-agnostic layout:
 * **Repository Folder:** `data/mods_disabled/` (Where all mod directories and original assets reside when inactive).
 * **Enabled (Traditional loaders):** Files are moved into `data/mods/`.
-* **Enabled (Fahrenheit Framework **Untested**):** Files are mapped and moved into `fahrenheit/mods/{id}/efl/x/FFX_Data/`.
+* **Enabled (Fahrenheit Framework):** Files are mapped and moved into `fahrenheit/mods/{id}/efl/x/FFX_Data/`.
 
 ---
 
@@ -58,7 +58,7 @@ The manager introduces a unified loader-agnostic layout:
 1. Place `FFX Mod Manager.exe` (or the script) inside your game folder (where `FFX.exe` resides).
 2. Launch the mod manager and select your game directory.
 3. Click **Import Mod Archive** to load ZIP or RAR mods, or click **Create New Mod** to create empty mod projects.
-4. Click **Enable Mod** to deploy. Adjust priorities using **Move Up / Move Down** arrows if running Fahrenheit (**Untested**).
+4. Click **Enable Mod** to deploy. Adjust priorities using **Move Up / Move Down** arrows if running Fahrenheit.
 5. Click **PLAY GAME** to launch.
 
 ---
