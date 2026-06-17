@@ -1,0 +1,12 @@
+{
+  "name": "My Custom Theme",
+  "bg_color": "#00ffff",
+  "card_color": "#0080c0",
+  "accent_color": "#ff80c0",
+  "accent_hover": "#000080",
+  "text_color": "#004040",
+  "text_dim": "#400040",
+  "border_color": "#c0c0c0",
+  "success_color": "#008000",
+  "error_color": "#ff0000"
+}

@@ -203,6 +203,8 @@ class FFXModManagerGUI:
         
         # State tracking for pages & themes
         self.selected_mod_id = ""
+        self.mod_search_var = tk.StringVar()
+        self.mod_category_var = tk.StringVar(value="All Categories")
         self.pages = {}
         self.sidebar_buttons = {}
         self.current_page = ""
@@ -496,18 +498,21 @@ class FFXModManagerGUI:
             
         self.is_fahrenheit_mode = False
         if self.game_dir:
-            self.mods_dir = os.path.join(self.game_dir, "data", "mods")
-            self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
-            
-            # Check for Fahrenheit
+            # Check for Fahrenheit FIRST to decide folder structure
             fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
             if os.path.exists(fh_launcher):
                 self.is_fahrenheit_mode = True
-                
-            # Create directories if they don't exist
+                # In Fahrenheit, everything lives inside the fahrenheit/ folder
+                self.mods_dir = os.path.join(self.game_dir, "fahrenheit", "mods")
+                self.mods_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled")
+            else:
+                self.mods_dir = os.path.join(self.game_dir, "data", "mods")
+                self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
+            
+            # Create directories only for what is actually needed
             try:
-                os.makedirs(self.mods_dir, exist_ok=True)
                 os.makedirs(self.mods_disabled_dir, exist_ok=True)
+                os.makedirs(self.mods_dir, exist_ok=True)
             except Exception:
                 pass
         else:
@@ -613,7 +618,6 @@ class FFXModManagerGUI:
         
         # Add sidebar navigation options for standard pages
         self.add_sidebar_nav_button("mods", "Mods", "📁")
-        self.add_sidebar_nav_button("plugins_browser", "Plugin Browser", "🔌")
         
         # ----------------------------------------------------
         # PAGE 1: MODS PANEL LAYOUT
@@ -629,6 +633,23 @@ class FFXModManagerGUI:
         lbl_mod._is_title = True
         lbl_mod.pack(anchor="w", pady=(0, 5))
         
+        # Search Bar
+        search_frame = ttk.Frame(left_frame)
+        search_frame.pack(fill="x", pady=(0, 10))
+        
+        lbl_search = tk.Label(search_frame, text="🔍", font=("Segoe UI", 10), bg=self.bg_color, fg=self.text_dim)
+        lbl_search.pack(side="left", padx=(0, 5))
+        
+        self.ent_search = ttk.Entry(search_frame, textvariable=self.mod_search_var)
+        self.ent_search.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        self.cmb_category = ttk.Combobox(search_frame, textvariable=self.mod_category_var, state="readonly", width=12)
+        self.cmb_category["values"] = ["All Categories"]
+        self.cmb_category.pack(side="left")
+        self.cmb_category.bind("<<ComboboxSelected>>", lambda e: self.refresh_list())
+        
+        self.mod_search_var.trace_add("write", lambda *args: self.refresh_list())
+
         # Profile management row
         profile_row = ttk.Frame(left_frame)
         profile_row.pack(fill="x", pady=(0, 10))
@@ -746,8 +767,16 @@ class FFXModManagerGUI:
         self.lbl_mod_title._is_title = True
         self.lbl_mod_title.pack(anchor="w", pady=(0, 5))
         
-        # Metadata Card
-        meta_frame = ttk.LabelFrame(right_frame, text=" Mod Information ", padding=10)
+        # Notebook for Mod Details
+        self.mod_details_notebook = ttk.Notebook(right_frame)
+        self.mod_details_notebook.pack(fill="both", expand=True)
+        
+        # Tab 1: Information
+        self.tab_info = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.mod_details_notebook.add(self.tab_info, text=" Information ")
+        
+        # Metadata Card (now inside tab_info)
+        meta_frame = ttk.LabelFrame(self.tab_info, text=" Mod Metadata ", padding=10)
         meta_frame.pack(fill="x", pady=(0, 10))
         
         ttk.Label(meta_frame, text="Mod Name:").grid(row=0, column=0, sticky="w", pady=2)
@@ -766,15 +795,36 @@ class FFXModManagerGUI:
         self.ent_mod_desc = ttk.Entry(meta_frame, width=30)
         self.ent_mod_desc.grid(row=3, column=1, sticky="w", padx=5, pady=2)
         
+        ttk.Label(meta_frame, text="Category:").grid(row=4, column=0, sticky="w", pady=2)
+        self.cmb_mod_category = ttk.Combobox(meta_frame, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], width=28)
+        self.cmb_mod_category.grid(row=4, column=1, sticky="w", padx=5, pady=2)
+        
+        ttk.Label(meta_frame, text="Nexus Mod ID:").grid(row=5, column=0, sticky="w", pady=2)
+        self.ent_nexus_id = ttk.Entry(meta_frame, width=15)
+        self.ent_nexus_id.grid(row=5, column=1, sticky="w", padx=5, pady=2)
+        
+        ttk.Label(meta_frame, text="Mod Link:").grid(row=6, column=0, sticky="w", pady=2)
+        link_row = ttk.Frame(meta_frame)
+        link_row.grid(row=6, column=1, sticky="w", padx=5, pady=2)
+        
+        self.ent_mod_link = ttk.Entry(link_row, width=22)
+        self.ent_mod_link.pack(side="left", padx=(0, 5))
+        
+        btn_visit = tk.Button(link_row, text="🌐 Visit", command=self.visit_mod_link, bg=self.bg_color,
+                               fg=self.text_color, relief="flat", activebackground=self.border_color, padx=5)
+        btn_visit.pack(side="left")
+        self.bind_hover(btn_visit)
+        
         btn_save_meta = tk.Button(meta_frame, text="Save Details", command=self.save_mod_metadata, bg=self.card_color,
                                   fg=self.text_color, relief="flat", activebackground=self.border_color)
-        btn_save_meta.grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        btn_save_meta.grid(row=7, column=1, sticky="w", padx=5, pady=5)
         self.bind_hover(btn_save_meta)
         
-        # Files Treeview
-        lbl_files = tk.Label(right_frame, text="Files Installed by Mod", font=("Segoe UI", 9, "bold"), fg=self.text_color, bg=self.bg_color)
-        lbl_files.pack(anchor="w", pady=(5, 2))
-        files_frame = ttk.Frame(right_frame)
+        # Tab 2: Files
+        self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.mod_details_notebook.add(self.tab_files, text=" Files ")
+        
+        files_frame = ttk.Frame(self.tab_files)
         files_frame.pack(fill="both", expand=True)
         
         self.tree_files = ttk.Treeview(files_frame, columns=("relpath", "size"), show="headings")
@@ -788,26 +838,44 @@ class FFXModManagerGUI:
         scroll_f.pack(fill="y", side="right")
         self.tree_files.config(yscrollcommand=scroll_f.set)
         
-        # File Operations
-        file_ops = ttk.Frame(right_frame, padding=(0, 5, 0, 0))
+        # File Operations (inside tab_files)
+        file_ops = ttk.Frame(self.tab_files, padding=(0, 5, 0, 0))
         file_ops.pack(fill="x")
         
-        btn_import = tk.Button(file_ops, text="Import File(s)...", command=self.import_files, bg=self.accent_color,
+        btn_import_f = tk.Button(file_ops, text="Import File(s)...", command=self.import_files, bg=self.accent_color,
                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
-        btn_import._is_primary = True
-        btn_import.pack(side="left", padx=(0, 5))
-        self.bind_hover(btn_import, is_primary=True)
+        btn_import_f._is_primary = True
+        btn_import_f.pack(side="left", padx=(0, 5))
+        self.bind_hover(btn_import_f, is_primary=True)
         
-        btn_import_dir = tk.Button(file_ops, text="Import Folder...", command=self.import_folder, bg=self.accent_color,
+        btn_import_d = tk.Button(file_ops, text="Import Folder...", command=self.import_folder, bg=self.accent_color,
                                    fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
-        btn_import_dir._is_primary = True
-        btn_import_dir.pack(side="left", padx=5)
-        self.bind_hover(btn_import_dir, is_primary=True)
+        btn_import_d._is_primary = True
+        btn_import_d.pack(side="left", padx=5)
+        self.bind_hover(btn_import_d, is_primary=True)
         
-        btn_open = tk.Button(file_ops, text="Open Folder Location", command=self.open_folder, bg=self.card_color,
+        btn_open_f = tk.Button(file_ops, text="Open Folder Location", command=self.open_folder, bg=self.card_color,
                              fg=self.text_color, relief="flat", activebackground=self.border_color)
-        btn_open.pack(side="left", padx=5)
-        self.bind_hover(btn_open)
+        btn_open_f.pack(side="left", padx=5)
+        self.bind_hover(btn_open_f)
+        
+        # Tab 3: Conflicts
+        self.tab_conflicts = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.mod_details_notebook.add(self.tab_conflicts, text=" Conflicts ")
+        
+        self.lbl_conflict_summary = tk.Label(self.tab_conflicts, text="No conflicts detected.", font=("Segoe UI", 10), fg=self.success_color, bg=self.bg_color, wraplength=400, justify="left")
+        self.lbl_conflict_summary.pack(anchor="w", pady=(0, 10))
+        
+        self.tree_conflicts = ttk.Treeview(self.tab_conflicts, columns=("mod", "file"), show="headings")
+        self.tree_conflicts.heading("mod", text="Conflicting Mod")
+        self.tree_conflicts.heading("file", text="Conflicting File")
+        self.tree_conflicts.column("mod", width=120)
+        self.tree_conflicts.column("file", width=200)
+        self.tree_conflicts.pack(fill="both", expand=True)
+        
+        scroll_c = ttk.Scrollbar(self.tab_conflicts, command=self.tree_conflicts.yview)
+        scroll_c.pack(fill="y", side="right")
+        self.tree_conflicts.config(yscrollcommand=scroll_c.set)
         
         # ----------------------------------------------------
         # PAGE 2: SETTINGS PANEL LAYOUT
@@ -909,7 +977,8 @@ class FFXModManagerGUI:
         # Build Plugins Browser page UI
         self.create_plugins_browser_page()
 
-        # Add Settings button to navigation drawer
+        # Add bottom-aligned navigation buttons
+        self.add_sidebar_nav_button("plugins_browser", "Plugin Browser", "🔌", side="bottom")
         self.add_sidebar_nav_button("settings", "Settings", "⚙️", side="bottom")
         
         # Set default active page
@@ -1058,6 +1127,8 @@ class FFXModManagerGUI:
                             data = decode_metadata(f.read())
                             mods[mod_id] = {
                                 "name": data.get("name", mod_id),
+                                "creator": data.get("author", data.get("creator", "Unknown")),
+                                "category": data.get("category", "General"),
                                 "status": "Enabled",
                                 "files": data.get("files", []),
                                 "size": data.get("size", 0)
@@ -1073,6 +1144,8 @@ class FFXModManagerGUI:
                                 data = json.load(f)
                             mods[mod_id] = {
                                 "name": data.get("Name", mod_id),
+                                "creator": data.get("Authors", "Unknown"),
+                                "category": data.get("Category", "General"),
                                 "status": "Enabled",
                                 "files": [],
                                 "size": 0
@@ -1090,6 +1163,8 @@ class FFXModManagerGUI:
                                     data = decode_metadata(f.read())
                                     mods[mod_id] = {
                                         "name": data.get("name", mod_id),
+                                        "creator": data.get("author", data.get("creator", "Unknown")),
+                                        "category": data.get("category", "General"),
                                         "status": "Enabled",
                                         "files": data.get("files", []),
                                         "size": data.get("size", 0)
@@ -1124,6 +1199,8 @@ class FFXModManagerGUI:
                                         
                                 mods[d] = {
                                     "name": data.get("name", d),
+                                    "creator": data.get("author", data.get("creator", "Unknown")),
+                                    "category": data.get("category", "General"),
                                     "status": "Disabled",
                                     "files": files_list,
                                     "size": total_size
@@ -1134,6 +1211,8 @@ class FFXModManagerGUI:
                         if d not in mods:
                             mods[d] = {
                                 "name": d,
+                                "creator": "Unknown",
+                                "category": "General",
                                 "status": "Disabled",
                                 "files": [],
                                 "size": 0
@@ -1141,15 +1220,54 @@ class FFXModManagerGUI:
         except Exception:
             pass
             
-        # Update self.mod_list
+        # Update self.mod_list with UNFILTERED mods
         self.mod_list = list(mods.keys())
             
+        # 3. Dynamic Category Population
+        all_categories = set()
+        for info in mods.values():
+            cat = info.get("category", "General").strip()
+            if cat:
+                all_categories.add(cat)
+        
+        # Standard categories to ensure we always have some defaults in the editor
+        base_categories = {"General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"}
+        cat_list = ["All Categories"] + sorted(list(all_categories))
+        
+        if hasattr(self, "cmb_category"):
+            self.cmb_category["values"] = cat_list
+            
+        if hasattr(self, "cmb_mod_category"):
+            # The editor should have the base categories plus any custom ones found
+            editor_cats = sorted(list(base_categories.union(all_categories)))
+            self.cmb_mod_category["values"] = editor_cats
+            
+        # 4. Apply Filtering
+        query = self.mod_search_var.get().strip().lower()
+        cat_filter = self.mod_category_var.get().strip()
+        
+        if cat_filter and cat_filter != "All Categories":
+            mods = {m_id: info for m_id, info in mods.items() if info.get("category", "General").strip() == cat_filter}
+            
+        if query:
+            filtered_mods = {}
+            for m_id, info in mods.items():
+                if (query in m_id.lower() or 
+                    query in info.get("name", "").lower() or 
+                    query in info.get("creator", "").lower() or 
+                    query in info.get("category", "").lower()):
+                    filtered_mods[m_id] = info
+            mods = filtered_mods
+            
         # Render Mod Cards
+        card_count = 0
         for mod_id, info in mods.items():
             self.create_mod_card(mod_id, info)
+            card_count += 1
             
         # Trigger dynamic canvas resize config update
         self.cards_canvas.configure(scrollregion=self.cards_canvas.bbox("all"))
+        self.root.update_idletasks()
 
     def create_mod_card(self, mod_id, info):
         is_selected = (self.selected_mod_id == mod_id)
@@ -1273,6 +1391,14 @@ class FFXModManagerGUI:
         self.ent_mod_desc.delete(0, tk.END)
         self.ent_mod_desc.insert(0, info.get("description", ""))
         
+        self.cmb_mod_category.set(info.get("category", "General"))
+        
+        self.ent_nexus_id.delete(0, tk.END)
+        self.ent_nexus_id.insert(0, info.get("nexus_id", ""))
+        
+        self.ent_mod_link.delete(0, tk.END)
+        self.ent_mod_link.insert(0, info.get("link", info.get("url", "")))
+        
         # Populate files list
         self.tree_files.delete(*self.tree_files.get_children())
         files_list = info.get("files", [])
@@ -1287,6 +1413,61 @@ class FFXModManagerGUI:
             if os.path.exists(src_path):
                 fsize = os.path.getsize(src_path)
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
+            
+        # Update Conflict Tab
+        self.update_conflict_ui(mod_id)
+
+    def check_for_conflicts(self, mod_id):
+        mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
+        info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
+        fallback_path = os.path.join(mod_repo_path, "modinfo.json")
+        read_path = info_path if os.path.exists(info_path) else fallback_path
+        
+        if not os.path.exists(read_path):
+            return {}
+            
+        try:
+            with open(read_path, "r") as f:
+                info = decode_metadata(f.read())
+        except Exception:
+            return {}
+            
+        files = info.get("files", [])
+        conflicts = {} # {other_mod_id: [file1, file2, ...]}
+        
+        for rel in files:
+            other_owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
+            if other_owner:
+                if other_owner not in conflicts:
+                    conflicts[other_owner] = []
+                conflicts[other_owner].append(rel)
+        
+        return conflicts
+
+    def update_conflict_ui(self, mod_id):
+        if not hasattr(self, "tree_conflicts"):
+            return
+            
+        self.tree_conflicts.delete(*self.tree_conflicts.get_children())
+        conflicts = self.check_for_conflicts(mod_id)
+        
+        if not conflicts:
+            self.lbl_conflict_summary.config(text="No conflicts detected. This mod's files are unique among enabled mods.", fg=self.success_color)
+            try:
+                self.mod_details_notebook.tab(2, text=" Conflicts ")
+            except Exception:
+                pass
+        else:
+            total_files = sum(len(fs) for fs in conflicts.values())
+            self.lbl_conflict_summary.config(text=f"⚠️ Warning: {total_files} file(s) conflict with {len(conflicts)} other enabled mod(s). Priority is determined by load order.", fg=self.error_color)
+            try:
+                self.mod_details_notebook.tab(2, text=f" Conflicts ({total_files}) ")
+            except Exception:
+                pass
+            
+            for other_id, files in conflicts.items():
+                for f in files:
+                    self.tree_conflicts.insert("", tk.END, values=(other_id, f))
 
     def auto_import_loose_files(self):
         if not self.mods_dir or getattr(self, "is_fahrenheit_mode", False):
@@ -1429,6 +1610,14 @@ class FFXModManagerGUI:
         self.ent_mod_desc.delete(0, tk.END)
         self.ent_mod_desc.insert(0, info.get("description", ""))
         
+        self.cmb_mod_category.set(info.get("category", "General"))
+        
+        self.ent_nexus_id.delete(0, tk.END)
+        self.ent_nexus_id.insert(0, info.get("nexus_id", ""))
+        
+        self.ent_mod_link.delete(0, tk.END)
+        self.ent_mod_link.insert(0, info.get("link", info.get("url", "")))
+        
         # Populate files list
         self.tree_files.delete(*self.tree_files.get_children())
         files_list = info.get("files", [])
@@ -1450,6 +1639,9 @@ class FFXModManagerGUI:
             if os.path.exists(src_path):
                 fsize = os.path.getsize(src_path)
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
+            
+        # Update Conflict Tab
+        self.update_conflict_ui(mod_id)
  
     def get_mod_status(self, mod_id):
         if getattr(self, "is_fahrenheit_mode", False):
@@ -1466,6 +1658,17 @@ class FFXModManagerGUI:
         self.ent_mod_creator.delete(0, tk.END)
         self.ent_mod_version.delete(0, tk.END)
         self.ent_mod_desc.delete(0, tk.END)
+
+    def visit_mod_link(self):
+        url = self.ent_mod_link.get().strip()
+        if not url and self.ent_nexus_id.get().strip():
+            url = f"https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/{self.ent_nexus_id.get().strip()}"
+            
+        if url:
+            import webbrowser
+            webbrowser.open(url)
+        else:
+            messagebox.showinfo("Info", "No link or Nexus ID available for this mod.")
 
     def save_mod_metadata(self):
         mod_id = self.selected_mod_id
@@ -1501,6 +1704,9 @@ class FFXModManagerGUI:
         info["author"] = creator_input
         info["version"] = self.ent_mod_version.get().strip() or "1.0"
         info["description"] = self.ent_mod_desc.get().strip()
+        info["category"] = self.cmb_mod_category.get().strip() or "General"
+        info["nexus_id"] = self.ent_nexus_id.get().strip()
+        info["link"] = self.ent_mod_link.get().strip()
         
         try:
             with open(info_path, "w") as f:
@@ -1523,6 +1729,7 @@ class FFXModManagerGUI:
                         with open(tracker_path, "r") as f:
                             track = decode_metadata(f.read())
                         track["name"] = info["name"]
+                        track["category"] = info["category"]
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
                     except Exception:
@@ -1535,6 +1742,8 @@ class FFXModManagerGUI:
                         man["Desc"] = info["description"]
                         man["Authors"] = info["creator"]
                         man["Version"] = info["version"]
+                        man["Category"] = info["category"]
+                        man["Link"] = info["link"]
                         with open(manifest_path, "w", encoding="utf-8") as f:
                             json.dump(man, f, indent=2)
                     except Exception:
@@ -1549,6 +1758,7 @@ class FFXModManagerGUI:
                         with open(read_tracker, "r") as f:
                             track = decode_metadata(f.read())
                         track["name"] = info["name"]
+                        track["category"] = info["category"]
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
                         # Clean up old tracker file if migrated
@@ -1586,6 +1796,7 @@ class FFXModManagerGUI:
                 "creator": "User",
                 "version": "1.0",
                 "description": "",
+                "category": "General",
                 "files": []
             }
             with open(os.path.join(mod_repo_path, "modinfo.ffxmod"), "w") as f:
@@ -1739,6 +1950,7 @@ class FFXModManagerGUI:
                 
         tracker = {
             "name": info.get("name", mod_id),
+            "category": info.get("category", "General"),
             "files": files,
             "size": total_size
         }
@@ -1757,6 +1969,7 @@ class FFXModManagerGUI:
                     "Desc": info.get("description", ""),
                     "Authors": info.get("author", info.get("creator", "Unknown")),
                     "Version": info.get("version", "1.0"),
+                    "Category": info.get("category", "General"),
                     "Link": "",
                     "Dependencies": [],
                     "LoadAfter": [],
@@ -2156,6 +2369,7 @@ class FFXModManagerGUI:
             "author": mod_creator,
             "version": mod_version,
             "description": mod_desc,
+            "category": "General",
             "files": mod_files
         }
         
@@ -2800,8 +3014,30 @@ class FFXModManagerGUI:
             with open(loadorder_path, "w", encoding="utf-8") as f:
                 for mod_id in order_list:
                     f.write(f"{mod_id}\n")
+            
+            # Keep manifests in sync with the physical load order
+            self.sync_fahrenheit_manifests(order_list)
         except Exception as e:
             self.log(f"Failed to write loadorder file: {e}", "error")
+
+    def sync_fahrenheit_manifests(self, order_list):
+        if not getattr(self, "is_fahrenheit_mode", False):
+            return
+            
+        for i, mod_id in enumerate(order_list):
+            manifest_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, f"{mod_id}.manifest.json")
+            if os.path.exists(manifest_path):
+                try:
+                    with open(manifest_path, "r", encoding="utf-8") as f:
+                        manifest = json.load(f)
+                    
+                    # Update LoadAfter to match current GUI position
+                    manifest["LoadAfter"] = order_list[:i]
+                    
+                    with open(manifest_path, "w", encoding="utf-8") as f:
+                        json.dump(manifest, f, indent=2)
+                except Exception:
+                    pass
 
     def add_to_load_order(self, mod_id):
         order = self.read_load_order()
@@ -2961,7 +3197,8 @@ class FFXModManagerGUI:
             
         pid = None
         while True:
-            exe_name = pe32.szExeFile.decode('utf-8', errors='ignore')
+            # Clean null-terminated byte string and compare
+            exe_name = pe32.szExeFile.split(b'\0')[0].decode('utf-8', errors='ignore')
             if exe_name.lower() == process_name.lower():
                 pid = pe32.th32ProcessID
                 break
@@ -2972,7 +3209,7 @@ class FFXModManagerGUI:
         return pid
 
     def is_process_running(self, pid):
-        if not kernel32:
+        if not kernel32 or not pid:
             return False
             
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
@@ -2980,6 +3217,7 @@ class FFXModManagerGUI:
         
         hProcess = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
         if not hProcess:
+            # Check if it failed because the process is already gone
             return False
             
         exit_code = ctypes.c_ulong()
