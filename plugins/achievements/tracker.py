@@ -258,6 +258,9 @@ class AchievementsOverlayApp:
         self.root = tk.Tk()
         self.root.withdraw()
         
+        self.last_config_check = 0
+        self.load_overlay_config()
+        
         self.root.after(100, self.check_hotkey_and_game)
         
         self.scanner_thread = threading.Thread(target=self.ram_scanner_loop, daemon=True)
@@ -266,8 +269,58 @@ class AchievementsOverlayApp:
     def is_game_running(self):
         exit_code = ctypes.c_ulong()
         if kernel32.GetExitCodeProcess(self.hProcess, ctypes.byref(exit_code)):
-            return exit_code.value == 259  # STILL_ACTIVE
-        return False
+            return exit_code.value == 259  # STILL_ACT    def load_overlay_config(self):
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_path = os.path.join(base_dir, "overlay_config.json")
+        
+        self.overlay_opacity = 0.9
+        self.overlay_position = "Top-Right"
+        self.overlay_scale = 1.0
+        self.overlay_hotkey = 0x77  # Default VK_F8 = 0x77
+        self.config_mtime = 0
+        
+        self.read_config_file()
+
+    def read_config_file(self):
+        if os.path.exists(self.config_path):
+            try:
+                self.config_mtime = os.path.getmtime(self.config_path)
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                self.overlay_opacity = float(cfg.get("opacity", 0.9))
+                self.overlay_position = cfg.get("position", "Top-Right")
+                self.overlay_scale = float(cfg.get("scale", 1.0))
+                self.overlay_hotkey = int(cfg.get("hotkey_vk", 0x77))
+            except Exception as e:
+                print(f"Error reading overlay config: {e}", flush=True)
+
+    def check_and_reload_config(self):
+        self.last_config_check = time.time()
+        if os.path.exists(self.config_path):
+            try:
+                current_mtime = os.path.getmtime(self.config_path)
+                if current_mtime != self.config_mtime:
+                    print("Overlay config changed on disk. Reloading settings...", flush=True)
+                    old_opacity = self.overlay_opacity
+                    old_position = self.overlay_position
+                    old_scale = self.overlay_scale
+                    old_hotkey = self.overlay_hotkey
+                    
+                    self.read_config_file()
+                    
+                    if self.overlay_window:
+                        if self.overlay_opacity != old_opacity:
+                            self.overlay_window.wm_attributes("-alpha", self.overlay_opacity)
+                        if self.overlay_position != old_position or self.overlay_scale != old_scale:
+                            game_hwnd = find_game_hwnd(self.pid)
+                            self.sync_position(game_hwnd)
+                        if self.overlay_scale != old_scale:
+                            self.reload_and_draw_achievements()
+            except Exception as e:
+                print(f"Error checking overlay config: {e}", flush=True)
 
     def check_hotkey_and_game(self):
         if not self.is_game_running():
@@ -275,11 +328,15 @@ class AchievementsOverlayApp:
             self.root.quit()
             return
             
+        # Check config updates periodically
+        if time.time() - self.last_config_check > 2.0:
+            self.check_and_reload_config()
+            
         game_hwnd = find_game_hwnd(self.pid)
         foreground_hwnd = user32.GetForegroundWindow()
         is_game_focused = (game_hwnd is not None) and (foreground_hwnd == game_hwnd)
         
-        f8_state = user32.GetAsyncKeyState(0x77) & 0x8000  # VK_F8 = 0x77
+        f8_state = user32.GetAsyncKeyState(self.overlay_hotkey) & 0x8000
         if f8_state:
             if not self.f8_was_pressed:
                 self.f8_was_pressed = True
@@ -313,8 +370,8 @@ class AchievementsOverlayApp:
         self.overlay_window = tk.Toplevel(self.root)
         self.overlay_window.overrideredirect(True)
         self.overlay_window.wm_attributes("-topmost", True)
-        self.overlay_window.wm_attributes("-disabled", True)  # Make click-through
-        self.overlay_window.wm_attributes("-alpha", 0.9)
+        self.overlay_window.wm_attributes("-disabled", True)
+        self.overlay_window.wm_attributes("-alpha", self.overlay_opacity)
         self.overlay_window.configure(bg="#121212")
         
         self.content_frame = tk.Frame(self.overlay_window, bg="#121212", padx=15, pady=15)
@@ -327,13 +384,24 @@ class AchievementsOverlayApp:
             rect = get_game_client_rect_screen(game_hwnd)
             if rect:
                 x, y, w, h = rect
-                overlay_w = 340
+                overlay_w = int(340 * self.overlay_scale)
                 overlay_h = h - 20
-                overlay_x = x + w - overlay_w - 10
-                overlay_y = y + 10
-                
                 if overlay_h < 200:
                     overlay_h = 200
+                    
+                if self.overlay_position == "Top-Left":
+                    overlay_x = x + 10
+                    overlay_y = y + 10
+                elif self.overlay_position == "Bottom-Left":
+                    overlay_x = x + 10
+                    overlay_y = y + h - overlay_h - 10
+                elif self.overlay_position == "Bottom-Right":
+                    overlay_x = x + w - overlay_w - 10
+                    overlay_y = y + h - overlay_h - 10
+                else: # Default Top-Right
+                    overlay_x = x + w - overlay_w - 10
+                    overlay_y = y + 10
+                    
                 self.overlay_window.geometry(f"{overlay_w}x{overlay_h}+{overlay_x}+{overlay_y}")
 
     def sync_position_loop(self):
@@ -351,9 +419,15 @@ class AchievementsOverlayApp:
             
         self.achievements_data = load_achievements_status(self.json_path)
         
+        sz_title = int(12 * self.overlay_scale)
+        sz_prog = int(9 * self.overlay_scale)
+        sz_icon = int(13 * self.overlay_scale)
+        sz_c_title = int(9 * self.overlay_scale)
+        sz_c_status = int(7 * self.overlay_scale)
+        
         lbl_title = tk.Label(
             self.content_frame, text="🏆 CUSTOM ACHIEVEMENTS", 
-            bg="#121212", fg="#3b82f6", font=("Segoe UI", 12, "bold")
+            bg="#121212", fg="#3b82f6", font=("Segoe UI", sz_title, "bold")
         )
         lbl_title.pack(anchor="w", pady=(0, 5))
         
@@ -366,7 +440,7 @@ class AchievementsOverlayApp:
         
         lbl_prog = tk.Label(
             self.content_frame, text=f"{unlocked_count} / {total_count} Unlocked ({pct}%)",
-            bg="#121212", fg="#10b981", font=("Segoe UI", 9, "bold")
+            bg="#121212", fg="#10b981", font=("Segoe UI", sz_prog, "bold")
         )
         lbl_prog.pack(anchor="w", pady=(0, 2))
         
@@ -396,7 +470,7 @@ class AchievementsOverlayApp:
             if not is_unlocked:
                 icon_char = "🔒"
                 
-            lbl_icon = tk.Label(card, text=icon_char, bg=card_bg, fg=text_color, font=("Segoe UI", 13))
+            lbl_icon = tk.Label(card, text=icon_char, bg=card_bg, fg=text_color, font=("Segoe UI", sz_icon))
             lbl_icon.pack(side="left", padx=(10, 8))
             
             txt_frame = tk.Frame(card, bg=card_bg)
@@ -404,7 +478,7 @@ class AchievementsOverlayApp:
             
             lbl_c_title = tk.Label(
                 txt_frame, text=title_text, bg=card_bg, fg=text_color, 
-                font=("Segoe UI", 9, "bold"), anchor="w"
+                font=("Segoe UI", sz_c_title, "bold"), anchor="w"
             )
             lbl_c_title.pack(anchor="w", pady=(1, 0))
             
@@ -418,7 +492,7 @@ class AchievementsOverlayApp:
                 
             lbl_c_status = tk.Label(
                 txt_frame, text=status_text, bg=card_bg, fg=status_color, 
-                font=("Segoe UI", 7, "bold"), anchor="w"
+                font=("Segoe UI", sz_c_status, "bold"), anchor="w"
             )
             lbl_c_status.pack(anchor="w", pady=(0, 1))
 

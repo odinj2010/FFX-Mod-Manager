@@ -68,30 +68,6 @@ class FFXModManagerGUI:
                 "success_color": "#10b981",
                 "error_color": "#ef4444"
             },
-            "Spira Cobalt": {
-                "name": "Spira Cobalt",
-                "bg_color": "#0a1128",
-                "card_color": "#001f54",
-                "accent_color": "#00b4d8",
-                "accent_hover": "#90e0ef",
-                "text_color": "#f8f9fa",
-                "text_dim": "#93b7be",
-                "border_color": "#0077b6",
-                "success_color": "#06d6a0",
-                "error_color": "#ff5a5f"
-            },
-            "Auron Crimson": {
-                "name": "Auron Crimson",
-                "bg_color": "#160f0f",
-                "card_color": "#2d1717",
-                "accent_color": "#ef4444",
-                "accent_hover": "#f87171",
-                "text_color": "#f3f4f6",
-                "text_dim": "#9ca3af",
-                "border_color": "#4a2222",
-                "success_color": "#10b981",
-                "error_color": "#ef4444"
-            },
             "Yuna White": {
                 "name": "Yuna White",
                 "bg_color": "#f3f4f6",
@@ -241,6 +217,7 @@ class FFXModManagerGUI:
         
         # Apply the startup theme fully and load mod list
         self.apply_theme(self.current_theme_name)
+        self.update_profile_dropdown()
         
         # Auto-import loose files check
         self.root.after(500, self.auto_import_loose_files)
@@ -602,12 +579,18 @@ class FFXModManagerGUI:
         # Standard Pages Frames
         self.page_mods_frame = tk.Frame(self.content_container, bg=self.bg_color)
         self.page_settings_frame = tk.Frame(self.content_container, bg=self.bg_color)
+        self.page_plugins_browser_frame = tk.Frame(self.content_container, bg=self.bg_color)
         
         # Register standard pages
         self.pages["mods"] = {
             "name": "Mods",
             "frame": self.page_mods_frame,
             "icon": "📁"
+        }
+        self.pages["plugins_browser"] = {
+            "name": "Plugin Browser",
+            "frame": self.page_plugins_browser_frame,
+            "icon": "🔌"
         }
         self.pages["settings"] = {
             "name": "Settings",
@@ -617,6 +600,7 @@ class FFXModManagerGUI:
         
         # Add sidebar navigation options for standard pages
         self.add_sidebar_nav_button("mods", "Mods", "📁")
+        self.add_sidebar_nav_button("plugins_browser", "Plugin Browser", "🔌")
         
         # ----------------------------------------------------
         # PAGE 1: MODS PANEL LAYOUT
@@ -631,6 +615,32 @@ class FFXModManagerGUI:
         lbl_mod = tk.Label(left_frame, text="Available Mods", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
         lbl_mod._is_title = True
         lbl_mod.pack(anchor="w", pady=(0, 5))
+        
+        # Profile management row
+        profile_row = ttk.Frame(left_frame)
+        profile_row.pack(fill="x", pady=(0, 10))
+        
+        lbl_prof = ttk.Label(profile_row, text="Profile:")
+        lbl_prof.pack(side="left", padx=(0, 5))
+        
+        self.profile_combobox = ttk.Combobox(profile_row, values=["Default"], state="readonly", width=15)
+        self.profile_combobox.set("Default")
+        self.profile_combobox.pack(side="left", padx=(0, 5))
+        
+        btn_apply_prof = tk.Button(profile_row, text="✔️ Apply", command=self.apply_profile, bg=self.card_color,
+                                   fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
+        btn_apply_prof.pack(side="left", padx=(0, 2))
+        self.bind_hover(btn_apply_prof)
+        
+        btn_save_prof = tk.Button(profile_row, text="💾 Save", command=self.save_profile, bg=self.card_color,
+                                  fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
+        btn_save_prof.pack(side="left", padx=(0, 2))
+        self.bind_hover(btn_save_prof)
+        
+        btn_del_prof = tk.Button(profile_row, text="🗑️", command=self.delete_profile, bg=self.card_color,
+                                 fg=self.error_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
+        btn_del_prof.pack(side="left")
+        self.bind_hover(btn_del_prof)
         
         # Scrollable Mod Cards Frame
         cards_pane = ttk.Frame(left_frame)
@@ -684,6 +694,12 @@ class FFXModManagerGUI:
         btn_new._is_primary = True
         btn_new.pack(fill="x", pady=2)
         self.bind_hover(btn_new, is_primary=True)
+        
+        btn_import = tk.Button(btn_p_frame, text="📥 Import Mod Archive (.zip / .rar)", command=self.import_zip_mod, bg=self.accent_color,
+                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
+        btn_import._is_primary = True
+        btn_import.pack(fill="x", pady=2)
+        self.bind_hover(btn_import, is_primary=True)
         
         btn_del = tk.Button(btn_p_frame, text="Delete Mod From Disk", command=self.delete_mod, bg=self.error_color,
                             fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626")
@@ -831,6 +847,11 @@ class FFXModManagerGUI:
         self.theme_selector.pack(side="left", padx=(0, 15))
         self.theme_selector.bind("<<ComboboxSelected>>", lambda e: self.apply_theme(self.theme_selector.get()))
         
+        btn_create_theme = tk.Button(theme_row, text="🎨 Create Custom Theme", command=self.open_theme_creator, bg=self.bg_color,
+                                     fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        btn_create_theme.pack(side="left")
+        self.bind_hover(btn_create_theme)
+        
         btn_open_themes = tk.Button(theme_card, text="📂 Open Custom Themes Folder", command=self.open_themes_folder, bg=self.bg_color,
                                     fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
         btn_open_themes.pack(anchor="w", pady=(15, 0))
@@ -859,6 +880,9 @@ class FFXModManagerGUI:
         log_scroll.pack(fill="y", side="right")
         self.txt_log.config(yscrollcommand=log_scroll.set)
         
+        # Build Plugins Browser page UI
+        self.create_plugins_browser_page()
+
         # Add Settings button to navigation drawer
         self.add_sidebar_nav_button("settings", "Settings", "⚙️", side="bottom")
         
@@ -910,6 +934,10 @@ class FFXModManagerGUI:
             os.startfile(themes_dir)
         else:
             subprocess.Popen(["xdg-open", themes_dir])
+
+    def open_theme_creator(self):
+        ThemeCreatorDialog(self)
+
 
 
     def update_loader_status_ui(self):
@@ -1467,37 +1495,47 @@ class FFXModManagerGUI:
         except Exception as e:
             self.log(f"Failed to delete mod folder: {e}", "error")
 
-    def enable_mod(self):
-        mod_id = self.selected_mod_id
-        if not mod_id:
-            messagebox.showwarning("Warning", "Select a mod to enable.")
-            return
-            
-        if self.get_mod_status(mod_id) == "Enabled":
-            messagebox.showinfo("Status", "Mod is already enabled.")
-            return
-            
-        self.log(f"Enabling mod '{mod_id}'...")
+    def find_active_file_owner(self, rel_path, exclude_mod_id=None):
+        if not os.path.exists(self.mods_dir):
+            return None
+        rel_norm = os.path.normpath(rel_path).lower()
+        for f in os.listdir(self.mods_dir):
+            if f.endswith(".ffxmod") or f.endswith(".json"):
+                other_mod_id = f[:-7] if f.endswith(".ffxmod") else f[:-5]
+                if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
+                    continue
+                tracker_path = os.path.join(self.mods_dir, f)
+                try:
+                    with open(tracker_path, "r", encoding="utf-8") as tf:
+                        track = decode_metadata(tf.read())
+                    track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
+                    if rel_norm in track_files:
+                        return other_mod_id
+                except Exception:
+                    pass
+        return None
+
+    def enable_mod_logic(self, mod_id):
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
         info_path = os.path.join(mod_repo, "modinfo.ffxmod")
         if not os.path.exists(info_path):
             info_path = os.path.join(mod_repo, "modinfo.json")
             
         if not os.path.exists(info_path):
-            self.log("Error: Mod metadata file 'modinfo.ffxmod' is missing.", "error")
-            return
+            self.log(f"Error: Mod metadata file 'modinfo.ffxmod' is missing for mod '{mod_id}'.", "error")
+            return False
             
         try:
-            with open(info_path, "r") as f:
+            with open(info_path, "r", encoding="utf-8") as f:
                 info = decode_metadata(f.read())
         except Exception as e:
-            self.log(f"Error reading modinfo: {e}", "error")
-            return
+            self.log(f"Error reading modinfo for mod '{mod_id}': {e}", "error")
+            return False
             
         files = info.get("files", [])
         if not files:
-            messagebox.showwarning("Warning", "Mod is empty. No files to move.")
-            return
+            self.log(f"Warning: Mod '{mod_id}' is empty. No files to move.", "error")
+            return False
             
         success_count = 0
         total_size = 0
@@ -1509,27 +1547,42 @@ class FFXModManagerGUI:
                 try:
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
                     if os.path.lexists(dest):
-                        try:
-                            if os.path.isdir(dest) and not os.path.islink(dest):
-                                shutil.rmtree(dest)
-                            else:
-                                os.remove(dest)
-                        except Exception:
-                            pass
+                        # Find owner of the active file to avoid losing it
+                        owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
+                        if owner:
+                            owner_repo = os.path.join(self.mods_disabled_dir, owner)
+                            owner_dest = os.path.join(owner_repo, rel)
+                            try:
+                                os.makedirs(os.path.dirname(owner_dest), exist_ok=True)
+                                if os.path.lexists(owner_dest):
+                                    if os.path.isdir(owner_dest) and not os.path.islink(owner_dest):
+                                        shutil.rmtree(owner_dest)
+                                    else:
+                                        os.remove(owner_dest)
+                                shutil.move(dest, owner_dest)
+                                self.log(f"[Conflict] Moved active file '{rel}' back to '{owner}' repository before overwriting.", "info")
+                            except Exception as ce:
+                                self.log(f"[Conflict Error] Failed to backup conflicting file '{rel}' for '{owner}': {ce}", "error")
+                        else:
+                            try:
+                                if os.path.isdir(dest) and not os.path.islink(dest):
+                                    shutil.rmtree(dest)
+                                else:
+                                    os.remove(dest)
+                            except Exception:
+                                pass
                     shutil.move(src, dest)
                     success_count += 1
                     total_size += os.path.getsize(dest)
                 except Exception as e:
                     self.log(f"Failed to move '{rel}' to active mods folder: {e}", "error")
             else:
-                # If the file is already in dest (e.g. from an import), count it
                 if os.path.exists(dest):
                     success_count += 1
                     total_size += os.path.getsize(dest)
                 else:
                     self.log(f"Warning: File missing in repository: '{rel}'", "error")
                 
-        # Create active mods tracker file
         tracker = {
             "name": info.get("name", mod_id),
             "files": files,
@@ -1537,9 +1590,8 @@ class FFXModManagerGUI:
         }
         try:
             tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-            with open(tracker_path, "w") as f:
+            with open(tracker_path, "w", encoding="utf-8") as f:
                 f.write(encode_metadata(tracker))
-            # Clean up old .json tracker if it exists
             old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
             if os.path.exists(old_tracker):
                 try:
@@ -1547,10 +1599,25 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
             self.log(f"Successfully enabled mod '{mod_id}' ({success_count} of {len(files)} files activated).", "success")
+            return True
+        except Exception as e:
+            self.log(f"Failed to write tracking file for mod '{mod_id}': {e}", "error")
+            return False
+
+    def enable_mod(self):
+        mod_id = self.selected_mod_id
+        if not mod_id:
+            messagebox.showwarning("Warning", "Select a mod to enable.")
+            return
+            
+        if self.get_mod_status(mod_id) == "Enabled":
+            messagebox.showinfo("Status", "Mod is already enabled.")
+            return
+            
+        self.log(f"Enabling mod '{mod_id}'...")
+        if self.enable_mod_logic(mod_id):
             self.scan_mods()
             self.select_mod(mod_id)
-        except Exception as e:
-            self.log(f"Failed to write tracking file: {e}", "error")
 
     def disable_mod(self):
         mod_id = self.selected_mod_id
@@ -1577,7 +1644,7 @@ class FFXModManagerGUI:
             return
             
         try:
-            with open(read_path, "r") as f:
+            with open(read_path, "r", encoding="utf-8") as f:
                 track = decode_metadata(f.read())
         except Exception as e:
             self.log(f"Error reading tracking file: {e}", "error")
@@ -1603,7 +1670,19 @@ class FFXModManagerGUI:
                             pass
                     shutil.move(dest, src_back)
                     remove_count += 1
-                    # Clean up empty parent directories in mods folder
+                    
+                    # Auto-Restore logic: Check if another active mod lists this file path
+                    other_owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
+                    if other_owner:
+                        other_src = os.path.join(self.mods_disabled_dir, other_owner, rel)
+                        if os.path.exists(other_src):
+                            try:
+                                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                                shutil.move(other_src, dest)
+                                self.log(f"[Conflict] Restored overwritten file '{rel}' from '{other_owner}' repository.", "info")
+                            except Exception as re:
+                                self.log(f"[Conflict Error] Failed to restore file '{rel}' for '{other_owner}': {re}", "error")
+                                
                     parent = os.path.dirname(dest)
                     while parent and parent != self.mods_dir:
                         if not os.listdir(parent):
@@ -1614,7 +1693,6 @@ class FFXModManagerGUI:
                 except Exception as e:
                     self.log(f"Failed to move back '{rel}': {e}", "error")
                     
-        # Remove tracking files
         try:
             if os.path.exists(tracker_path):
                 os.remove(tracker_path)
@@ -1623,6 +1701,545 @@ class FFXModManagerGUI:
             self.log(f"Successfully disabled mod '{mod_id}' (deactivated {remove_count} files).", "success")
         except Exception as e:
             self.log(f"Failed to delete tracking file: {e}", "error")
+
+    def update_profile_dropdown(self):
+        profiles = self.config.get("profiles", {})
+        names = sorted(list(profiles.keys()))
+        if not names:
+            names = ["Default"]
+        self.profile_combobox["values"] = names
+        current = self.profile_combobox.get()
+        if current not in names:
+            self.profile_combobox.set(names[0])
+
+    def save_profile(self):
+        from tkinter import simpledialog
+        name = simpledialog.askstring("Save Profile", "Enter a name for the new profile:")
+        if not name:
+            return
+        name = name.strip()
+        if not name:
+            return
+            
+        # Get all currently enabled mod IDs
+        enabled_mods = []
+        for mod_id in self.mod_list:
+            if self.get_mod_status(mod_id) == "Enabled":
+                enabled_mods.append(mod_id)
+                
+        if "profiles" not in self.config:
+            self.config["profiles"] = {}
+            
+        self.config["profiles"][name] = enabled_mods
+        self.save_config()
+        self.update_profile_dropdown()
+        self.profile_combobox.set(name)
+        self.log(f"Saved profile '{name}' with {len(enabled_mods)} active mods.", "success")
+
+    def apply_profile(self):
+        profile_name = self.profile_combobox.get()
+        if not profile_name:
+            return
+            
+        profiles = self.config.get("profiles", {})
+        if profile_name not in profiles:
+            if profile_name == "Default":
+                enabled_mods = []
+            else:
+                self.log(f"Profile '{profile_name}' not found.", "error")
+                return
+        else:
+            enabled_mods = profiles[profile_name]
+            
+        self.log(f"Applying profile '{profile_name}'...", "info")
+        
+        changed = False
+        for mod_id in self.mod_list:
+            is_enabled_now = (self.get_mod_status(mod_id) == "Enabled")
+            should_be_enabled = (mod_id in enabled_mods)
+            
+            if should_be_enabled and not is_enabled_now:
+                self.enable_mod_logic(mod_id)
+                changed = True
+            elif not should_be_enabled and is_enabled_now:
+                self.disable_mod_logic(mod_id)
+                changed = True
+                
+        if changed:
+            self.scan_mods()
+            if self.selected_mod_id:
+                self.select_mod(self.selected_mod_id)
+            else:
+                self.clear_metadata_fields()
+            self.log(f"Successfully applied profile '{profile_name}'.", "success")
+        else:
+            self.log(f"Profile '{profile_name}' is already active. No changes made.", "info")
+
+    def delete_profile(self):
+        profile_name = self.profile_combobox.get()
+        if not profile_name or profile_name == "Default":
+            messagebox.showwarning("Warning", "Cannot delete the Default profile.")
+            return
+            
+        if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete profile '{profile_name}'?"):
+            return
+            
+        profiles = self.config.get("profiles", {})
+        if profile_name in profiles:
+            del profiles[profile_name]
+            self.save_config()
+            self.update_profile_dropdown()
+            self.log(f"Deleted profile '{profile_name}'.", "success")
+
+    def import_zip_mod(self):
+        from tkinter import filedialog
+        import zipfile
+        import shutil
+        import re
+        
+        zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")])
+        if not zip_path:
+            return
+            
+        self.log(f"Scanning archive: {os.path.basename(zip_path)}...")
+        
+        # Create a temporary import directory
+        temp_dir = os.path.join(self.mods_disabled_dir, "_temp_import")
+        if os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        ext = os.path.splitext(zip_path)[1].lower()
+        if ext == ".zip":
+            try:
+                with zipfile.ZipFile(zip_path, "r") as z:
+                    z.extractall(temp_dir)
+            except Exception as e:
+                self.log(f"Failed to extract zip archive: {e}", "error")
+                if os.path.exists(temp_dir):
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except Exception:
+                        pass
+                return
+        elif ext == ".rar":
+            extracted = False
+            # Method 1: Check for 7-Zip
+            seven_zip_paths = [
+                r"C:\Program Files\7-Zip\7z.exe",
+                r"C:\Program Files (x86)\7-Zip\7z.exe"
+            ]
+            for sz_path in seven_zip_paths:
+                if os.path.exists(sz_path):
+                    try:
+                        import subprocess
+                        res = subprocess.run([sz_path, "x", zip_path, f"-o{temp_dir}", "-y"], capture_output=True)
+                        if res.returncode == 0:
+                            extracted = True
+                            self.log("Successfully extracted RAR archive using 7-Zip.")
+                            break
+                    except Exception:
+                        pass
+                        
+            # Method 2: Check for WinRAR
+            if not extracted:
+                winrar_paths = [
+                    r"C:\Program Files\WinRAR\UnRAR.exe",
+                    r"C:\Program Files\WinRAR\WinRAR.exe"
+                ]
+                for wr_path in winrar_paths:
+                    if os.path.exists(wr_path):
+                        try:
+                            import subprocess
+                            if "unrar" in wr_path.lower():
+                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
+                            else:
+                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
+                            if res.returncode == 0:
+                                extracted = True
+                                self.log("Successfully extracted RAR archive using WinRAR.")
+                                break
+                        except Exception:
+                            pass
+                            
+            # Method 3: Fall back to native tar.exe (Windows 10/11)
+            if not extracted:
+                try:
+                    import subprocess
+                    res = subprocess.run(["tar", "-xf", zip_path, "-C", temp_dir], capture_output=True)
+                    if res.returncode == 0:
+                        extracted = True
+                        self.log("Successfully extracted RAR archive using Windows tar.")
+                except Exception:
+                    pass
+                    
+            if not extracted:
+                self.log("Error: Failed to extract RAR archive. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
+                if os.path.exists(temp_dir):
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except Exception:
+                        pass
+                return
+        else:
+            self.log(f"Error: Unsupported archive format '{ext}'. Only .zip and .rar are supported.", "error")
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+            return
+            
+        # Analyze the extracted contents
+        # Strip single top-level folder wrapper if present
+        root_dir = temp_dir
+        subdirs = [x for x in os.listdir(temp_dir) if not x.startswith(".") and x != "__MACOSX"]
+        if len(subdirs) == 1 and os.path.isdir(os.path.join(temp_dir, subdirs[0])):
+            root_dir = os.path.join(temp_dir, subdirs[0])
+            
+        # Check for pre-existing metadata to enforce Credits Lock
+        meta_data = None
+        for inf in ["modinfo.ffxmod", "modinfo.json"]:
+            mpath = os.path.join(root_dir, inf)
+            if os.path.exists(mpath):
+                try:
+                    with open(mpath, "r", encoding="utf-8") as f:
+                        meta_data = decode_metadata(f.read())
+                    if meta_data and meta_data.get("name"):
+                        break
+                except Exception:
+                    pass
+                    
+        mod_name = ""
+        mod_creator = ""
+        mod_version = "1.0"
+        mod_desc = ""
+        
+        if meta_data and meta_data.get("name"):
+            # Existing mod metadata found! Credits Lock active.
+            mod_name = meta_data.get("name")
+            mod_creator = meta_data.get("author", meta_data.get("creator", "Unknown"))
+            mod_version = meta_data.get("version", "1.0")
+            mod_desc = meta_data.get("description", "")
+            self.log(f"Existing metadata detected. Mod: '{mod_name}' by '{mod_creator}' (Credits Locked).", "success")
+        else:
+            # No pre-existing metadata. Open popup dialog.
+            from tkinter import simpledialog
+            mod_name = simpledialog.askstring("Import Mod", "Enter Mod Name:")
+            if not mod_name:
+                shutil.rmtree(temp_dir)
+                return
+            mod_name = mod_name.strip()
+            if not mod_name:
+                shutil.rmtree(temp_dir)
+                return
+                
+            mod_creator = simpledialog.askstring("Import Mod", "Enter Creator/Author:") or "Unknown"
+            mod_creator = mod_creator.strip()
+            
+            mod_version = simpledialog.askstring("Import Mod", "Enter Version:", initialvalue="1.0") or "1.0"
+            mod_desc = simpledialog.askstring("Import Mod", "Enter Description:") or ""
+            
+        # Gather file list relative to the root_dir
+        mod_files = []
+        for r, d, fs in os.walk(root_dir):
+            for f in fs:
+                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                    continue
+                fpath = os.path.join(r, f)
+                rel = os.path.relpath(fpath, root_dir)
+                rel = rel.replace("\\", "/")
+                mod_files.append(rel)
+                
+        if not mod_files:
+            self.log("Error: Archive contains no mod files.", "error")
+            shutil.rmtree(temp_dir)
+            return
+            
+        info = {
+            "name": mod_name,
+            "author": mod_creator,
+            "version": mod_version,
+            "description": mod_desc,
+            "files": mod_files
+        }
+        
+        # Remove existing metadata files to write fresh ffxmod
+        for inf in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+            mpath = os.path.join(root_dir, inf)
+            if os.path.exists(mpath):
+                try:
+                    os.remove(mpath)
+                except Exception:
+                    pass
+                    
+        try:
+            with open(os.path.join(root_dir, "modinfo.ffxmod"), "w", encoding="utf-8") as f:
+                f.write(encode_metadata(info))
+        except Exception as e:
+            self.log(f"Failed to write metadata: {e}", "error")
+            shutil.rmtree(temp_dir)
+            return
+            
+        # Move to final mods_disabled folder
+        sanitized_folder = re.sub(r'[^a-zA-Z0-9_-]', '_', mod_name).lower()
+        final_dest = os.path.join(self.mods_disabled_dir, sanitized_folder)
+        
+        if os.path.exists(final_dest):
+            if not messagebox.askyesno("Confirm Overwrite", f"Mod folder '{sanitized_folder}' already exists. Overwrite?"):
+                counter = 1
+                while os.path.exists(os.path.join(self.mods_disabled_dir, f"{sanitized_folder}_{counter}")):
+                    counter += 1
+                final_dest = os.path.join(self.mods_disabled_dir, f"{sanitized_folder}_{counter}")
+            else:
+                try:
+                    shutil.rmtree(final_dest)
+                except Exception:
+                    pass
+                    
+        try:
+            shutil.move(root_dir, final_dest)
+            self.log(f"Successfully imported mod '{mod_name}' to repository folder '{os.path.basename(final_dest)}'.", "success")
+        except Exception as e:
+            self.log(f"Failed to move imported mod to repository: {e}", "error")
+            
+        if os.path.exists(temp_dir):
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+                
+        self.scan_mods()
+
+    def create_plugins_browser_page(self):
+        frame = self.page_plugins_browser_frame
+        frame.config(padx=15, pady=15)
+        
+        lbl_title = tk.Label(frame, text="🔌 Plugin Browser", font=("Segoe UI", 14, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_title._is_title = True
+        lbl_title.pack(anchor="w", pady=(0, 15))
+        
+        self.plugins_list_container = ttk.Frame(frame)
+        self.plugins_list_container.pack(fill="both", expand=True)
+        
+        self.plugins_canvas = tk.Canvas(self.plugins_list_container, bg=self.bg_color, highlightthickness=0, borderwidth=0)
+        self.plugins_scrollbar = ttk.Scrollbar(self.plugins_list_container, orient="vertical", command=self.plugins_canvas.yview)
+        
+        self.plugins_grid = ttk.Frame(self.plugins_canvas)
+        self.plugins_canvas.configure(yscrollcommand=self.plugins_scrollbar.set)
+        
+        self.plugins_scrollbar.pack(side="right", fill="y")
+        self.plugins_canvas.pack(side="left", fill="both", expand=True)
+        
+        self.plugins_canvas_window = self.plugins_canvas.create_window((0, 0), window=self.plugins_grid, anchor="nw")
+        
+        def on_plugins_configure(event):
+            self.plugins_canvas.configure(scrollregion=self.plugins_canvas.bbox("all"))
+        self.plugins_grid.bind("<Configure>", on_plugins_configure)
+        
+        def on_plugins_canvas_configure(event):
+            self.plugins_canvas.itemconfig(self.plugins_canvas_window, width=event.width)
+        self.plugins_canvas.bind("<Configure>", on_plugins_canvas_configure)
+        
+        def _on_plugins_mousewheel(event):
+            self.plugins_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        def bind_plugins_mouse(event):
+            self.plugins_canvas.bind_all("<MouseWheel>", _on_plugins_mousewheel)
+        def unbind_plugins_mouse(event):
+            self.plugins_canvas.unbind_all("<MouseWheel>")
+        self.plugins_canvas.bind("<Enter>", bind_plugins_mouse)
+        self.plugins_canvas.bind("<Leave>", unbind_plugins_mouse)
+        
+        self.btn_refresh_plugins = tk.Button(frame, text="🔄 Refresh Plugins List", command=self.refresh_plugins_list, bg=self.card_color,
+                                            fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        self.btn_refresh_plugins.pack(anchor="w", pady=(10, 0))
+        self.bind_hover(self.btn_refresh_plugins)
+        
+        self.refresh_plugins_list()
+
+    def refresh_plugins_list(self):
+        for widget in self.plugins_grid.winfo_children():
+            widget.destroy()
+            
+        lbl_loading = tk.Label(self.plugins_grid, text="Fetching plugin index...", font=("Segoe UI", 10, "italic"), fg=self.text_dim, bg=self.bg_color)
+        lbl_loading.pack(anchor="w", pady=10)
+        self.root.update()
+        
+        default_plugins = []
+        plugins_list = default_plugins
+        import urllib.request
+        try:
+            req = urllib.request.Request(
+                "https://raw.githubusercontent.com/odinj2010/FFX-Mod-Manager/main/plugins.json",
+                headers={'User-Agent': 'Mozilla/5.0'}
+            )
+            with urllib.request.urlopen(req, timeout=3.0) as response:
+                content = response.read().decode('utf-8')
+                fetched = json.loads(content)
+                if isinstance(fetched, list) and len(fetched) > 0:
+                    plugins_list = fetched
+                    self.log("Successfully fetched remote plugin manifest.", "success")
+        except Exception as e:
+            self.log(f"Offline Mode: No plugin manifest available. ({e})", "info")
+            
+        lbl_loading.destroy()
+        
+        if not plugins_list:
+            lbl_no_plugins = tk.Label(self.plugins_grid, text="No plugins available. Verify your internet connection or check back later.", font=("Segoe UI", 10, "italic"), fg=self.text_dim, bg=self.bg_color)
+            lbl_no_plugins._is_muted = True
+            lbl_no_plugins.pack(anchor="w", pady=10)
+            self.update_widget_colors(self.plugins_grid)
+            return
+        
+        for idx, plugin in enumerate(plugins_list):
+            p_id = plugin["id"]
+            name = plugin["name"]
+            creator = plugin["creator"]
+            version = plugin["version"]
+            desc = plugin["description"]
+            icon = plugin.get("icon", "🔌")
+            url = plugin["download_url"]
+            
+            card = tk.Frame(self.plugins_grid, bd=1, relief="solid", highlightthickness=0, bg=self.card_color, padx=15, pady=15)
+            card._is_card = True
+            card.pack(fill="x", pady=6, padx=5)
+            
+            title_row = ttk.Frame(card)
+            title_row.pack(fill="x", pady=(0, 5))
+            
+            lbl_p_name = tk.Label(title_row, text=f"{icon}  {name}  (v{version})", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+            lbl_p_name._is_title = True
+            lbl_p_name.pack(side="left")
+            
+            lbl_p_creator = tk.Label(title_row, text=f"by {creator}", font=("Segoe UI", 9, "italic"), fg=self.text_dim, bg=self.card_color)
+            lbl_p_creator.pack(side="left", padx=15)
+            
+            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=500, justify="left", anchor="w")
+            lbl_p_desc.pack(fill="x", pady=(0, 10))
+            
+            is_installed = False
+            if getattr(sys, 'frozen', False):
+                base_dir = os.path.dirname(sys.executable)
+            else:
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+            p_dir = os.path.join(base_dir, "plugins", p_id)
+            if os.path.exists(os.path.join(p_dir, "plugin.json")):
+                is_installed = True
+            
+            btn_text = "🔄 Reinstall" if is_installed else "📥 Install Plugin"
+            btn_state = "normal"
+            btn_bg = self.border_color if is_installed else self.accent_color
+            
+            btn_action = tk.Button(card, text=btn_text, state=btn_state, bg=btn_bg, fg="white",
+                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
+            btn_action.pack(anchor="e")
+            if btn_state == "normal":
+                btn_action.config(command=lambda pid=p_id, dl_url=url, btn=btn_action: self.install_plugin(pid, dl_url, btn))
+                self.bind_hover(btn_action, is_primary=(not is_installed))
+                
+        self.update_widget_colors(self.plugins_grid)
+
+    def install_plugin(self, plugin_id, download_url, button):
+        if not download_url:
+            self.log(f"Error: Invalid download URL for plugin '{plugin_id}'.", "error")
+            return
+            
+        button.config(text="Downloading...", state="disabled")
+        self.root.update()
+        
+        import threading
+        t = threading.Thread(target=self.download_plugin_async, args=(plugin_id, download_url, button))
+        t.daemon = True
+        t.start()
+
+    def download_plugin_async(self, plugin_id, download_url, button):
+        import urllib.request
+        import zipfile
+        import shutil
+        
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        plugins_dir = os.path.join(base_dir, "plugins")
+        os.makedirs(plugins_dir, exist_ok=True)
+        
+        zip_temp_path = os.path.join(plugins_dir, f"{plugin_id}_download.zip")
+        dest_plugin_dir = os.path.join(plugins_dir, plugin_id)
+        
+        try:
+            self.log(f"Downloading plugin zip from {download_url}...", "info")
+            req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response, open(zip_temp_path, "wb") as out_file:
+                shutil.copyfileobj(response, out_file)
+                
+            self.log(f"Extracting plugin '{plugin_id}'...", "info")
+            if os.path.exists(dest_plugin_dir):
+                try:
+                    shutil.rmtree(dest_plugin_dir)
+                except Exception:
+                    pass
+            os.makedirs(dest_plugin_dir, exist_ok=True)
+            
+            with zipfile.ZipFile(zip_temp_path, "r") as z:
+                z.extractall(dest_plugin_dir)
+                
+            # Auto-unwrap if zip files were compressed inside a single wrapper folder
+            try:
+                extracted_items = os.listdir(dest_plugin_dir)
+                if len(extracted_items) == 1:
+                    sub_dir = os.path.join(dest_plugin_dir, extracted_items[0])
+                    if os.path.isdir(sub_dir) and (os.path.exists(os.path.join(sub_dir, "plugin.json")) or os.path.exists(os.path.join(sub_dir, "plugin.JSON"))):
+                        self.log(f"Unwrapping nested plugin folder '{extracted_items[0]}'...", "info")
+                        for item in os.listdir(sub_dir):
+                            shutil.move(os.path.join(sub_dir, item), os.path.join(dest_plugin_dir, item))
+                        try:
+                            os.rmdir(sub_dir)
+                        except Exception:
+                            pass
+            except Exception as ue:
+                self.log(f"Warning during plugin folder unwrapping: {ue}", "error")
+                
+            if os.path.exists(zip_temp_path):
+                os.remove(zip_temp_path)
+                
+            self.log(f"Plugin '{plugin_id}' installed successfully! Reloading plugins...", "success")
+            self.root.after(100, self.reload_plugins_ui, button)
+            
+        except Exception as e:
+            self.log(f"Failed to download or install plugin '{plugin_id}': {e}", "error")
+            if os.path.exists(zip_temp_path):
+                try:
+                    os.remove(zip_temp_path)
+                except Exception:
+                    pass
+            self.root.after(100, lambda: button.config(text="❌ Failed. Retry", state="normal"))
+
+    def reload_plugins_ui(self, button):
+        plugin_keys = [k for k in self.pages.keys() if k.startswith("plugin_")]
+        for pk in plugin_keys:
+            btn = self.sidebar_buttons.get(pk)
+            if btn:
+                try:
+                    btn.destroy()
+                except Exception:
+                    pass
+                del self.sidebar_buttons[pk]
+            frame = self.pages[pk].get("frame")
+            if frame:
+                try:
+                    frame.destroy()
+                except Exception:
+                    pass
+            del self.pages[pk]
+            
+        self.load_plugins()
+        self.apply_theme(self.current_theme_name)
+        button.config(text="🔄 Reinstall", state="normal", bg=self.border_color)
+        self.bind_hover(button, is_primary=False)
 
     def resolve_mod_relative_path(self, abs_path):
         abs_path = abs_path.replace("\\", "/")
@@ -2216,6 +2833,178 @@ class FFXModManagerGUI:
                             self.log(f"Failed to load plugin from '{d}': {e}", "error")
         except Exception as e:
             self.log(f"Error scanning plugins: {e}", "error")
+
+
+class ThemeCreatorDialog:
+    def __init__(self, manager):
+        self.manager = manager
+        self.dialog = tk.Toplevel(manager.root)
+        self.dialog.title("Create Custom Theme")
+        self.dialog.geometry("700x520")
+        self.dialog.configure(bg=manager.bg_color)
+        self.dialog.transient(manager.root)
+        self.dialog.grab_set()
+        
+        # Color fields
+        self.colors = {
+            "bg_color": tk.StringVar(value=manager.bg_color),
+            "card_color": tk.StringVar(value=manager.card_color),
+            "accent_color": tk.StringVar(value=manager.accent_color),
+            "accent_hover": tk.StringVar(value=manager.accent_hover),
+            "text_color": tk.StringVar(value=manager.text_color),
+            "text_dim": tk.StringVar(value=manager.text_dim),
+            "border_color": tk.StringVar(value=manager.border_color),
+            "success_color": tk.StringVar(value=manager.success_color),
+            "error_color": tk.StringVar(value=manager.error_color)
+        }
+        
+        self.theme_name_var = tk.StringVar(value="My Custom Theme")
+        self.create_widgets()
+        
+    def create_widgets(self):
+        main_pane = tk.Frame(self.dialog, bg=self.manager.bg_color, padx=15, pady=15)
+        main_pane.pack(fill="both", expand=True)
+        
+        left_frame = tk.Frame(main_pane, bg=self.manager.bg_color)
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 15))
+        
+        right_frame = tk.Frame(main_pane, bg=self.manager.bg_color, width=280)
+        right_frame.pack(side="right", fill="both", expand=False)
+        
+        # Form: Theme Name
+        tk.Label(left_frame, text="Theme Name:", font=("Segoe UI", 10, "bold"), bg=self.manager.bg_color, fg=self.manager.text_color).grid(row=0, column=0, sticky="w", pady=5)
+        ent_name = ttk.Entry(left_frame, textvariable=self.theme_name_var, width=22)
+        ent_name.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        row_idx = 1
+        for key, var in self.colors.items():
+            lbl_name = key.replace("_", " ").title() + ":"
+            tk.Label(left_frame, text=lbl_name, bg=self.manager.bg_color, fg=self.manager.text_color).grid(row=row_idx, column=0, sticky="w", pady=4)
+            
+            color_input_frame = tk.Frame(left_frame, bg=self.manager.bg_color)
+            color_input_frame.grid(row=row_idx, column=1, sticky="w", padx=5, pady=4)
+            
+            ent_val = ttk.Entry(color_input_frame, textvariable=var, width=10)
+            ent_val.pack(side="left", padx=(0, 5))
+            
+            # Trace changes
+            var.trace_add("write", lambda *args, k=key: self.update_preview())
+            
+            btn_pick = tk.Button(color_input_frame, width=3, height=1, relief="flat", bd=1)
+            btn_pick.pack(side="left")
+            btn_pick.config(command=lambda v=var, b=btn_pick: self.pick_color(v, b))
+            btn_pick.config(bg=var.get())
+            
+            setattr(self, f"btn_{key}", btn_pick)
+            row_idx += 1
+            
+        btn_frame = tk.Frame(left_frame, bg=self.manager.bg_color)
+        btn_frame.grid(row=row_idx, column=0, columnspan=2, sticky="w", pady=15)
+        
+        btn_save = tk.Button(btn_frame, text="Save & Apply", command=self.save_theme, bg=self.manager.success_color,
+                             fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=4)
+        btn_save.pack(side="left", padx=(0, 10))
+        self.manager.bind_hover(btn_save)
+        
+        btn_cancel = tk.Button(btn_frame, text="Cancel", command=self.dialog.destroy, bg=self.manager.card_color,
+                               fg=self.manager.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.manager.border_color, padx=12, pady=4)
+        btn_cancel.pack(side="left")
+        self.manager.bind_hover(btn_cancel)
+        
+        # Right Frame: Live Preview
+        lbl_prev_title = tk.Label(right_frame, text="Live Preview", font=("Segoe UI", 10, "bold"), bg=self.manager.bg_color, fg=self.manager.text_color)
+        lbl_prev_title.pack(anchor="w", pady=(0, 5))
+        
+        self.preview_area = tk.Frame(right_frame, bd=1, relief="solid", padx=10, pady=10)
+        self.preview_area.pack(fill="both", expand=True)
+        
+        self.prev_card = tk.Frame(self.preview_area, bd=1, relief="solid", padx=10, pady=10)
+        self.prev_card.pack(fill="x", pady=10)
+        
+        self.prev_lbl = tk.Label(self.prev_card, text="Sample Mod Title", font=("Segoe UI", 10, "bold"))
+        self.prev_lbl.pack(anchor="w")
+        
+        self.prev_desc = tk.Label(self.prev_card, text="This is a description of the mod.", font=("Segoe UI", 8))
+        self.prev_desc.pack(anchor="w", pady=(2, 5))
+        
+        self.prev_btn = tk.Button(self.prev_card, text="Sample Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
+        self.prev_btn.pack(fill="x")
+        
+        self.update_preview()
+        
+    def pick_color(self, var, btn):
+        from tkinter import colorchooser
+        color = colorchooser.askcolor(initialcolor=var.get(), parent=self.dialog)
+        if color[1]:
+            var.set(color[1])
+            btn.config(bg=color[1])
+            self.update_preview()
+            
+    def update_preview(self):
+        try:
+            bg = self.colors["bg_color"].get()
+            card = self.colors["card_color"].get()
+            accent = self.colors["accent_color"].get()
+            text = self.colors["text_color"].get()
+            dim = self.colors["text_dim"].get()
+            border = self.colors["border_color"].get()
+            
+            # Update picking buttons bg
+            for key, var in self.colors.items():
+                btn = getattr(self, f"btn_{key}", None)
+                if btn:
+                    try:
+                        btn.config(bg=var.get())
+                    except Exception:
+                        pass
+                        
+            # Update Preview area elements
+            self.preview_area.config(bg=bg, highlightbackground=border, highlightcolor=border)
+            self.prev_card.config(bg=card, highlightbackground=border, highlightcolor=border)
+            self.prev_lbl.config(bg=card, fg=text)
+            self.prev_desc.config(bg=card, fg=dim)
+            self.prev_btn.config(bg=accent, fg="white", activebackground=accent)
+        except Exception:
+            pass
+            
+    def save_theme(self):
+        import re
+        name = self.theme_name_var.get().strip()
+        if not name:
+            messagebox.showwarning("Warning", "Please enter a theme name.")
+            return
+            
+        tdata = {"name": name}
+        hex_pat = re.compile(r"^#[0-9a-fA-F]{6}$")
+        for key, var in self.colors.items():
+            val = var.get().strip()
+            if not hex_pat.match(val):
+                messagebox.showwarning("Warning", f"Invalid Hex color code for {key}: '{val}'")
+                return
+            tdata[key] = val
+            
+        slug = re.sub(r'[^a-zA-Z0-9_-]', '_', name).lower() + ".json"
+        
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        themes_dir = os.path.join(base_dir, "themes")
+        os.makedirs(themes_dir, exist_ok=True)
+        
+        path = os.path.join(themes_dir, slug)
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(tdata, f, indent=2)
+            self.manager.themes[name] = tdata
+            self.manager.theme_selector["values"] = list(self.manager.themes.keys())
+            self.manager.apply_theme(name)
+            self.manager.theme_selector.set(name)
+            self.manager.log(f"Successfully created and applied theme '{name}' (saved as {slug}).", "success")
+            self.dialog.destroy()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save theme file: {e}")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
