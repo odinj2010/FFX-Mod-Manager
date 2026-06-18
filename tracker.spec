@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['c:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Mod-Manager\\plugins\\achievements\\tracker.py'],
+    ['C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFXMM\\plugins\\walkthrough\\tracker.py'],
     pathex=[],
     binaries=[],
     datas=[],

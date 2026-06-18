@@ -1,7 +1,7 @@
 {
   "name": "Achievements",
   "icon": "🏆",
-  "version": "1.0",
+  "version": "1.1",
   "creator": "NfgOdin",
   "entry_point": "gui.AchievementsTab",
   "tracker_script": "tracker.py",

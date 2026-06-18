@@ -18,7 +18,7 @@ except Exception:
 
 
 CONFIG_FILE = "ffxmm_config.json"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 
 def encode_metadata(data_dict):
     try:
@@ -1102,6 +1102,15 @@ class FFXModManagerGUI:
             self.tree_files.delete(*self.tree_files.get_children())
             self.lbl_mod_title.config(text="Selected Mod: <None>")
             
+        # Notify plugins of mod list refresh
+        if hasattr(self, "plugins"):
+            for plugin in self.plugins:
+                if hasattr(plugin, "on_mods_refreshed"):
+                    try:
+                        plugin.on_mods_refreshed()
+                    except Exception as e:
+                        self.log(f"Error in plugin mods refreshed callback: {e}", "error")
+                        
         self.log("Mod list refreshed.", "info")
 
     def scan_mods(self):
@@ -2654,6 +2663,22 @@ class FFXModManagerGUI:
         dest_plugin_dir = os.path.join(plugins_dir, plugin_id)
         
         try:
+            # Terminate active tracker process if it's currently running
+            active_plugin = self.pages.get(f"plugin_{plugin_id}", {}).get("instance")
+            if active_plugin:
+                p = getattr(active_plugin, "_tracker_process", None)
+                if p:
+                    try:
+                        self.log(f"Terminating running tracker process for plugin '{plugin_id}' before reinstall...", "info")
+                        p.terminate()
+                        p.wait(timeout=1)
+                    except Exception:
+                        try:
+                            p.kill()
+                        except Exception:
+                            pass
+                    active_plugin._tracker_process = None
+
             self.log(f"Downloading plugin zip from {download_url}...", "info")
             req = urllib.request.Request(download_url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req) as response, open(zip_temp_path, "wb") as out_file:
@@ -2704,6 +2729,14 @@ class FFXModManagerGUI:
     def reload_plugins_ui(self, button):
         plugin_keys = [k for k in self.pages.keys() if k.startswith("plugin_")]
         for pk in plugin_keys:
+            # Notify the plugin instance that it is unloading
+            instance = self.pages[pk].get("instance")
+            if instance and hasattr(instance, "on_unload"):
+                try:
+                    instance.on_unload()
+                except Exception as e:
+                    self.log(f"Error unloading plugin '{pk}': {e}", "error")
+
             btn = self.sidebar_buttons.get(pk)
             if btn:
                 try:
@@ -2718,6 +2751,11 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
             del self.pages[pk]
+            
+        # Purge any imported plugin modules from python's system cache
+        for pk in list(sys.modules.keys()):
+            if pk.startswith("plugin_"):
+                sys.modules.pop(pk, None)
             
         self.load_plugins()
         self.apply_theme(self.current_theme_name)
@@ -3665,9 +3703,12 @@ class FFXModManagerGUI:
                             # Dynamically import the module
                             spec = importlib.util.spec_from_file_location(f"plugin_{d}", module_path)
                             module = importlib.util.module_from_spec(spec)
+                            sys.modules[f"plugin_{d}"] = module
                             sys.path.insert(0, dpath)
-                            spec.loader.exec_module(module)
-                            sys.path.pop(0)
+                            try:
+                                spec.loader.exec_module(module)
+                            finally:
+                                sys.path.pop(0)
                             
                             plugin_class = getattr(module, class_name, None)
                             if not plugin_class:

@@ -249,3 +249,43 @@ If you want to render information on top of the game screen (similar to the Cust
 - **Click-Through Transparency**: Use Tkinter attributes `wm_attributes("-disabled", True)` to make your HUD overlay click-through, and `wm_attributes("-alpha", 0.9)` for opacity. This prevents the window from stealing keyboard/controller inputs.
 - **Screen Borders Sync**: Query the game window coordinates via Win32 API functions (`GetClientRect` and `ClientToScreen`) to align your overlay exactly on the corner of the active game window.
 - **Global Key Polling**: Run `ctypes.windll.user32.GetAsyncKeyState(VK_CODE)` inside your main thread to capture keystrokes globally (e.g. using `F8` to toggle the HUD display) even when the game has active focus.
+
+---
+
+## 6. Developer Guidelines and Best Practices
+
+To ensure your plugin works correctly when distributed to the public and alongside other plugins, follow these guidelines:
+
+### A. Avoid Module Namespace Collisions
+The Mod Manager dynamically loads all plugins into a single Python process. If multiple plugins have a file with the same name (like `utils.py` or `config.py`), they can overwrite each other's imports.
+*   **Rule**: Always use relative imports (e.g., `from . import helper` or `from .utils import my_func`) for sub-files within your plugin directory. Do not use top-level absolute imports (like `import utils`).
+
+### B. Standard Library Constraints for `gui.py`
+The compiled `FFX Mod Manager.exe` runs in a frozen PyInstaller environment that only bundles the Python Standard Library and Tkinter.
+*   **Constraint**: Your `gui.py` script **cannot** import external libraries (like `requests`, `psutil`, or `pymem`). Keep `gui.py` lightweight, focusing only on the user interface using Python's standard library.
+
+### C. Build a Standalone `tracker.exe`
+If your background tracker requires third-party packages (e.g. for memory reading, overlay rendering, or external network calls):
+*   **Requirement**: You must compile `tracker.py` into a standalone `tracker.exe` using PyInstaller before zipping your plugin:
+    ```bash
+    pyinstaller --noconsole --onefile --clean tracker.py
+    ```
+  The Mod Manager will automatically run the compiled `tracker.exe` if present. This ensures the tracker runs on the user's PC even if they do not have Python installed.
+
+### D. Implement Resource Cleanup (`on_unload`)
+If your GUI plugin starts background threads, opens persistent socket connections, or binds custom keyboard hotkeys:
+*   **Requirement**: Define an `on_unload(self)` method in your main GUI class. The Mod Manager calls this when the plugin is reinstalled or reloaded. Use it to cleanly stop threads, close files/sockets, and release resources.
+    ```python
+    def on_unload(self):
+        # Stop background threads or clean up connections
+        self.my_thread.stop()
+    ```
+
+### E. Listen to Mod List Changes (`on_mods_refreshed`)
+If your plugin needs to display mod statistics, analyze conflicts, or dynamically adjust settings based on active mods:
+*   **Optional Hook**: Implement the `on_mods_refreshed(self)` hook. The Mod Manager calls this whenever mods are enabled, disabled, reordered, or scanned.
+    ```python
+    def on_mods_refreshed(self):
+        # Re-scan manager mods list or update display
+        active_mods = self.manager.mods
+    ```
