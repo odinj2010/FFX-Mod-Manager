@@ -2514,8 +2514,20 @@ class FFXModManagerGUI:
         lbl_title._is_title = True
         lbl_title.pack(anchor="w", pady=(0, 15))
         
-        self.plugins_list_container = ttk.Frame(frame)
-        self.plugins_list_container.pack(fill="both", expand=True)
+        self.plugins_notebook = ttk.Notebook(frame)
+        self.plugins_notebook.pack(fill="both", expand=True)
+        
+        # Tab 1: Directory
+        self.tab_plugin_directory = ttk.Frame(self.plugins_notebook)
+        self.plugins_notebook.add(self.tab_plugin_directory, text="🔌 Plugin Directory")
+        
+        # Tab 2: Installed
+        self.tab_installed_plugins = ttk.Frame(self.plugins_notebook)
+        self.plugins_notebook.add(self.tab_installed_plugins, text="📦 Installed Plugins")
+        
+        # Build Directory Tab UI
+        self.plugins_list_container = ttk.Frame(self.tab_plugin_directory)
+        self.plugins_list_container.pack(fill="both", expand=True, padx=5, pady=5)
         
         self.plugins_canvas = tk.Canvas(self.plugins_list_container, bg=self.bg_color, highlightthickness=0, borderwidth=0)
         self.plugins_scrollbar = ttk.Scrollbar(self.plugins_list_container, orient="vertical", command=self.plugins_canvas.yview)
@@ -2545,12 +2557,207 @@ class FFXModManagerGUI:
         self.plugins_canvas.bind("<Enter>", bind_plugins_mouse)
         self.plugins_canvas.bind("<Leave>", unbind_plugins_mouse)
         
-        self.btn_refresh_plugins = tk.Button(frame, text="🔄 Refresh Plugins List", command=self.refresh_plugins_list, bg=self.card_color,
-                                            fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
-        self.btn_refresh_plugins.pack(anchor="w", pady=(10, 0))
+        self.btn_refresh_plugins = tk.Button(self.tab_plugin_directory, text="🔄 Refresh Directory List", command=self.refresh_plugins_list, bg=self.card_color,
+                                             fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        self.btn_refresh_plugins.pack(anchor="w", pady=(10, 5))
         self.bind_hover(self.btn_refresh_plugins)
         
+        # Build Installed Tab UI
+        self.create_installed_plugins_ui()
+        
         self.refresh_plugins_list()
+        self.refresh_installed_plugins_list()
+
+    def create_installed_plugins_ui(self):
+        self.installed_list_container = ttk.Frame(self.tab_installed_plugins)
+        self.installed_list_container.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        self.installed_canvas = tk.Canvas(self.installed_list_container, bg=self.bg_color, highlightthickness=0, borderwidth=0)
+        self.installed_scrollbar = ttk.Scrollbar(self.installed_list_container, orient="vertical", command=self.installed_canvas.yview)
+        
+        self.installed_grid = ttk.Frame(self.installed_canvas)
+        self.installed_canvas.configure(yscrollcommand=self.installed_scrollbar.set)
+        
+        self.installed_scrollbar.pack(side="right", fill="y")
+        self.installed_canvas.pack(side="left", fill="both", expand=True)
+        
+        self.installed_canvas_window = self.installed_canvas.create_window((0, 0), window=self.installed_grid, anchor="nw")
+        
+        def on_installed_configure(event):
+            self.installed_canvas.configure(scrollregion=self.installed_canvas.bbox("all"))
+        self.installed_grid.bind("<Configure>", on_installed_configure)
+        
+        def on_installed_canvas_configure(event):
+            self.installed_canvas.itemconfig(self.installed_canvas_window, width=event.width)
+        self.installed_canvas.bind("<Configure>", on_installed_canvas_configure)
+        
+        def _on_installed_mousewheel(event):
+            self.installed_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        def bind_installed_mouse(event):
+            self.installed_canvas.bind_all("<MouseWheel>", _on_installed_mousewheel)
+        def unbind_installed_mouse(event):
+            self.installed_canvas.unbind_all("<MouseWheel>")
+        self.installed_canvas.bind("<Enter>", bind_installed_mouse)
+        self.installed_canvas.bind("<Leave>", unbind_installed_mouse)
+        
+        self.btn_refresh_installed = tk.Button(self.tab_installed_plugins, text="🔄 Refresh Installed List", command=self.refresh_installed_plugins_list, bg=self.card_color,
+                                              fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        self.btn_refresh_installed.pack(anchor="w", pady=(10, 5))
+        self.bind_hover(self.btn_refresh_installed)
+
+    def refresh_installed_plugins_list(self):
+        for widget in self.installed_grid.winfo_children():
+            widget.destroy()
+            
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        plugins_dir = os.path.join(base_dir, "plugins")
+        
+        if not os.path.exists(plugins_dir):
+            lbl_no_installed = tk.Label(self.installed_grid, text="No plugins folder found.", font=("Segoe UI", 10, "italic"), fg=self.text_dim, bg=self.bg_color)
+            lbl_no_installed.pack(anchor="w", pady=10)
+            return
+            
+        installed_any = False
+        disabled_plugins = self.config.get("disabled_plugins", [])
+        
+        try:
+            for d in sorted(os.listdir(plugins_dir)):
+                dpath = os.path.join(plugins_dir, d)
+                if os.path.isdir(dpath):
+                    manifest_path = os.path.join(dpath, "plugin.json")
+                    if os.path.exists(manifest_path):
+                        installed_any = True
+                        try:
+                            with open(manifest_path, "r", encoding="utf-8") as f:
+                                meta = json.load(f)
+                            
+                            p_id = d
+                            name = meta.get("name", d)
+                            creator = meta.get("creator", "Unknown")
+                            version = meta.get("version", "1.0")
+                            desc = meta.get("description", "")
+                            icon = meta.get("icon", "🔌")
+                            
+                            is_disabled = p_id in disabled_plugins
+                            
+                            card = tk.Frame(self.installed_grid, bd=1, relief="solid", highlightthickness=0, bg=self.card_color, padx=15, pady=15)
+                            card._is_card = True
+                            card.pack(fill="x", pady=6, padx=5)
+                            
+                            title_row = ttk.Frame(card)
+                            title_row.pack(fill="x", pady=(0, 5))
+                            
+                            status_text = " [DISABLED]" if is_disabled else ""
+                            lbl_p_name = tk.Label(title_row, text=f"{icon}  {name}  (v{version}){status_text}", font=("Segoe UI", 11, "bold"), fg=self.border_color if is_disabled else self.accent_color, bg=self.card_color)
+                            lbl_p_name._is_title = True
+                            lbl_p_name.pack(side="left")
+                            
+                            lbl_p_creator = tk.Label(title_row, text=f"by {creator}", font=("Segoe UI", 9, "italic"), fg=self.text_dim, bg=self.card_color)
+                            lbl_p_creator.pack(side="left", padx=15)
+                            
+                            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=500, justify="left", anchor="w")
+                            lbl_p_desc.pack(fill="x", pady=(0, 10))
+                            
+                            button_row = ttk.Frame(card)
+                            button_row.pack(fill="x", anchor="e")
+                            
+                            # Delete Button
+                            btn_delete = tk.Button(button_row, text="🗑️ Delete", bg=self.error_color if hasattr(self, "error_color") else "#ef4444", fg="white",
+                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=4,
+                                                   command=lambda pid=p_id: self.delete_plugin_action(pid))
+                            btn_delete._is_danger = True
+                            btn_delete.pack(side="right", padx=5)
+                            self.bind_hover(btn_delete)
+                            
+                            # Toggle Enable/Disable Button
+                            toggle_text = "🟢 Enable" if is_disabled else "🔴 Disable"
+                            toggle_bg = self.success_color if is_disabled else self.border_color
+                            btn_toggle = tk.Button(button_row, text=toggle_text, bg=toggle_bg, fg="white",
+                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4,
+                                                   command=lambda pid=p_id, dis=is_disabled: self.toggle_plugin_action(pid, dis))
+                            if is_disabled:
+                                btn_toggle._is_success = True
+                            else:
+                                btn_toggle._is_primary = False
+                            btn_toggle.pack(side="right")
+                            self.bind_hover(btn_toggle)
+                            
+                        except Exception as e:
+                            self.log(f"Error reading local plugin manifest '{d}': {e}", "error")
+        except Exception as e:
+            self.log(f"Error scanning plugins folder: {e}", "error")
+            
+        if not installed_any:
+            lbl_no_installed = tk.Label(self.installed_grid, text="No plugins installed locally.", font=("Segoe UI", 10, "italic"), fg=self.text_dim, bg=self.bg_color)
+            lbl_no_installed._is_muted = True
+            lbl_no_installed.pack(anchor="w", pady=10)
+            
+        self.update_widget_colors(self.installed_grid)
+
+    def toggle_plugin_action(self, plugin_id, is_disabled):
+        if "disabled_plugins" not in self.config:
+            self.config["disabled_plugins"] = []
+            
+        if is_disabled:
+            if plugin_id in self.config["disabled_plugins"]:
+                self.config["disabled_plugins"].remove(plugin_id)
+            self.log(f"Enabling plugin '{plugin_id}'...", "info")
+        else:
+            if plugin_id not in self.config["disabled_plugins"]:
+                self.config["disabled_plugins"].append(plugin_id)
+            self.log(f"Disabling plugin '{plugin_id}'...", "info")
+            
+        self.save_config()
+        self.reload_plugins_ui()
+        self.refresh_plugins_list()
+        self.refresh_installed_plugins_list()
+
+    def delete_plugin_action(self, plugin_id):
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the plugin '{plugin_id}'? This will permanently delete all its files from disk."):
+            # Terminate active tracker process if running
+            plugin_keys = [k for k in self.pages.keys() if k.startswith("plugin_")]
+            for pk in plugin_keys:
+                if pk == f"plugin_{plugin_id}":
+                    instance = self.pages[pk].get("instance")
+                    if instance:
+                        p = getattr(instance, "_tracker_process", None)
+                        if p:
+                            try:
+                                p.terminate()
+                                p.wait(timeout=1)
+                            except Exception:
+                                try:
+                                    p.kill()
+                                except Exception:
+                                    pass
+                            instance._tracker_process = None
+
+            if getattr(sys, 'frozen', False):
+                base_dir = os.path.dirname(sys.executable)
+            else:
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+            dpath = os.path.join(base_dir, "plugins", plugin_id)
+            
+            if os.path.exists(dpath):
+                try:
+                    shutil.rmtree(dpath)
+                    self.log(f"Deleted plugin '{plugin_id}' files from disk.", "success")
+                except Exception as e:
+                    self.log(f"Error deleting plugin directory: {e}", "error")
+                    messagebox.showerror("Error", f"Failed to delete plugin files: {e}")
+                    return
+
+            if "disabled_plugins" in self.config:
+                if plugin_id in self.config["disabled_plugins"]:
+                    self.config["disabled_plugins"].remove(plugin_id)
+                    
+            self.save_config()
+            self.reload_plugins_ui()
+            self.refresh_plugins_list()
+            self.refresh_installed_plugins_list()
 
     def refresh_plugins_list(self):
         for widget in self.plugins_grid.winfo_children():
@@ -2767,16 +2974,29 @@ class FFXModManagerGUI:
                     pass
             self.root.after(100, lambda: button.config(text="❌ Failed. Retry", state="normal"))
 
-    def reload_plugins_ui(self, button):
+    def reload_plugins_ui(self, button=None):
         plugin_keys = [k for k in self.pages.keys() if k.startswith("plugin_")]
         for pk in plugin_keys:
             # Notify the plugin instance that it is unloading
             instance = self.pages[pk].get("instance")
-            if instance and hasattr(instance, "on_unload"):
-                try:
-                    instance.on_unload()
-                except Exception as e:
-                    self.log(f"Error unloading plugin '{pk}': {e}", "error")
+            if instance:
+                if hasattr(instance, "on_unload"):
+                    try:
+                        instance.on_unload()
+                    except Exception as e:
+                        self.log(f"Error unloading plugin '{pk}': {e}", "error")
+                # Clean up any active background tracker process
+                p = getattr(instance, "_tracker_process", None)
+                if p:
+                    try:
+                        p.terminate()
+                        p.wait(timeout=1)
+                    except Exception:
+                        try:
+                            p.kill()
+                        except Exception:
+                            pass
+                    instance._tracker_process = None
 
             btn = self.sidebar_buttons.get(pk)
             if btn:
@@ -2791,7 +3011,7 @@ class FFXModManagerGUI:
                     frame.destroy()
                 except Exception:
                     pass
-            del self.pages[pk]
+            self.pages.pop(pk, None)
             
         # Purge any imported plugin modules from python's system cache
         for pk in list(sys.modules.keys()):
@@ -2800,8 +3020,9 @@ class FFXModManagerGUI:
             
         self.load_plugins()
         self.apply_theme(self.current_theme_name)
-        button.config(text="🔄 Reinstall", state="normal", bg=self.border_color)
-        self.bind_hover(button, is_primary=False)
+        if button:
+            button.config(text="🔄 Reinstall", state="normal", bg=self.border_color)
+            self.bind_hover(button, is_primary=False)
 
     def resolve_mod_relative_path(self, abs_path):
         abs_path = abs_path.replace("\\", "/")
@@ -3713,12 +3934,16 @@ class FFXModManagerGUI:
             
         import importlib.util
         
+        disabled_plugins = self.config.get("disabled_plugins", [])
+        
         try:
             for d in os.listdir(plugins_dir):
                 dpath = os.path.join(plugins_dir, d)
                 if os.path.isdir(dpath):
                     manifest_path = os.path.join(dpath, "plugin.json")
                     if os.path.exists(manifest_path):
+                        if d in disabled_plugins:
+                            continue
                         try:
                             with open(manifest_path, "r", encoding="utf-8") as f:
                                 meta = json.load(f)
