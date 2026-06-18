@@ -2,6 +2,7 @@
   "name": "Walkthrough",
   "icon": "📖",
   "version": "1.0",
+  "creator": "NfgOdin",
   "entry_point": "gui.WalkthroughTab",
   "tracker_script": "tracker.py",
   "description": "Comprehensive FFX 100% walkthrough and transparent HUD overlay.",
