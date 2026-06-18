@@ -7,6 +7,8 @@ All notable changes to the Achievements plugin will be documented in this file.
 - Replaced the hardcoded F8 trigger in the RAM scanner with custom hotkey variables loaded from `overlay_config.json`.
 - Implemented file modification timestamp monitoring in the tracker to support active hotkey/setting reloading in-game.
 - Added dynamic position adjustments (Left-Half, Right-Half, Top-Half, Bottom-Half) and dynamic font/widget scaling based on overlay scale configs.
+- Fixed PyInstaller path resolution (`_MEIPASS` lookup) using `sys.executable` to load config files correctly.
+- Added dynamic default hotkey resolution from `plugin.json` fallback if `overlay_config.json` is missing.
 
 ## [1.0] - 2026-06-14
 - Initial release.
