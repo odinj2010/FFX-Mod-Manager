@@ -82,6 +82,16 @@ class AchievementsTab:
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *args: self.refresh_view())
         
+        # HUD vars
+        self.hud_position = tk.StringVar(value="Right-Half")
+        self.hud_hotkey = tk.StringVar(value="F8")
+        self.hud_opacity = tk.DoubleVar(value=0.85)
+        self.hud_scale = tk.DoubleVar(value=1.0)
+        
+        self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_file = os.path.join(self.plugin_dir, "overlay_config.json")
+        self.load_overlay_config()
+        
         # Load progress
         self.progress_data = self.load_progress()
         
@@ -98,9 +108,59 @@ class AchievementsTab:
                 pass
         return {}
 
+    def load_overlay_config(self):
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                self.hud_position.set(cfg.get("position", "Right-Half"))
+                self.hud_hotkey.set(cfg.get("hotkey_str", "F8"))
+                self.hud_opacity.set(float(cfg.get("opacity", 0.85)))
+                self.hud_scale.set(float(cfg.get("scale", 1.0)))
+            except Exception:
+                pass
+
+    def save_overlay_config(self):
+        cfg = {
+            "position": self.hud_position.get(),
+            "hotkey_str": self.hud_hotkey.get(),
+            "opacity": round(self.hud_opacity.get(), 2),
+            "scale": round(self.hud_scale.get(), 2),
+            "hotkey_vk": self.get_vk_code(self.hud_hotkey.get())
+        }
+        try:
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, indent=2)
+            self.manager.log("Achievements HUD settings saved successfully.", "success")
+        except Exception as e:
+            self.manager.log(f"Failed to save HUD config: {e}", "error")
+
+    def get_vk_code(self, hotkey_str):
+        mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
+        return mapping.get(hotkey_str, 0x77)  # F8 default
+
     def create_widgets(self):
+        # Create Notebook tab switcher inside self.parent
+        self.notebook = ttk.Notebook(self.parent)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Achievements Tab
+        self.tab_achievements = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_achievements, text="🏆 Achievements")
+        
+        # Settings Tab
+        self.tab_settings = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_settings, text="⚙️ Settings")
+        
+        # Build Achievements Tab widgets
+        self.create_achievements_tab_widgets()
+        
+        # Build Settings Tab widgets
+        self.create_settings_tab_widgets()
+
+    def create_achievements_tab_widgets(self):
         # Main container frame
-        main_container = ttk.Frame(self.parent, padding=15)
+        main_container = ttk.Frame(self.tab_achievements, padding=15)
         main_container.pack(fill="both", expand=True)
         
         # Top Panel: Header and Global Progress
@@ -310,6 +370,47 @@ class AchievementsTab:
         # Triggered when game exits. Reload final results.
         self.reload_data()
 
+    def create_settings_tab_widgets(self):
+        settings_container = ttk.Frame(self.tab_settings, padding=15)
+        settings_container.pack(fill="both", expand=True)
+        
+        lbl_settings_title = tk.Label(settings_container, text="⚙️ Achievements Overlay Settings", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_settings_title._is_title = True
+        lbl_settings_title.pack(anchor="w", pady=(0, 15))
+        
+        # Config Card Frame
+        hud_card = tk.LabelFrame(settings_container, text=" Transparent HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
+        hud_card.pack(fill="x", pady=(5, 0))
+        self.overlay_card = hud_card
+        
+        self.grid_frame = tk.Frame(hud_card, bg=self.bg_color, padx=15, pady=15)
+        self.grid_frame.pack(fill="x")
+        
+        # Position Row
+        tk.Label(self.grid_frame, text="Position:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=6, padx=(0, 10))
+        pos_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_position, values=["Left-Half", "Right-Half", "Top-Half", "Bottom-Half"], state="readonly", width=15)
+        pos_cb.grid(row=0, column=1, sticky="w", pady=6, padx=(0, 20))
+        
+        # Toggle Hotkey Row
+        tk.Label(self.grid_frame, text="Toggle Hotkey:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=0, column=2, sticky="w", pady=6, padx=(0, 10))
+        hk_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_hotkey, values=[f"F{i}" for i in range(1, 13)], state="readonly", width=12)
+        hk_cb.grid(row=0, column=3, sticky="w", pady=6, padx=(0, 20))
+        
+        # Opacity Row
+        tk.Label(self.grid_frame, text="Opacity:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=6, padx=(0, 10))
+        op_scale = tk.Scale(self.grid_frame, variable=self.hud_opacity, from_=0.1, to=1.0, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
+        op_scale.grid(row=1, column=1, sticky="w", pady=6, padx=(0, 20))
+        
+        # Scale Row
+        tk.Label(self.grid_frame, text="HUD Scale:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=1, column=2, sticky="w", pady=6, padx=(0, 10))
+        sc_scale = tk.Scale(self.grid_frame, variable=self.hud_scale, from_=0.5, to=1.5, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
+        sc_scale.grid(row=1, column=3, sticky="w", pady=6, padx=(0, 20))
+        
+        # Save Button
+        self.btn_save_hud = tk.Button(self.grid_frame, text="💾 Save HUD Settings", command=self.save_overlay_config, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+        self.btn_save_hud.grid(row=0, column=4, rowspan=2, padx=(25, 0), sticky="ns")
+        self.manager.bind_hover(self.btn_save_hud, is_primary=True)
+
     def retheme(self):
         # Update styling variables from manager
         self.bg_color = self.manager.bg_color
@@ -328,6 +429,16 @@ class AchievementsTab:
         if hasattr(self, "lbl_progress") and self.lbl_progress:
             self.lbl_progress.configure(bg=self.bg_color, fg=self.success_color)
             
+        if hasattr(self, "overlay_card") and self.overlay_card:
+            self.overlay_card.configure(bg=self.bg_color, fg=self.accent_color)
+            self.grid_frame.configure(bg=self.bg_color)
+            for widget in self.grid_frame.winfo_children():
+                if isinstance(widget, tk.Label):
+                    widget.configure(bg=self.bg_color, fg=self.text_color)
+                elif isinstance(widget, tk.Scale):
+                    widget.configure(bg=self.bg_color, fg=self.text_color, activebackground=self.accent_hover)
+            self.btn_save_hud.configure(bg=self.accent_color, fg="white", activebackground=self.accent_hover)
+
         # Re-apply category button colors for the new theme and refresh view
         self.filter_category(self.selected_category)
 

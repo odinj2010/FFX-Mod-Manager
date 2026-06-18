@@ -244,6 +244,19 @@ class AchievementsOverlayApp:
         self.game_dir = game_dir
         self.json_path = json_path
         
+        self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config_path = os.path.join(self.plugin_dir, "overlay_config.json")
+        
+        # Default configuration
+        self.hud_position = "Right-Half"
+        self.hud_opacity = 0.85
+        self.hud_scale = 1.0
+        self.hotkey_vk = 0x77  # F8 default
+        self.last_config_check = 0.0
+        self.config_mtime = 0.0
+        
+        self.load_config()
+        
         self.hProcess = kernel32.OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, False, pid)
         if not self.hProcess:
             print("Failed to open process handle.", flush=True)
@@ -263,6 +276,33 @@ class AchievementsOverlayApp:
         self.scanner_thread = threading.Thread(target=self.ram_scanner_loop, daemon=True)
         self.scanner_thread.start()
         
+    def load_config(self):
+        if os.path.exists(self.config_path):
+            try:
+                self.config_mtime = os.path.getmtime(self.config_path)
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                self.hud_position = cfg.get("position", "Right-Half")
+                self.hud_opacity = float(cfg.get("opacity", 0.85))
+                self.hud_scale = float(cfg.get("scale", 1.0))
+                self.hotkey_vk = int(cfg.get("hotkey_vk", 0x77))
+            except Exception:
+                pass
+
+    def check_and_reload_config(self):
+        self.last_config_check = time.time()
+        if os.path.exists(self.config_path):
+            try:
+                current_mtime = os.path.getmtime(self.config_path)
+                if current_mtime != self.config_mtime:
+                    self.load_config()
+                    if hasattr(self, "overlay_window") and self.overlay_window:
+                        self.overlay_window.wm_attributes("-alpha", self.hud_opacity)
+                        self.sync_position(None)
+                        self.reload_and_draw_achievements()
+            except Exception:
+                pass
+
     def is_game_running(self):
         exit_code = ctypes.c_ulong()
         if kernel32.GetExitCodeProcess(self.hProcess, ctypes.byref(exit_code)):
@@ -275,11 +315,15 @@ class AchievementsOverlayApp:
             self.root.quit()
             return
             
+        # Check config updates periodically
+        if time.time() - self.last_config_check > 2.0:
+            self.check_and_reload_config()
+
         game_hwnd = find_game_hwnd(self.pid)
         foreground_hwnd = user32.GetForegroundWindow()
         is_game_focused = (game_hwnd is not None) and (foreground_hwnd == game_hwnd)
         
-        f8_state = user32.GetAsyncKeyState(0x77) & 0x8000  # VK_F8 = 0x77
+        f8_state = user32.GetAsyncKeyState(self.hotkey_vk) & 0x8000
         if f8_state:
             if not self.f8_was_pressed:
                 self.f8_was_pressed = True
@@ -314,7 +358,7 @@ class AchievementsOverlayApp:
         self.overlay_window.overrideredirect(True)
         self.overlay_window.wm_attributes("-topmost", True)
         self.overlay_window.wm_attributes("-disabled", True)  # Make click-through
-        self.overlay_window.wm_attributes("-alpha", 0.9)
+        self.overlay_window.wm_attributes("-alpha", self.hud_opacity)
         self.overlay_window.configure(bg="#121212")
         
         self.content_frame = tk.Frame(self.overlay_window, bg="#121212", padx=15, pady=15)
@@ -327,10 +371,25 @@ class AchievementsOverlayApp:
             rect = get_game_client_rect_screen(game_hwnd)
             if rect:
                 x, y, w, h = rect
-                overlay_w = 340
+                overlay_w = int(340 * self.hud_scale)
                 overlay_h = h - 20
-                overlay_x = x + w - overlay_w - 10
-                overlay_y = y + 10
+                
+                if self.hud_position == "Left-Half":
+                    overlay_x = x + 10
+                    overlay_y = y + 10
+                elif self.hud_position == "Right-Half":
+                    overlay_x = x + w - overlay_w - 10
+                    overlay_y = y + 10
+                elif self.hud_position == "Top-Half":
+                    overlay_w = w - 20
+                    overlay_h = int(h * 0.3)
+                    overlay_x = x + 10
+                    overlay_y = y + 10
+                else:  # Bottom-Half
+                    overlay_w = w - 20
+                    overlay_h = int(h * 0.3)
+                    overlay_x = x + 10
+                    overlay_y = y + h - overlay_h - 10
                 
                 if overlay_h < 200:
                     overlay_h = 200
@@ -353,7 +412,7 @@ class AchievementsOverlayApp:
         
         lbl_title = tk.Label(
             self.content_frame, text="🏆 CUSTOM ACHIEVEMENTS", 
-            bg="#121212", fg="#3b82f6", font=("Segoe UI", 12, "bold")
+            bg="#121212", fg="#3b82f6", font=("Segoe UI", int(12 * self.hud_scale), "bold")
         )
         lbl_title.pack(anchor="w", pady=(0, 5))
         
@@ -366,18 +425,18 @@ class AchievementsOverlayApp:
         
         lbl_prog = tk.Label(
             self.content_frame, text=f"{unlocked_count} / {total_count} Unlocked ({pct}%)",
-            bg="#121212", fg="#10b981", font=("Segoe UI", 9, "bold")
+            bg="#121212", fg="#10b981", font=("Segoe UI", int(9 * self.hud_scale), "bold")
         )
         lbl_prog.pack(anchor="w", pady=(0, 2))
         
-        canvas_bar = tk.Canvas(self.content_frame, height=6, bg="#374151", highlightthickness=0)
+        canvas_bar = tk.Canvas(self.content_frame, height=int(6 * self.hud_scale), bg="#374151", highlightthickness=0)
         canvas_bar.pack(fill="x", pady=(0, 15))
         
         def draw_progress(event=None):
             canvas_bar.delete("all")
             w = canvas_bar.winfo_width()
             fill_w = int(w * (pct / 100))
-            canvas_bar.create_rectangle(0, 0, fill_w, 6, fill="#10b981", width=0)
+            canvas_bar.create_rectangle(0, 0, fill_w, int(6 * self.hud_scale), fill="#10b981", width=0)
         canvas_bar.bind("<Configure>", draw_progress)
         
         for ach in ACHIEVEMENTS:
@@ -396,7 +455,7 @@ class AchievementsOverlayApp:
             if not is_unlocked:
                 icon_char = "🔒"
                 
-            lbl_icon = tk.Label(card, text=icon_char, bg=card_bg, fg=text_color, font=("Segoe UI", 13))
+            lbl_icon = tk.Label(card, text=icon_char, bg=card_bg, fg=text_color, font=("Segoe UI", int(13 * self.hud_scale)))
             lbl_icon.pack(side="left", padx=(10, 8))
             
             txt_frame = tk.Frame(card, bg=card_bg)
@@ -404,7 +463,7 @@ class AchievementsOverlayApp:
             
             lbl_c_title = tk.Label(
                 txt_frame, text=title_text, bg=card_bg, fg=text_color, 
-                font=("Segoe UI", 9, "bold"), anchor="w"
+                font=("Segoe UI", int(9 * self.hud_scale), "bold"), anchor="w"
             )
             lbl_c_title.pack(anchor="w", pady=(1, 0))
             
@@ -418,7 +477,7 @@ class AchievementsOverlayApp:
                 
             lbl_c_status = tk.Label(
                 txt_frame, text=status_text, bg=card_bg, fg=status_color, 
-                font=("Segoe UI", 7, "bold"), anchor="w"
+                font=("Segoe UI", int(7 * self.hud_scale), "bold"), anchor="w"
             )
             lbl_c_status.pack(anchor="w", pady=(0, 1))
 

@@ -98,10 +98,29 @@ class WalkthroughTab:
         return mapping.get(hotkey_str, 0x78)  # F9 default
 
     def create_widgets(self):
-        main_layout = ttk.Panedwindow(self.parent, orient="horizontal")
-        main_layout.pack(fill="both", expand=True, padx=10, pady=10)
+        # Create Notebook tab switcher inside self.parent
+        self.notebook = ttk.Notebook(self.parent)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Left Side - Zone selector & Config
+        # Guide Tab
+        self.tab_guide = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_guide, text="📖 Guide")
+        
+        # Settings Tab
+        self.tab_settings = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_settings, text="⚙️ Settings")
+        
+        # Build Guide Tab widgets
+        self.create_guide_tab_widgets()
+        
+        # Build Settings Tab widgets
+        self.create_settings_tab_widgets()
+
+    def create_guide_tab_widgets(self):
+        main_layout = ttk.Panedwindow(self.tab_guide, orient="horizontal")
+        main_layout.pack(fill="both", expand=True, padx=5, pady=5)
+        
+        # Left Side - Zone selector
         left_pane = ttk.Frame(main_layout, padding=5)
         main_layout.add(left_pane, weight=1)
         
@@ -122,34 +141,6 @@ class WalkthroughTab:
         scroll_z.pack(side="right", fill="y")
         self.tree_zones.config(yscrollcommand=scroll_z.set)
         self.tree_zones.bind("<<TreeviewSelect>>", self.on_zone_selected)
-        
-        # HUD Settings Frame inside Left Pane
-        hud_card = tk.LabelFrame(left_pane, text=" Transparent HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
-        hud_card.pack(fill="x", pady=(15, 0))
-        self.overlay_card = hud_card
-        
-        self.grid_frame = tk.Frame(hud_card, bg=self.bg_color, padx=10, pady=10)
-        self.grid_frame.pack(fill="x")
-        
-        tk.Label(self.grid_frame, text="Position:", bg=self.bg_color, fg=self.text_color).grid(row=0, column=0, sticky="w", pady=4, padx=(0, 5))
-        pos_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_position, values=["Left-Half", "Right-Half", "Top-Half", "Bottom-Half"], state="readonly", width=12)
-        pos_cb.grid(row=0, column=1, sticky="w", pady=4, padx=(0, 15))
-        
-        tk.Label(self.grid_frame, text="Toggle Hotkey:", bg=self.bg_color, fg=self.text_color).grid(row=0, column=2, sticky="w", pady=4, padx=(0, 5))
-        hk_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_hotkey, values=[f"F{i}" for i in range(1, 13)], state="readonly", width=8)
-        hk_cb.grid(row=0, column=3, sticky="w", pady=4, padx=(0, 15))
-        
-        tk.Label(self.grid_frame, text="Opacity:", bg=self.bg_color, fg=self.text_color).grid(row=1, column=0, sticky="w", pady=4, padx=(0, 5))
-        op_scale = tk.Scale(self.grid_frame, variable=self.hud_opacity, from_=0.1, to=1.0, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=100)
-        op_scale.grid(row=1, column=1, sticky="w", pady=4, padx=(0, 15))
-        
-        tk.Label(self.grid_frame, text="HUD Scale:", bg=self.bg_color, fg=self.text_color).grid(row=1, column=2, sticky="w", pady=4, padx=(0, 5))
-        sc_scale = tk.Scale(self.grid_frame, variable=self.hud_scale, from_=0.5, to=1.5, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=100)
-        sc_scale.grid(row=1, column=3, sticky="w", pady=4, padx=(0, 15))
-        
-        self.btn_save_hud = tk.Button(self.grid_frame, text="💾 Save HUD", command=self.save_overlay_config, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
-        self.btn_save_hud.grid(row=0, column=4, rowspan=2, padx=(15, 0), sticky="ns")
-        self.manager.bind_hover(self.btn_save_hud, is_primary=True)
         
         # Right Side - Step instructions and checklist items
         right_pane = ttk.Frame(main_layout, padding=(10, 5, 0, 5))
@@ -174,6 +165,47 @@ class WalkthroughTab:
         
         self.chk_container = ttk.Frame(right_pane)
         self.chk_container.pack(fill="x", pady=(0, 5))
+
+    def create_settings_tab_widgets(self):
+        settings_container = ttk.Frame(self.tab_settings, padding=15)
+        settings_container.pack(fill="both", expand=True)
+        
+        lbl_settings_title = tk.Label(settings_container, text="⚙️ Walkthrough Overlay Settings", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_settings_title._is_title = True
+        lbl_settings_title.pack(anchor="w", pady=(0, 15))
+        
+        # Config Card Frame
+        hud_card = tk.LabelFrame(settings_container, text=" Transparent HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
+        hud_card.pack(fill="x", pady=(5, 0))
+        self.overlay_card = hud_card
+        
+        self.grid_frame = tk.Frame(hud_card, bg=self.bg_color, padx=15, pady=15)
+        self.grid_frame.pack(fill="x")
+        
+        # Position Row
+        tk.Label(self.grid_frame, text="Position:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=0, column=0, sticky="w", pady=6, padx=(0, 10))
+        pos_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_position, values=["Left-Half", "Right-Half", "Top-Half", "Bottom-Half"], state="readonly", width=15)
+        pos_cb.grid(row=0, column=1, sticky="w", pady=6, padx=(0, 20))
+        
+        # Toggle Hotkey Row
+        tk.Label(self.grid_frame, text="Toggle Hotkey:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=0, column=2, sticky="w", pady=6, padx=(0, 10))
+        hk_cb = ttk.Combobox(self.grid_frame, textvariable=self.hud_hotkey, values=[f"F{i}" for i in range(1, 13)], state="readonly", width=12)
+        hk_cb.grid(row=0, column=3, sticky="w", pady=6, padx=(0, 20))
+        
+        # Opacity Row
+        tk.Label(self.grid_frame, text="Opacity:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=1, column=0, sticky="w", pady=6, padx=(0, 10))
+        op_scale = tk.Scale(self.grid_frame, variable=self.hud_opacity, from_=0.1, to=1.0, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
+        op_scale.grid(row=1, column=1, sticky="w", pady=6, padx=(0, 20))
+        
+        # Scale Row
+        tk.Label(self.grid_frame, text="HUD Scale:", bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 10)).grid(row=1, column=2, sticky="w", pady=6, padx=(0, 10))
+        sc_scale = tk.Scale(self.grid_frame, variable=self.hud_scale, from_=0.5, to=1.5, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
+        sc_scale.grid(row=1, column=3, sticky="w", pady=6, padx=(0, 20))
+        
+        # Save Button
+        self.btn_save_hud = tk.Button(self.grid_frame, text="💾 Save HUD Settings", command=self.save_overlay_config, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+        self.btn_save_hud.grid(row=0, column=4, rowspan=2, padx=(25, 0), sticky="ns")
+        self.manager.bind_hover(self.btn_save_hud, is_primary=True)
         
     def populate_zones(self):
         self.tree_zones.delete(*self.tree_zones.get_children())
