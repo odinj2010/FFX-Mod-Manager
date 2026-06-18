@@ -244,7 +244,11 @@ class AchievementsOverlayApp:
         self.game_dir = game_dir
         self.json_path = json_path
         
-        self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, 'frozen', False):
+            self.plugin_dir = os.path.dirname(sys.executable)
+        else:
+            self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
+            
         self.config_path = os.path.join(self.plugin_dir, "overlay_config.json")
         
         # Load defaults from plugin.json

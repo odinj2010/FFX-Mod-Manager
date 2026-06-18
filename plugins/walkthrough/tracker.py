@@ -307,7 +307,11 @@ if __name__ == "__main__":
         pid = int(sys.argv[1])
         game_dir = sys.argv[2]
         
-        plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        if getattr(sys, 'frozen', False):
+            plugin_dir = os.path.dirname(sys.executable)
+        else:
+            plugin_dir = os.path.dirname(os.path.abspath(__file__))
+            
         config_path = os.path.join(plugin_dir, "overlay_config.json")
         guide_path = os.path.join(plugin_dir, "guide_data.json")
         
