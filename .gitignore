@@ -3,19 +3,31 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.pyc
+*.pyo
+*.pyd
 
 # PyInstaller build files
 build/
 dist/
 *.manifest
-*.spec
 
 # System/IDE files
 .idea/
 .vscode/
 Thumbs.db
+.DS_Store
+*.ini
+*.bin
+
+# Archives & Mod backups
+*.rar
+*.7z
+*.tar.gz
 
 # Local user configs (don't overwrite users' directory settings!)
+ffxmm_config.json
 ffx_mod_manager_config.json
 ffx_modding_toolbox_config.json
 ffx_phyre_tool_config.json
+ffx_phyre_tool_recent_files.json
+compile_mod_manager.py

@@ -17,7 +17,7 @@ except Exception:
 
 
 
-CONFIG_FILE = "ffx_mod_manager_config.json"
+CONFIG_FILE = "ffxmm_config.json"
 TOOLBOX_CONFIG = "ffx_modding_toolbox_config.json"
 
 def encode_metadata(data_dict):
