@@ -82,9 +82,8 @@ class AchievementsTab:
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *args: self.refresh_view())
         
-        # Load progress and overlay settings
+        # Load progress
         self.progress_data = self.load_progress()
-        self.load_overlay_config()
         
         # Build layout
         self.create_widgets()
@@ -192,42 +191,6 @@ class AchievementsTab:
             
         self.canvas.bind("<Enter>", bind_mouse)
         self.canvas.bind("<Leave>", unbind_mouse)
-        
-        # Overlay HUD Settings LabelFrame
-        overlay_card = tk.LabelFrame(main_container, text=" Overlay HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
-        overlay_card.pack(fill="x", pady=(15, 0))
-        
-        grid_frame = tk.Frame(overlay_card, bg=self.bg_color, padx=10, pady=10)
-        grid_frame.pack(fill="x")
-        
-        # Position dropdown
-        tk.Label(grid_frame, text="Position:", bg=self.bg_color, fg=self.text_color).grid(row=0, column=0, sticky="w", pady=4, padx=(0, 5))
-        pos_cb = ttk.Combobox(grid_frame, textvariable=self.hud_position, values=["Top-Left", "Top-Right", "Bottom-Left", "Bottom-Right"], state="readonly", width=15)
-        pos_cb.grid(row=0, column=1, sticky="w", pady=4, padx=(0, 15))
-        
-        # Hotkey dropdown
-        tk.Label(grid_frame, text="Toggle Hotkey:", bg=self.bg_color, fg=self.text_color).grid(row=0, column=2, sticky="w", pady=4, padx=(0, 5))
-        hk_cb = ttk.Combobox(grid_frame, textvariable=self.hud_hotkey, values=[f"F{i}" for i in range(1, 13)], state="readonly", width=8)
-        hk_cb.grid(row=0, column=3, sticky="w", pady=4, padx=(0, 15))
-        
-        # Opacity slider
-        tk.Label(grid_frame, text="Opacity:", bg=self.bg_color, fg=self.text_color).grid(row=1, column=0, sticky="w", pady=4, padx=(0, 5))
-        op_scale = tk.Scale(grid_frame, variable=self.hud_opacity, from_=0.1, to=1.0, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
-        op_scale.grid(row=1, column=1, sticky="w", pady=4, padx=(0, 15))
-        
-        # Scale / Font size slider
-        tk.Label(grid_frame, text="HUD Scale:", bg=self.bg_color, fg=self.text_color).grid(row=1, column=2, sticky="w", pady=4, padx=(0, 5))
-        sc_scale = tk.Scale(grid_frame, variable=self.hud_scale, from_=0.5, to=1.5, resolution=0.05, orient="horizontal", showvalue=True, bg=self.bg_color, fg=self.text_color, highlightthickness=0, bd=0, length=120)
-        sc_scale.grid(row=1, column=3, sticky="w", pady=4, padx=(0, 15))
-        
-        # Save Button
-        btn_save_hud = tk.Button(grid_frame, text="💾 Save HUD Settings", command=self.save_overlay_config, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
-        btn_save_hud.grid(row=0, column=4, rowspan=2, padx=(15, 0), sticky="ns")
-        self.manager.bind_hover(btn_save_hud, is_primary=True)
-        
-        self.overlay_card = overlay_card
-        self.grid_frame = grid_frame
-        self.btn_save_hud = btn_save_hud
 
     def filter_category(self, cat):
         self.selected_category = cat
@@ -347,43 +310,6 @@ class AchievementsTab:
         # Triggered when game exits. Reload final results.
         self.reload_data()
 
-    def load_overlay_config(self):
-        self.config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "overlay_config.json")
-        self.hud_position = tk.StringVar(value="Top-Right")
-        self.hud_hotkey = tk.StringVar(value="F8")
-        self.hud_opacity = tk.DoubleVar(value=0.9)
-        self.hud_scale = tk.DoubleVar(value=1.0)
-        
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.hud_position.set(cfg.get("position", "Top-Right"))
-                self.hud_hotkey.set(cfg.get("hotkey_str", "F8"))
-                self.hud_opacity.set(float(cfg.get("opacity", 0.9)))
-                self.hud_scale.set(float(cfg.get("scale", 1.0)))
-            except Exception:
-                pass
-
-    def save_overlay_config(self):
-        cfg = {
-            "position": self.hud_position.get(),
-            "hotkey_str": self.hud_hotkey.get(),
-            "opacity": round(self.hud_opacity.get(), 2),
-            "scale": round(self.hud_scale.get(), 2),
-            "hotkey_vk": self.get_vk_code(self.hud_hotkey.get())
-        }
-        try:
-            with open(self.config_file, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2)
-            self.manager.log("Achievements overlay settings saved successfully.", "success")
-        except Exception as e:
-            self.manager.log(f"Failed to save achievements overlay settings: {e}", "error")
-
-    def get_vk_code(self, hotkey_str):
-        mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
-        return mapping.get(hotkey_str, 0x77)
-
     def retheme(self):
         # Update styling variables from manager
         self.bg_color = self.manager.bg_color
@@ -402,17 +328,6 @@ class AchievementsTab:
         if hasattr(self, "lbl_progress") and self.lbl_progress:
             self.lbl_progress.configure(bg=self.bg_color, fg=self.success_color)
             
-        # Configure overlay HUD settings frame
-        if hasattr(self, "overlay_card") and self.overlay_card:
-            self.overlay_card.configure(bg=self.bg_color, fg=self.accent_color)
-            self.grid_frame.configure(bg=self.bg_color)
-            for widget in self.grid_frame.winfo_children():
-                if isinstance(widget, tk.Label):
-                    widget.configure(bg=self.bg_color, fg=self.text_color)
-                elif isinstance(widget, tk.Scale):
-                    widget.configure(bg=self.bg_color, fg=self.text_color, activebackground=self.accent_hover)
-            self.btn_save_hud.configure(bg=self.accent_color, fg="white", activebackground=self.accent_hover)
-
         # Re-apply category button colors for the new theme and refresh view
         self.filter_category(self.selected_category)
 

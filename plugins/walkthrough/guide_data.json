@@ -1,0 +1,350 @@
+[
+  {
+    "id": "zanarkand",
+    "name": "1. Zanarkand Ruins (Beginning)",
+    "room_ids": [2, 3, 4, 11, 84],
+    "category": "Story",
+    "checklist": [
+      "Talk to kids on the bridge to name Tidus",
+      "Interact with crowd outside stadium to proceed",
+      "Obtain Longsword from Auron during Sinscales combat"
+    ],
+    "steps": [
+      "1. Name Tidus by talking to the group of kids on the highway bridge.",
+      "2. Push through the crowd outside the Blitzball stadium.",
+      "3. Once Sin attacks, follow Auron. In the first battle, use physical attacks on Sinscales.",
+      "4. Defeat the Tanker boss. Target the container itself, Auron will guide you to drop it to end the battle."
+    ]
+  },
+  {
+    "id": "submerged_ruins",
+    "name": "2. Submerged Ruins",
+    "room_ids": [12, 13, 14, 15],
+    "category": "Story",
+    "checklist": [
+      "Find Hi-Potion chest on the left ledge",
+      "Collect Al Bhed Primer Vol. 1 (Missable! Inside salvage ship cabin floor)",
+      "Uncover 200 Gil chest in the main chamber corridor"
+    ],
+    "steps": [
+      "1. Swim forward and search the ruined structures on the left for a chest containing a Hi-Potion.",
+      "2. Interact with the fire pit inside the ruins to initiate a sequence. Search for withered timber on the bottom floor.",
+      "3. Defeat Klikk. Use Potions if Tidus's HP drops below 200. Rikku will join halfway to assist.",
+      "4. MISSABLE: Once on the Al Bhed Salvage Ship, enter the cabin and pick up Al Bhed Primer Vol. 1 on the floor before diving."
+    ]
+  },
+  {
+    "id": "besaid",
+    "name": "3. Besaid Island",
+    "room_ids": [16, 17, 18, 19, 20, 21, 22, 23, 24],
+    "category": "Story",
+    "checklist": [
+      "Find Al Bhed Primer Vol. 2 (Inside Besaid Crusaders Lodge counter)",
+      "Besaid Temple Destruction Sphere chest (Rod of Wisdom - Mandatory for Anima!)",
+      "Obtain Valefor's Energy Blast Overdrive (Talk to dog in Besaid village temple shop)"
+    ],
+    "steps": [
+      "1. Swim along the beach to find chests containing a Moon Ring and Antidotes.",
+      "2. Go into the Crusader's lodge and collect Al Bhed Primer Vol. 2 behind the counter.",
+      "3. BESAID TEMPLE TRIAL (DESTRUCTION SPHERE):",
+      "   - Examine the symbol on the wall to open the stairs.",
+      "   - Take the Besaid Sphere and insert it into the door downstairs.",
+      "   - Take the Glyph Sphere from the wall and place it on the next door.",
+      "   - Retrieve the Besaid Sphere, place it on the pedestal, and push it over the glowing mark.",
+      "   - Take the Destruction Sphere from the newly opened wall recess, insert it where you found the Glyph Sphere.",
+      "   - Open the chest to retrieve the Rod of Wisdom. *Crucial for Anima!*",
+      "4. energy blast: Before boarding the ship, return to the village, talk to the shopkeeper, then search the dog in the top-right tent for Valefor's 2nd Overdrive."
+    ]
+  },
+  {
+    "id": "ss_liki",
+    "name": "4. S.S. Liki (Boat to Kilika)",
+    "room_ids": [25, 26, 27],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 3 (In the engine room floor near the power generator)",
+      "Learn the Jecht Shot (Tidus's key minigame skill on the deck challenge)"
+    ],
+    "steps": [
+      "1. Go below deck and enter the engine room to find Al Bhed Primer Vol. 3 on the floor.",
+      "2. Speak with Yuna on the deck, then approach the Blitzball in the center of the ship to start the Jecht Shot challenge.",
+      "3. JECHT SHOT CHALLENGE: Press the D-pad and Confirm button in the direction of the text prompts that pop up on the screen. Success unlocks the Jecht Shot, making Blitzball tournaments much easier.",
+      "4. Defeat Sin's Fin. Focus attacks on the fin while using Lulu's magic to clear the Sinscales."
+    ]
+  },
+  {
+    "id": "kilika",
+    "name": "5. Kilika Island",
+    "room_ids": [28, 29, 30, 31, 32, 33, 34, 35],
+    "category": "Story",
+    "checklist": [
+      "Find Al Bhed Primer Vol. 4 (In Kilika tavern bar counter)",
+      "Defeat Lord Ochu (Optional boss in Kilika Woods for Red Bracer reward)",
+      "Kilika Temple Destruction Sphere chest (Red Mage - Mandatory for Anima!)"
+    ],
+    "steps": [
+      "1. Find Al Bhed Primer Vol. 4 on the counter inside the ruined Kilika tavern.",
+      "2. Walk into the Kilika Woods. Locate and defeat Lord Ochu (weak to Fire). Talk to the Crusaders afterwards for a Red Bracer.",
+      "3. KILIKA TEMPLE TRIAL (DESTRUCTION SPHERE):",
+      "   - Take the Kilika Sphere from the pedestal and place it in the door.",
+      "   - Take it out, put it on the altar, and push it onto the glowing tile.",
+      "   - Take the Glyph Sphere from the wall and put it on the side recess.",
+      "   - Take the Kilika Sphere from the altar and insert it on the wall to light the path.",
+      "   - Step on the glowing tile in the fire room, take the pedestal sphere, and put it on the burning wall.",
+      "   - Take the Destruction Sphere from the newly exposed recess, place it in the lower chamber wall.",
+      "   - Retrieve the Red Mage weapon from the chest. *Crucial for Anima!*"
+    ]
+  },
+  {
+    "id": "luca",
+    "name": "6. Luca (Blitzball Tournament)",
+    "room_ids": [36, 37, 38, 39, 40, 41, 42, 43, 44, 45],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 5 (In Luca Stadium Locker Room 1 corner floor)",
+      "Collect Al Bhed Primer Vol. 6 (On the floor near the Luca Stadium reception desk)",
+      "Win the Luca Blitzball Tournament (Optional - rewards Strength Sphere)"
+    ],
+    "steps": [
+      "1. Find Al Bhed Primer Vol. 6 on the floor near the Stadium main reception desk.",
+      "2. Find Al Bhed Primer Vol. 5 on the floor inside Stadium Locker Room 1.",
+      "3. Solve the Luca sequence by defeating the Machina groups using Auron and Tidus.",
+      "4. TOURNAMENT TIPS: Set Blitzball controls to Manual A. Use Jecht Shot with Tidus in the first half to score, then pass the ball to keep possession in the second half once Wakka joins."
+    ]
+  },
+  {
+    "id": "mi_ihen",
+    "name": "7. Mi'ihen Highroad",
+    "room_ids": [46, 47, 48, 49, 50, 51, 52, 53],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 8 (On the ground outside the Mi'ihen travel agency)",
+      "Collect Al Bhed Primer Vol. 9 (On the path of the Mi'ihen Newroad North branch)",
+      "Defeat Chocobo Eater (Push off cliff for free Chocobo rental reward)"
+    ],
+    "steps": [
+      "1. Find Al Bhed Primer Vol. 8 on the ground right outside the entrance of the travel agency.",
+      "2. Defeat the Chocobo Eater. Use physical attacks to knock it backward. Pushing it off the cliff rewards a free Chocobo rental.",
+      "3. On Chocobo back, explore the Newroad North loop to locate Al Bhed Primer Vol. 9 on the ground."
+    ]
+  },
+  {
+    "id": "mushroom_rock",
+    "name": "8. Mushroom Rock Road",
+    "room_ids": [54, 55, 56, 57, 58, 59],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 10 (Hidden on the dead-end elevator ledge path)",
+      "Scan and recruit Luzzu or Gatta (Determines Crusader survival sequence)"
+    ],
+    "steps": [
+      "1. Walk along the Mushroom Rock valley. Search the circular elevator ledge to find Al Bhed Primer Vol. 10 hidden in a corner.",
+      "2. Defeat Gui. Focus on destroying the arms first to prevent it from guarding its head, then attack the head with Lulu's magic, and target the main body with physical attacks."
+    ]
+  },
+  {
+    "id": "djose",
+    "name": "9. Djose Temple & Pilgrimage",
+    "room_ids": [60, 61, 62, 63, 64, 65, 66],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 11 (Hidden behind the pillar on Djose road path)",
+      "Djose Temple Destruction Sphere chest (Magic Sphere - Mandatory for Anima!)"
+    ],
+    "steps": [
+      "1. Search behind the stone pillar on the Djose path to collect Al Bhed Primer Vol. 11.",
+      "2. DJOSE TEMPLE TRIAL (DESTRUCTION SPHERE):",
+      "   - Take the two Djose Spheres from the wall and place them in the right-side door.",
+      "   - Take the pedestal sphere, charge it in the electric socket on the right wall.",
+      "   - Place the charged sphere in the slot next to the door to open it.",
+      "   - Push the pedestal into the lightning pool below to bridge the gap.",
+      "   - Step on the glowing tile in the back to reset, retrieve the spheres to power the pedestal slots.",
+      "   - Once the elevator goes up, push the five pedestals on the top floor to light the symbols.",
+      "   - Touch the glowing glyph on the lower level stairs, take the Destruction Sphere, and insert it in the wall slot.",
+      "   - Open the chest to retrieve the Magic Sphere. *Crucial for Anima!*"
+    ]
+  },
+  {
+    "id": "moonflow",
+    "name": "10. Moonflow (Shoopuf Ride)",
+    "room_ids": [67, 68, 69, 70, 71],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 12 (On the roof of the Shoopuf dock platform)",
+      "Rikku joins the party (Steal ability unlocked for combat)"
+    ],
+    "steps": [
+      "1. Search the upper platform near the Shoopuf ticket booth to find Al Bhed Primer Vol. 12 on the roof floor.",
+      "2. Defeat the extractor Machina during the Shoopuf ride. Use Tidus's delay attack and Wakka's status slots.",
+      "3. Rikku joins the party. Collect the tutorial chest and practice using the 'Steal' command on mechanical enemies for instant KOs."
+    ]
+  },
+  {
+    "id": "thunder_plains",
+    "name": "11. Thunder Plains (Lightning Plains)",
+    "room_ids": [72, 73, 74],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 13 (Inside the Thunder Plains Travel Agency room)",
+      "Dodge lightning bolts (Crucial for Lulu's Onion Knight Celestial Weapon)"
+    ],
+    "steps": [
+      "1. Walk through the plains. Dodge lightning flashes by pressing the Confirm button immediately as the screen flashes.",
+      "2. Enter the Travel Agency. Talk to Rikku, then search the floor in the hallway corner to collect Al Bhed Primer Vol. 13.",
+      "3. LIGHTNING CHEAT: The crater near the glowing Cactuar stone in the southern plains triggers a flash every time you step into it, allowing you to easily farm dodges."
+    ]
+  },
+  {
+    "id": "macalania",
+    "name": "12. Macalania Woods & Temple",
+    "room_ids": [75, 76, 77, 78, 79, 80, 81, 82, 83],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 14 (Outside the Macalania Travel Agency shop)",
+      "Collect Al Bhed Primer Vol. 15 (On the floor inside Macalania Temple lobby)",
+      "Collect Al Bhed Primer Vol. 16 (On the ground outside Macalania Travel Agency cabin)",
+      "Macalania Temple Destruction Sphere chest (Luck Sphere - Mandatory for Anima!)"
+    ],
+    "steps": [
+      "1. Find Al Bhed Primer Vol. 14 outside the Travel Agency near the Crusaders.",
+      "2. MACALANIA TEMPLE TRIAL (DESTRUCTION SPHERE):",
+      "   - Push the pedestal into the ice spikes on the right.",
+      "   - Remove the Macalania Sphere from the wall and place it on the pedestal.",
+      "   - Push the pedestal back, down the slope into the lower chamber.",
+      "   - Take the sphere from the center pillar, place it on the left wall to reveal the bridge.",
+      "   - Step on the glowing tile upstairs to return the pedestal, remove the Destruction Sphere from the wall slot.",
+      "   - Insert it into the pedestal and push it down again to break the ice pillar.",
+      "   - Open the chest to retrieve the Luck Sphere. *Crucial for Anima!*"
+    ]
+  },
+  {
+    "id": "bikanel",
+    "name": "13. Bikanel Island (Sanubia Desert)",
+    "room_ids": [85, 86, 87, 88],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 17 (Inside the ruins near the central oasis)",
+      "Collect Al Bhed Primer Vol. 18 (On the path of the Sanubia Central area)",
+      "Collect Al Bhed Primer Vol. 19 (Outside the Al Bhed Home gateway ruins)"
+    ],
+    "steps": [
+      "1. Wake up in the oasis. Search nearby ruins to locate Al Bhed Primer Vol. 17.",
+      "2. Follow the arrow to Sanubia Desert Central. Search near the signpost for Al Bhed Primer Vol. 18.",
+      "3. Outside the entrance of Home, search the left corner near the ruins for Al Bhed Primer Vol. 19."
+    ]
+  },
+  {
+    "id": "al_bhed_home",
+    "name": "14. Al Bhed Home (MISSABLE PRIMERS!)",
+    "room_ids": [89, 90, 91, 92],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 20 (Missable! Inside Home Entrance living room)",
+      "Collect Al Bhed Primer Vol. 21 (Missable! Inside Home Main Corridor hallway floor)",
+      "Collect Al Bhed Primer Vol. 22 (Missable! Inside Home Living Quarters room floor)"
+    ],
+    "steps": [
+      "1. CRITICAL MISSABLE: Do not advance past the hallways without collecting these, as Home is permanently locked after this segment!",
+      "2. Grab Al Bhed Primer Vol. 20 on the floor inside the first living room on the left.",
+      "3. Grab Al Bhed Primer Vol. 21 on the floor at the end of the Main Corridor hallway.",
+      "4. Grab Al Bhed Primer Vol. 22 inside the Living Quarters room (requires answering Al Bhed lock questions)."
+    ]
+  },
+  {
+    "id": "bevelle",
+    "name": "15. Bevelle (MISSABLE PRIMER & DESTRUCTION SPHERE!)",
+    "room_ids": [93, 94, 95, 96, 97, 98],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 22 (Missable! At the top of Bevelle Temple stairs)",
+      "Bevelle Temple Destruction Sphere (Knight Lance - Mandatory for Anima!)"
+    ],
+    "steps": [
+      "1. CRITICAL MISSABLE: Pick up Al Bhed Primer Vol. 22 at the top of the grand stairs before entering the temple.",
+      "2. BEVELLE TEMPLE TRIAL (DESTRUCTION SPHERE - CANNOT RETURN!):",
+      "   - Ride the platform to the lower level.",
+      "   - Take the Bevelle Sphere, insert it into the pedestal, and push it onto the path.",
+      "   - Turn right at the second junction, insert the Bevelle Sphere into the socket to open the path.",
+      "   - Retrieve the Destruction Sphere from the end of the corridor, insert it into the pedestal.",
+      "   - Ride the platform back, turn left at the junction, place the Destruction Sphere in the slot to reveal the chest.",
+      "   - Open the chest to retrieve the Knight Lance. *Crucial for Anima!*"
+    ]
+  },
+  {
+    "id": "calm_lands",
+    "name": "16. Calm Lands",
+    "room_ids": [99, 100, 101, 102],
+    "category": "Story",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 23 (On the ground in the far northwest corner)",
+      "Start the Monster Arena capture quest (Crucial for Celestial Weapons)"
+    ],
+    "steps": [
+      "1. Search the far northwest cliffs of the Calm Lands to find Al Bhed Primer Vol. 23 on the grass.",
+      "2. Visit the Monster Arena in the east valley, purchase capture weapons, and start capturing 1 of every fiend."
+    ]
+  },
+  {
+    "id": "remie_temple",
+    "name": "17. Remiem Temple (Optional)",
+    "room_ids": [103, 104],
+    "category": "Optional",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 24 (Behind the left pillar outside the temple)",
+      "Win the Chocobo Race (Rewards Cloudy Mirror for Celestial Weapons)"
+    ],
+    "steps": [
+      "1. Ride a Chocobo to the southeast entrance of Calm Lands to reach Remiem Temple.",
+      "2. Find Al Bhed Primer Vol. 24 on the ground behind the left temple pillar.",
+      "3. Win the Remiem Temple Chocobo Race to obtain the Cloudy Mirror."
+    ]
+  },
+  {
+    "id": "cavern_stolen_fayth",
+    "name": "18. Cavern of the Stolen Fayth (Optional)",
+    "room_ids": [105, 106],
+    "category": "Optional",
+    "checklist": [
+      "Collect Al Bhed Primer Vol. 25 (On the ground in the cave passage)",
+      "Recruit Aeon Yojimbo (Bring at least 250,000 Gil)"
+    ],
+    "steps": [
+      "1. Search the deep cave passage floor to locate Al Bhed Primer Vol. 25.",
+      "2. Defeat Yojimbo, then negotiate to recruit him. Choose the option 'To defeat the most powerful enemies' to lower his price."
+    ]
+  },
+  {
+    "id": "mt_gagazet",
+    "name": "19. Mt. Gagazet",
+    "room_ids": [107, 108, 109, 110],
+    "category": "Story",
+    "checklist": [
+      "Steal from Biran and Yenke (Kimahri learns key Ronso Rages)",
+      "Collect Al Bhed Primer Vol. 26 (On the path of the Gagazet Mountain ruins)"
+    ],
+    "steps": [
+      "1. KIMAHRI SOLO FIGHT: Use Steal on Biran and Yenke repeatedly to learn Mighty Guard, White Wind, and Doom.",
+      "2. Find Al Bhed Primer Vol. 26 on the ground in the mountain pass ruins."
+    ]
+  },
+  {
+    "id": "zanarkand_dome",
+    "name": "20. Zanarkand Dome (Yunalesca & Sun Crest)",
+    "room_ids": [111, 112, 113],
+    "category": "Story",
+    "checklist": [
+      "Zanarkand Temple Destruction Sphere chest (Magister - Mandatory for Anima!)",
+      "Collect Sun Crest (CRITICAL MISSABLE immediately after Yunalesca!)"
+    ],
+    "steps": [
+      "1. Complete the trial puzzles by stepping on matching glowing tiles.",
+      "2. ZANARKAND TEMPLE DESTRUCTION SPHERE:",
+      "   - Return to the puzzle room after solving it once.",
+      "   - Step on the square symbols to light up the hidden panels.",
+      "   - Take the Destruction Sphere and place it in the slot next to the screen.",
+      "   - Open the chest to retrieve the Magister weapon. *Crucial for Anima!*",
+      "3. Yunalesca Boss: Keep one party member zombified to survive her Mega-Death attack.",
+      "4. CRITICAL MISSABLE: Immediately after Yunalesca dies, go down the back stairs and return. The Sun Crest chest will appear on the floor. If you leave without it, Dark Bahamut will block you on return!"
+    ]
+  }
+]

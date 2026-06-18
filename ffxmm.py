@@ -1534,7 +1534,7 @@ class FFXModManagerGUI:
         unmanaged_files = []
         total_size = 0
         
-        for folder in ["ffx_data", "ffx_ps2"]:
+        for folder in ["ffx_data", "ffx_ps2", "ffx2_data", "ffx2_ps2"]:
             src_folder = os.path.join(self.mods_dir, folder)
             if os.path.isdir(src_folder):
                 for root, dirs, files in os.walk(src_folder):
@@ -2728,7 +2728,13 @@ class FFXModManagerGUI:
         abs_path = abs_path.replace("\\", "/")
         parts = abs_path.split("/")
         
-        # 1. If absolute path contains the root folders ffx_ps2 or ffx_data explicitly
+        # 1. If absolute path contains the root folders explicitly
+        if "ffx2_ps2/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2_ps2/")
+            return abs_path[idx:]
+        if "ffx2_data/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2_data/")
+            return abs_path[idx:]
         if "ffx_ps2/" in abs_path.lower():
             idx = abs_path.lower().find("ffx_ps2/")
             return abs_path[idx:]
@@ -2736,23 +2742,33 @@ class FFXModManagerGUI:
             idx = abs_path.lower().find("ffx_data/")
             return abs_path[idx:]
             
-        # 2. If it contains subfolders ffx/master or gamedata
+        # 2. If it contains subfolders ffx2/master, ffx/master or gamedata
+        if "ffx2/master" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2/master")
+            return "ffx2_ps2/" + abs_path[idx:]
         if "ffx/master" in abs_path.lower():
             idx = abs_path.lower().find("ffx/master")
             return "ffx_ps2/" + abs_path[idx:]
         if "gamedata" in abs_path.lower():
             idx = abs_path.lower().find("gamedata")
-            return "ffx_data/" + abs_path[idx:]
+            if "ffx2" in abs_path.lower():
+                return "ffx2_data/" + abs_path[idx:]
+            else:
+                return "ffx_data/" + abs_path[idx:]
             
         # 3. If it contains localized folders like jppc, new_uspc, uspc
         for loc in ["jppc", "new_uspc", "uspc"]:
             if loc in parts:
                 idx = parts.index(loc)
                 ext = os.path.splitext(abs_path)[1].lower()
+                is_ffx2 = "ffx2" in abs_path.lower()
+                
                 if ext in [".bin", ".dat", ".evt"]:
-                    return "ffx_ps2/ffx/master/" + "/".join(parts[idx:])
+                    prefix = "ffx2_ps2/ffx2/master/" if is_ffx2 else "ffx_ps2/ffx/master/"
+                    return prefix + "/".join(parts[idx:])
                 else:
-                    return "ffx_data/gamedata/" + "/".join(parts[idx:])
+                    prefix = "ffx2_data/gamedata/" if is_ffx2 else "ffx_data/gamedata/"
+                    return prefix + "/".join(parts[idx:])
                     
         return ""
 
@@ -3416,12 +3432,17 @@ class FFXModManagerGUI:
 
     def monitor_game_process(self):
         import time
-        self.log("Waiting for game process (FFX.exe) to start...", "info")
+        self.log("Waiting for game process (FFX.exe or FFX-2.exe) to start...", "info")
         
         pid = None
-        # Loop checking for FFX.exe up to 60 seconds
+        detected_exe = None
+        # Loop checking for FFX.exe or FFX-2.exe up to 60 seconds
         for _ in range(60):
-            pid = self.find_process_id("FFX.exe")
+            for exe in ["FFX.exe", "FFX-2.exe"]:
+                pid = self.find_process_id(exe)
+                if pid:
+                    detected_exe = exe
+                    break
             if pid:
                 break
             time.sleep(1)
@@ -3430,10 +3451,10 @@ class FFXModManagerGUI:
             self.log("Game launch monitoring timed out.", "warning")
             return
             
-        self.log(f"Game process FFX.exe detected running (PID: {pid})!", "success")
+        self.log(f"Game process {detected_exe} detected running (PID: {pid})!", "success")
         
         # Fire plugin launch hooks
-        self.on_game_launched(pid)
+        self.on_game_launched(pid, detected_exe)
         
         # Monitor until it closes
         while True:
@@ -3441,7 +3462,7 @@ class FFXModManagerGUI:
                 break
             time.sleep(2)
             
-        self.log("Game process closed.", "info")
+        self.log(f"Game process {detected_exe} closed.", "info")
         self.on_game_closed()
 
     def find_process_id(self, process_name):
@@ -3510,8 +3531,14 @@ class FFXModManagerGUI:
         kernel32.CloseHandle(hProcess)
         return running
 
-    def on_game_launched(self, pid):
+    def on_game_launched(self, pid, exe_name="FFX.exe"):
         for plugin in self.plugins:
+            # Achievements and Walkthrough are FFX-specific. Avoid launching their trackers on FFX-2.
+            is_ffx_only = plugin._metadata.get("name") in ["Achievements", "Walkthrough", "Custom Achievements"]
+            if is_ffx_only and exe_name == "FFX-2.exe":
+                self.log(f"Skipping background tracker execution for FFX-only plugin '{plugin._metadata['name']}' during FFX-2 gameplay.", "info")
+                continue
+                
             if hasattr(plugin, "on_game_launch"):
                 try:
                     plugin.on_game_launch(pid)
@@ -3559,7 +3586,17 @@ class FFXModManagerGUI:
                             self.log(f"Failed to start tracker script with system Python: {e2}", "error")
                 
                 if getattr(plugin, "_tracker_process", None):
-                    self.log(f"💡 Tip: Press F8 in-game to toggle the {plugin._metadata['name']} overlay HUD!", "info")
+                    # Query actual hotkey from config if exists
+                    default_hk = plugin._metadata.get("default_hotkey", "F8")
+                    hk_str = default_hk
+                    cfg_path = os.path.join(plugin_dir, "overlay_config.json")
+                    if os.path.exists(cfg_path):
+                        try:
+                            with open(cfg_path, "r", encoding="utf-8") as f:
+                                hk_str = json.load(f).get("hotkey_str", default_hk)
+                        except Exception:
+                            pass
+                    self.log(f"💡 Tip: Press {hk_str} in-game to toggle the {plugin._metadata['name']} overlay HUD!", "info")
 
     def on_game_closed(self):
         for plugin in self.plugins:
