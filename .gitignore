@@ -31,3 +31,4 @@ ffx_modding_toolbox_config.json
 ffx_phyre_tool_config.json
 ffx_phyre_tool_recent_files.json
 compile_mod_manager.py
+sync_to_github.py

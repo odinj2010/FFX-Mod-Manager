@@ -18,7 +18,7 @@ except Exception:
 
 
 CONFIG_FILE = "ffxmm_config.json"
-TOOLBOX_CONFIG = "ffx_modding_toolbox_config.json"
+APP_VERSION = "2.2.0"
 
 def encode_metadata(data_dict):
     try:
@@ -223,6 +223,9 @@ class FFXModManagerGUI:
         
         # Auto-import loose files check
         self.root.after(500, self.auto_import_loose_files)
+        
+        # Check for Updates asynchronously in the background
+        self.root.after(1000, self.check_for_updates)
 
     def load_custom_themes(self):
         if getattr(sys, 'frozen', False):
@@ -437,24 +440,6 @@ class FFXModManagerGUI:
             except Exception:
                 pass
                 
-        # 2. Try Modding Toolbox config
-        if os.path.exists(TOOLBOX_CONFIG):
-            try:
-                with open(TOOLBOX_CONFIG, "r", encoding="utf-8") as f:
-                    toolbox = json.load(f)
-                    path = toolbox.get("loose_folder_path", "")
-                    if path:
-                        if path.lower().endswith(r"\data\mods") or path.lower().endswith("/data/mods"):
-                            config["game_dir"] = os.path.dirname(os.path.dirname(path))
-                            config["mods_dir"] = path
-                            config["mods_disabled_dir"] = os.path.join(os.path.dirname(path), "mods_disabled")
-                        elif path.lower().endswith(r"\data") or path.lower().endswith("/data"):
-                            config["game_dir"] = os.path.dirname(path)
-                            config["mods_dir"] = os.path.join(path, "mods")
-                            config["mods_disabled_dir"] = os.path.join(path, "mods_disabled")
-            except Exception:
-                pass
-                
         return config
 
     def save_config(self):
@@ -594,6 +579,10 @@ class FFXModManagerGUI:
         self.content_container = tk.Frame(main_layout, bg=self.bg_color)
         self.content_container.pack(side="left", fill="both", expand=True)
         
+        # Update Banner Frame (Hidden by default)
+        self.update_banner_frame = tk.Frame(self.content_container, bg=self.bg_color)
+        self.update_banner_frame.pack(fill="x", side="top", expand=False)
+        
         # Standard Pages Frames
         self.page_mods_frame = tk.Frame(self.content_container, bg=self.bg_color)
         self.page_settings_frame = tk.Frame(self.content_container, bg=self.bg_color)
@@ -709,18 +698,18 @@ class FFXModManagerGUI:
         self.cards_canvas.bind("<Leave>", unbind_cards_mouse)
         
         # Action buttons underneath card list
-        btn_p_frame = ttk.Frame(left_frame, padding=(0, 5, 0, 0))
+        btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
         btn_p_frame.pack(fill="x")
         
         btn_enable = tk.Button(btn_p_frame, text="⚡ Enable Mod (Install)", command=self.enable_mod, bg=self.success_color,
-                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669")
+                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", height=2)
         btn_enable._is_success = True
-        btn_enable.pack(fill="x", pady=2)
+        btn_enable.pack(fill="x", pady=3)
         self.bind_hover(btn_enable)
         
         btn_disable = tk.Button(btn_p_frame, text="⏪ Disable Mod (Uninstall)", command=self.disable_mod, bg=self.card_color,
-                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_disable.pack(fill="x", pady=2)
+                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, height=2)
+        btn_disable.pack(fill="x", pady=3)
         self.bind_hover(btn_disable)
         
         btn_new = tk.Button(btn_p_frame, text="Create New Mod", command=self.create_mod, bg=self.accent_color,
@@ -921,6 +910,29 @@ class FFXModManagerGUI:
         self.lbl_loader_status.pack(fill="x", pady=5)
         self.update_loader_status_ui()
         
+        # Safe Mode & Diagnostics Card (Card Style)
+        safe_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        safe_card._is_card = True
+        safe_card.pack(fill="x", pady=10)
+        
+        lbl_safe_title = tk.Label(safe_card, text="Safety & Diagnostics Controls", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_safe_title._is_title = True
+        lbl_safe_title.pack(anchor="w", pady=(0, 10))
+        
+        safe_row = tk.Frame(safe_card, bg=self.card_color)
+        safe_row.pack(fill="x")
+        
+        btn_safe_reset = tk.Button(safe_row, text="⚠️ Disable All Active Mods (Safe Reset)", command=self.safe_mode_reset, bg=self.error_color,
+                                   fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=4)
+        btn_safe_reset._is_danger = True
+        btn_safe_reset.pack(side="left", padx=(0, 15))
+        self.bind_hover(btn_safe_reset)
+        
+        btn_verify_disk = tk.Button(safe_row, text="💾 Verify Disk & Permissions", command=self.verify_deployment_safety, bg=self.bg_color,
+                                    fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        btn_verify_disk.pack(side="left")
+        self.bind_hover(btn_verify_disk)
+
         # Theme Settings (Card Style)
         theme_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
         theme_card._is_card = True
@@ -1278,7 +1290,7 @@ class FFXModManagerGUI:
         
         border = self.accent_color if is_selected else self.border_color
         card.configure(bg=self.card_color, highlightbackground=border, highlightcolor=border)
-        card.pack(fill="x", pady=4, padx=5, ipady=5)
+        card.pack(fill="x", pady=4, padx=5, ipady=6)
         
         card.columnconfigure(0, weight=1)
         card.columnconfigure(1, weight=0)
@@ -1294,19 +1306,34 @@ class FFXModManagerGUI:
         status = info["status"]
         status_bg = "#064e3b" if status == "Enabled" else "#374151"
         status_fg = "#10b981" if status == "Enabled" else self.text_dim
-        lbl_status = tk.Label(top_row, text=f" {status} ", font=("Segoe UI", 8, "bold"), fg=status_fg, bg=status_bg, padx=6, pady=2)
+        status_text = "● Active" if status == "Enabled" else "○ Disabled"
+        lbl_status = tk.Label(top_row, text=f" {status_text} ", font=("Segoe UI", 8, "bold"), fg=status_fg, bg=status_bg, padx=6, pady=2)
         lbl_status._is_status_pill = True
         lbl_status.grid(row=0, column=1, sticky="e")
         
-        # Bottom Row: Files count & Size
-        bottom_row = tk.Frame(card, bg=self.card_color)
-        bottom_row.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=2)
-        bottom_row.columnconfigure(0, weight=1)
+        # Middle Row: Category badge & Info
+        middle_row = tk.Frame(card, bg=self.card_color)
+        middle_row.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=1)
+        
+        category = info.get("category", "General").upper()
+        # Pill colors depending on category
+        cat_colors = {
+            "TEXTURE": ("#1e3a8a", "#3b82f6"),
+            "AUDIO": ("#312e81", "#6366f1"),
+            "SCRIPT": ("#065f46", "#10b981"),
+            "UI": ("#5b21b6", "#8b5cf6"),
+            "GAMEPLAY": ("#7c2d12", "#f97316")
+        }
+        bg_c, fg_c = cat_colors.get(category, ("#374151", self.text_dim))
+        
+        lbl_cat = tk.Label(middle_row, text=f" {category} ", font=("Segoe UI", 7, "bold"), fg=fg_c, bg=bg_c, padx=4, pady=1)
+        lbl_cat._is_status_pill = True
+        lbl_cat.pack(side="left", padx=(0, 5))
         
         info_text = f"Files: {len(info['files'])}  |  Size: {self.get_friendly_size(info['size'])}"
-        lbl_info = tk.Label(bottom_row, text=info_text, font=("Segoe UI", 8), fg=self.text_dim, bg=self.card_color, anchor="w")
+        lbl_info = tk.Label(middle_row, text=info_text, font=("Segoe UI", 8), fg=self.text_dim, bg=self.card_color, anchor="w")
         lbl_info._is_muted = True
-        lbl_info.grid(row=0, column=0, sticky="w")
+        lbl_info.pack(side="left")
         
         # Click binding for card selection
         def select_click(event, m_id=mod_id):
@@ -1314,10 +1341,11 @@ class FFXModManagerGUI:
             
         card.bind("<Button-1>", select_click)
         top_row.bind("<Button-1>", select_click)
-        bottom_row.bind("<Button-1>", select_click)
+        middle_row.bind("<Button-1>", select_click)
         lbl_name.bind("<Button-1>", select_click)
         lbl_status.bind("<Button-1>", select_click)
         lbl_info.bind("<Button-1>", select_click)
+        lbl_cat.bind("<Button-1>", select_click)
         
         # Hover bindings
         def on_enter(event, c=card):
@@ -1329,6 +1357,20 @@ class FFXModManagerGUI:
                 
         card.bind("<Enter>", on_enter)
         card.bind("<Leave>", on_leave)
+        
+        # Propagate hovers from inner elements to card container
+        top_row.bind("<Enter>", on_enter)
+        top_row.bind("<Leave>", on_leave)
+        middle_row.bind("<Enter>", on_enter)
+        middle_row.bind("<Leave>", on_leave)
+        lbl_name.bind("<Enter>", on_enter)
+        lbl_name.bind("<Leave>", on_leave)
+        lbl_status.bind("<Enter>", on_enter)
+        lbl_status.bind("<Leave>", on_leave)
+        lbl_info.bind("<Enter>", on_enter)
+        lbl_info.bind("<Leave>", on_leave)
+        lbl_cat.bind("<Enter>", on_enter)
+        lbl_cat.bind("<Leave>", on_leave)
 
     def select_mod(self, mod_id):
         self.selected_mod_id = mod_id
@@ -1834,26 +1876,25 @@ class FFXModManagerGUI:
     def find_active_file_owner(self, rel_path, exclude_mod_id=None):
         rel_norm = os.path.normpath(rel_path).lower()
         if getattr(self, "is_fahrenheit_mode", False):
-            fh_mods_dir = os.path.join(self.game_dir, "fahrenheit", "mods")
-            if not os.path.exists(fh_mods_dir):
-                return None
-            try:
-                for other_mod_id in os.listdir(fh_mods_dir):
-                    if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
-                        continue
-                    tracker_path = os.path.join(fh_mods_dir, other_mod_id, "modinfo.ffxmod")
-                    if os.path.exists(tracker_path):
-                        try:
-                            with open(tracker_path, "r", encoding="utf-8") as tf:
-                                track = decode_metadata(tf.read())
-                            track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
-                            if rel_norm in track_files:
-                                return other_mod_id
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-            return None
+            # In Fahrenheit, mods are prioritized according to the load order.
+            # The mod listed LATEST in loadorder takes priority (overrides earlier ones).
+            # So the active file owner is the enabled mod that comes LAST in loadorder containing this file.
+            order = self.read_load_order()
+            active_owner = None
+            for other_mod_id in order:
+                if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
+                    continue
+                tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", other_mod_id, "modinfo.ffxmod")
+                if os.path.exists(tracker_path):
+                    try:
+                        with open(tracker_path, "r", encoding="utf-8") as tf:
+                            track = decode_metadata(tf.read())
+                        track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
+                        if rel_norm in track_files:
+                            active_owner = other_mod_id
+                    except Exception:
+                        pass
+            return active_owner
         else:
             if not self.mods_dir or not os.path.exists(self.mods_dir):
                 return None
@@ -2218,11 +2259,40 @@ class FFXModManagerGUI:
         os.makedirs(temp_dir, exist_ok=True)
         
         ext = os.path.splitext(zip_path)[1].lower()
+        
+        # Build UI Progress Modal
+        progress_win = tk.Toplevel(self.root)
+        progress_win.title("Extracting Mod...")
+        progress_win.geometry("450x150")
+        progress_win.configure(bg=self.bg_color)
+        progress_win.transient(self.root)
+        progress_win.grab_set()
+        
+        lbl_msg = tk.Label(progress_win, text=f"Preparing extraction of {os.path.basename(zip_path)}...", font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color)
+        lbl_msg.pack(pady=15, padx=20, anchor="w")
+        
+        progress = ttk.Progressbar(progress_win, orient="horizontal", mode="determinate", length=400)
+        progress.pack(pady=5, padx=20, fill="x")
+        
+        lbl_percent = tk.Label(progress_win, text="0%", font=("Segoe UI", 9, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_percent.pack(pady=5, padx=20, anchor="e")
+        self.root.update()
+
         if ext == ".zip":
             try:
                 with zipfile.ZipFile(zip_path, "r") as z:
-                    z.extractall(temp_dir)
+                    list_files = z.infolist()
+                    total = len(list_files)
+                    for idx, z_file in enumerate(list_files):
+                        z.extract(z_file, temp_dir)
+                        if idx % max(1, total // 50) == 0 or idx == total - 1:
+                            pct = int((idx + 1) / total * 100)
+                            lbl_msg.config(text=f"Extracting: {z_file.filename}")
+                            lbl_percent.config(text=f"{pct}%")
+                            progress["value"] = pct
+                            self.root.update()
             except Exception as e:
+                progress_win.destroy()
                 self.log(f"Failed to extract zip archive: {e}", "error")
                 if os.path.exists(temp_dir):
                     try:
@@ -2231,6 +2301,7 @@ class FFXModManagerGUI:
                         pass
                 return
         elif ext == ".rar":
+            progress_win.destroy() # Rar decompression relies on external subprocess, we destroy progress_win and run it.
             extracted = False
             # Method 1: Check for 7-Zip
             seven_zip_paths = [
@@ -2290,6 +2361,7 @@ class FFXModManagerGUI:
                         pass
                 return
         else:
+            progress_win.destroy()
             self.log(f"Error: Unsupported archive format '{ext}'. Only .zip and .rar are supported.", "error")
             if os.path.exists(temp_dir):
                 try:
@@ -2297,6 +2369,11 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
             return
+            
+        try:
+            progress_win.destroy()
+        except Exception:
+            pass
             
         # Analyze the extracted contents
         # Strip single top-level folder wrapper if present
@@ -3092,6 +3169,211 @@ class FFXModManagerGUI:
             self.log(f"Moved '{mod_id}' down in load order.", "success")
             self.refresh_list()
             self.select_mod(mod_id)
+
+    def safe_mode_reset(self):
+        if not self.game_dir:
+            messagebox.showwarning("Warning", "Configure FFX game directory first.")
+            return
+        if not messagebox.askyesno("Confirm Safe Reset", "Are you sure you want to disable ALL active mods?\n\nThis will return all files to their inactive repository backups and clean up the active mod folder."):
+            return
+            
+        self.log("Starting Safe Mode reset: Deactivating all active mods...")
+        disabled_count = 0
+        
+        # Read active mods list
+        active_list = []
+        if self.is_fahrenheit_mode:
+            active_list = self.read_load_order()
+        else:
+            if self.mods_dir and os.path.exists(self.mods_dir):
+                for f in os.listdir(self.mods_dir):
+                    if f.endswith((".ffxmod", ".json")) and not f.startswith("modinfo"):
+                        active_list.append(f[:-7] if f.endswith(".ffxmod") else f[:-5])
+                        
+        for mod_id in active_list:
+            try:
+                self.disable_mod_logic(mod_id)
+                disabled_count += 1
+            except Exception as e:
+                self.log(f"Failed disabling '{mod_id}': {e}", "error")
+                
+        self.refresh_list()
+        messagebox.showinfo("Safe Reset Complete", f"Successfully deactivated {disabled_count} active mod(s). Your directory has been restored to clean state.")
+        self.log(f"Safe reset completed successfully (deactivated {disabled_count} mods).", "success")
+
+    def verify_deployment_safety(self):
+        if not self.game_dir or not os.path.exists(self.game_dir):
+            messagebox.showwarning("Diagnostics", "No valid game folder configured.")
+            return
+            
+        self.log("Running diagnostics on game directories...")
+        
+        # 1. Check permissions (attempt write a dummy file)
+        dummy_path = os.path.join(self.game_dir, "_ffxmm_perm_test.tmp")
+        write_ok = False
+        try:
+            with open(dummy_path, "w") as f:
+                f.write("test")
+            os.remove(dummy_path)
+            write_ok = True
+        except Exception:
+            pass
+            
+        perm_status = "🟢 Permissions: Write Access OK" if write_ok else "❌ Permissions: Access Denied (Run as Administrator)"
+        self.log(perm_status, "info" if write_ok else "error")
+        
+        # 2. Check Disk Space
+        import ctypes
+        free_bytes = ctypes.c_ulonglong(0)
+        total_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+            ctypes.c_wchar_p(self.game_dir),
+            None,
+            ctypes.byref(total_bytes),
+            ctypes.byref(free_bytes)
+        )
+        free_gb = free_bytes.value / (1024**3)
+        space_ok = free_gb > 1.0 # arbitrary 1GB warning threshold
+        space_status = f"🟢 Free Space: {free_gb:.2f} GB" if space_ok else f"⚠️ Free Space low: {free_gb:.2f} GB"
+        self.log(space_status, "info" if space_ok else "error")
+        
+        # 3. Check Steam Registry mapping status
+        steam_path = self.get_steam_install_path()
+        steam_status = f"🟢 Steam install matched: {steam_path}" if steam_path else "⚠️ Steam install path registry key mapping missing (using manual path)"
+        self.log(steam_status, "info" if steam_path else "warning")
+        
+        messagebox.showinfo("Diagnostics Complete", f"Diagnostics status:\n\n- Write Permissions: {'OK' if write_ok else 'Denied'}\n- Disk Free Space: {free_gb:.2f} GB\n- Steam Path Auto-Mapping: {'Detected' if steam_path else 'Missing'}")
+
+    def check_for_updates(self):
+        import threading
+        t = threading.Thread(target=self.run_update_check, daemon=True)
+        t.start()
+
+    def run_update_check(self):
+        import urllib.request
+        import json
+        
+        try:
+            req = urllib.request.Request(
+                "https://api.github.com/repos/odinj2010/FFX-Mod-Manager/releases/latest",
+                headers={'User-Agent': 'FFXMM-Update-Checker'}
+            )
+            with urllib.request.urlopen(req, timeout=4.0) as response:
+                data = json.loads(response.read().decode('utf-8'))
+                raw_tag = data.get("tag_name", "").strip()
+                tag_name = raw_tag.upper().lstrip("V").lstrip(".")
+                html_url = data.get("html_url", "https://github.com/odinj2010/FFX-Mod-Manager/releases")
+                
+                if not tag_name:
+                    return
+                    
+                # Parse versions
+                def parse_ver(v_str):
+                    # Remove any leading V/v or dots again just in case
+                    clean_str = v_str.upper().lstrip("V").lstrip(".")
+                    parts = []
+                    for x in clean_str.split("."):
+                        try:
+                            parts.append(int("".join(c for c in x if c.isdigit())))
+                        except Exception:
+                            parts.append(0)
+                    return tuple(parts)
+                    
+                local_ver = parse_ver(APP_VERSION)
+                online_ver = parse_ver(tag_name)
+                
+                if online_ver > local_ver:
+                    self.log(f"New update available: {raw_tag} (Current: v{APP_VERSION})", "info")
+                    self.root.after(0, lambda: self.show_update_banner(raw_tag, html_url))
+        except Exception as e:
+            # Silent fail so it doesn't interrupt offline use
+            pass
+
+    def show_update_banner(self, new_ver, update_url):
+        # Clear existing banner content if any
+        for widget in self.update_banner_frame.winfo_children():
+            widget.destroy()
+            
+        banner = tk.Frame(self.update_banner_frame, bg="#1e3a8a" if self.bg_color != "#f3f4f6" else "#bfdbfe", pady=8, padx=15)
+        banner.pack(fill="x", expand=True, pady=(0, 10))
+        
+        # Ensure correct formatting of display names
+        disp_new = new_ver if new_ver.upper().startswith("V") else f"v{new_ver}"
+        disp_local = APP_VERSION if APP_VERSION.upper().startswith("V") else f"v{APP_VERSION}"
+        
+        lbl_msg = tk.Label(banner, text=f"🚀 A new version of FFX Mod Manager is available: {disp_new} (Current: {disp_local})", 
+                           bg=banner.cget("bg"), fg="#ffffff" if self.bg_color != "#f3f4f6" else "#1e3a8a", font=("Segoe UI", 9, "bold"))
+        lbl_msg.pack(side="left")
+        
+        def choose_download_source():
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Select Download Source")
+            dialog.geometry("400x180")
+            dialog.configure(bg=self.bg_color)
+            dialog.transient(self.root)
+            
+            # Center the dialog window over root window
+            dialog.update_idletasks()
+            parent_w = self.root.winfo_width()
+            parent_h = self.root.winfo_height()
+            parent_x = self.root.winfo_x()
+            parent_y = self.root.winfo_y()
+            
+            w = 400
+            h = 180
+            x = parent_x + (parent_w - w) // 2
+            y = parent_y + (parent_h - h) // 2
+            dialog.geometry(f"{w}x{h}+{x}+{y}")
+            
+            dialog.grab_set()
+            
+            lbl_title = tk.Label(dialog, text="Where would you like to download from?", font=("Segoe UI", 10, "bold"), fg=self.text_color, bg=self.bg_color)
+            lbl_title.pack(pady=(20, 15))
+            
+            def open_github():
+                import webbrowser
+                webbrowser.open(update_url)
+                dialog.destroy()
+                
+            def open_nexus():
+                import webbrowser
+                # Static Nexus FFXMM mods page link
+                webbrowser.open("https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/327")
+                dialog.destroy()
+                
+            btn_frame = tk.Frame(dialog, bg=self.bg_color)
+            btn_frame.pack(fill="x", padx=40, pady=5)
+            
+            btn_nexus = tk.Button(btn_frame, text="📥 Download from Nexus Mods", command=open_nexus, bg=self.accent_color, fg="white",
+                                  font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, height=2)
+            btn_nexus._is_primary = True
+            btn_nexus.pack(fill="x", expand=True)
+            self.bind_hover(btn_nexus, is_primary=True)
+            
+            # Small fallback text link on the bottom
+            lbl_fallback = tk.Label(dialog, text="Nexus Mods quarantined or not working?", font=("Segoe UI", 8), fg=self.text_dim, bg=self.bg_color)
+            lbl_fallback.pack(pady=(15, 0))
+            
+            lbl_github = tk.Label(dialog, text="Get temporary backup download from GitHub", font=("Segoe UI", 8, "underline"), fg=self.accent_color, bg=self.bg_color, cursor="hand2")
+            lbl_github.pack(pady=(0, 10))
+            
+            def on_git_enter(event):
+                lbl_github.configure(fg=self.accent_hover)
+            def on_git_leave(event):
+                lbl_github.configure(fg=self.accent_color)
+                
+            lbl_github.bind("<Button-1>", lambda e: open_github())
+            lbl_github.bind("<Enter>", on_git_enter)
+            lbl_github.bind("<Leave>", on_git_leave)
+            
+        btn_download = tk.Button(banner, text="📥 Get Update", command=choose_download_source, bg=self.accent_color, fg="white", 
+                                 font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.accent_hover, bd=0, padx=8, pady=2)
+        btn_download.pack(side="right", padx=(10, 0))
+        self.bind_hover(btn_download)
+        
+        btn_close = tk.Button(banner, text="✕", command=banner.destroy, bg=banner.cget("bg"), fg="#ffffff" if self.bg_color != "#f3f4f6" else "#1e3a8a", 
+                              font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6)
+        btn_close.pack(side="right")
 
     def launch_game(self):
         if not self.game_dir:
