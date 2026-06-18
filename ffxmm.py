@@ -2613,24 +2613,65 @@ class FFXModManagerGUI:
             lbl_p_desc.pack(fill="x", pady=(0, 10))
             
             is_installed = False
+            has_update = False
+            local_version = ""
+            
             if getattr(sys, 'frozen', False):
                 base_dir = os.path.dirname(sys.executable)
             else:
                 base_dir = os.path.dirname(os.path.abspath(__file__))
             p_dir = os.path.join(base_dir, "plugins", p_id)
-            if os.path.exists(os.path.join(p_dir, "plugin.json")):
-                is_installed = True
+            local_json = os.path.join(p_dir, "plugin.json")
             
-            btn_text = "🔄 Reinstall" if is_installed else "📥 Install Plugin"
+            if os.path.exists(local_json):
+                is_installed = True
+                try:
+                    with open(local_json, "r", encoding="utf-8") as lf:
+                        local_meta = json.load(lf)
+                        local_version = local_meta.get("version", "")
+                except Exception:
+                    pass
+                
+                if local_version:
+                    def parse_ver(v_str):
+                        clean_str = v_str.upper().lstrip("V").lstrip(".")
+                        parts = []
+                        for x in clean_str.split("."):
+                            try:
+                                parts.append(int("".join(c for c in x if c.isdigit())))
+                            except Exception:
+                                parts.append(0)
+                        return tuple(parts)
+                    
+                    try:
+                        if parse_ver(version) > parse_ver(local_version):
+                            has_update = True
+                    except Exception:
+                        pass
+
+            if has_update:
+                btn_text = f"🆕 Update to v{version}"
+                btn_bg = self.accent_color
+                is_primary_btn = True
+            elif is_installed:
+                btn_text = f"🔄 Reinstall (v{local_version})"
+                btn_bg = self.border_color
+                is_primary_btn = False
+            else:
+                btn_text = "📥 Install Plugin"
+                btn_bg = self.accent_color
+                is_primary_btn = True
+                
             btn_state = "normal"
-            btn_bg = self.border_color if is_installed else self.accent_color
             
             btn_action = tk.Button(card, text=btn_text, state=btn_state, bg=btn_bg, fg="white",
-                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
+                                   font=("Segoe UI", 9, "bold"), relief="flat", 
+                                   activebackground=self.accent_hover if is_primary_btn else self.border_color, padx=12, pady=4)
+            btn_action._is_primary = is_primary_btn
             btn_action.pack(anchor="e")
             if btn_state == "normal":
                 btn_action.config(command=lambda pid=p_id, dl_url=url, btn=btn_action: self.install_plugin(pid, dl_url, btn))
-                self.bind_hover(btn_action, is_primary=(not is_installed))
+                self.bind_hover(btn_action, is_primary=is_primary_btn)
                 
         self.update_widget_colors(self.plugins_grid)
 
