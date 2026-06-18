@@ -53,8 +53,58 @@ class WalkthroughOverlayHUD:
             )
             sys.exit(1)
             
+        # Resolve base address of FFX.exe
+        self.base_address = self.get_module_base(self.pid, "FFX.exe")
+        if not self.base_address:
+            # Fallback check for FFX-2 just in case
+            self.base_address = self.get_module_base(self.pid, "FFX-2.exe")
+            
         # Spawn GUI on main thread
         self.run_hud_window()
+
+    def get_module_base(self, pid, module_name):
+        TH32CS_SNAPMODULE = 0x00000008
+        TH32CS_SNAPMODULE32 = 0x00000010
+        
+        class MODULEENTRY32(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", ctypes.c_ulong),
+                ("th32ModuleID", ctypes.c_ulong),
+                ("th32ProcessID", ctypes.c_ulong),
+                ("GlblcntUsage", ctypes.c_ulong),
+                ("ProccntUsage", ctypes.c_ulong),
+                ("modBaseAddr", ctypes.c_void_p),
+                ("modBaseSize", ctypes.c_ulong),
+                ("hModule", ctypes.c_void_p),
+                ("szModule", ctypes.c_char * 256),
+                ("szExePath", ctypes.c_char * 260)
+            ]
+            
+        hSnapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid)
+        if hSnapshot == -1:
+            return None
+            
+        me32 = MODULEENTRY32()
+        me32.dwSize = ctypes.sizeof(MODULEENTRY32)
+        
+        if not kernel32.Module32First(hSnapshot, ctypes.byref(me32)):
+            kernel32.CloseHandle(hSnapshot)
+            return None
+            
+        base_address = None
+        while True:
+            try:
+                name = me32.szModule.decode('utf-8', errors='ignore')
+            except Exception:
+                name = ""
+            if name.lower() == module_name.lower():
+                base_address = me32.modBaseAddr
+                break
+            if not kernel32.Module32Next(hSnapshot, ctypes.byref(me32)):
+                break
+                
+        kernel32.CloseHandle(hSnapshot)
+        return base_address
 
     def load_guide_data(self):
         if os.path.exists(self.guide_path):
@@ -195,11 +245,14 @@ class WalkthroughOverlayHUD:
         if not self.is_game_running():
             return
             
-        base_address = 0xD3A124
+        offset = 0xD3A124
+        base = self.base_address if getattr(self, "base_address", None) else 0
+        target_addr = base + offset
+        
         buffer = ctypes.c_int()
         bytesRead = ctypes.c_size_t()
         
-        ret = kernel32.ReadProcessMemory(self.hProcess, ctypes.c_void_p(base_address), ctypes.byref(buffer), ctypes.sizeof(buffer), ctypes.byref(bytesRead))
+        ret = kernel32.ReadProcessMemory(self.hProcess, ctypes.c_void_p(target_addr), ctypes.byref(buffer), ctypes.sizeof(buffer), ctypes.byref(bytesRead))
         if ret:
             self.update_hud_for_room(buffer.value)
             
