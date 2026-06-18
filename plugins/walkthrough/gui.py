@@ -27,9 +27,19 @@ class WalkthroughTab:
         self.guide_data = self.load_guide_data()
         self.checklist_state = self.load_checklist_state()
         
+        # Load defaults from plugin.json
+        manifest_file = os.path.join(self.plugin_dir, "plugin.json")
+        default_hk = "F9"
+        if os.path.exists(manifest_file):
+            try:
+                with open(manifest_file, "r", encoding="utf-8") as f:
+                    default_hk = json.load(f).get("default_hotkey", "F9")
+            except Exception:
+                pass
+
         # HUD vars
         self.hud_position = tk.StringVar(value="Right-Half")
-        self.hud_hotkey = tk.StringVar(value="F9")
+        self.hud_hotkey = tk.StringVar(value=default_hk)
         self.hud_opacity = tk.DoubleVar(value=0.85)
         self.hud_scale = tk.DoubleVar(value=1.0)
         self.load_overlay_config()

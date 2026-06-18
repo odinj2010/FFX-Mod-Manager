@@ -32,7 +32,18 @@ class WalkthroughOverlayHUD:
         self.hud_position = "Right-Half"
         self.hud_opacity = 0.85
         self.hud_scale = 1.0
-        self.hotkey_vk = 0x78 # F9 default
+        
+        # Load defaults from plugin.json
+        plugin_dir = os.path.dirname(self.config_path)
+        manifest_path = os.path.join(plugin_dir, "plugin.json")
+        default_hk = "F9"
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    default_hk = json.load(f).get("default_hotkey", "F9")
+            except Exception:
+                pass
+        self.hotkey_vk = self.get_vk_code(default_hk)
         self.last_config_check = 0.0
         self.config_mtime = 0.0
         
@@ -115,6 +126,10 @@ class WalkthroughOverlayHUD:
                 pass
         return []
 
+    def get_vk_code(self, hotkey_str):
+        mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
+        return mapping.get(hotkey_str, 0x78)  # F9 default
+
     def load_config(self):
         if os.path.exists(self.config_path):
             try:
@@ -124,7 +139,7 @@ class WalkthroughOverlayHUD:
                 self.hud_position = cfg.get("position", "Right-Half")
                 self.hud_opacity = float(cfg.get("opacity", 0.85))
                 self.hud_scale = float(cfg.get("scale", 1.0))
-                self.hotkey_vk = int(cfg.get("hotkey_vk", 0x78))
+                self.hotkey_vk = int(cfg.get("hotkey_vk", self.hotkey_vk))
             except Exception:
                 pass
 

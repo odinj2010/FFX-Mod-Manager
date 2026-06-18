@@ -247,11 +247,21 @@ class AchievementsOverlayApp:
         self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
         self.config_path = os.path.join(self.plugin_dir, "overlay_config.json")
         
+        # Load defaults from plugin.json
+        manifest_path = os.path.join(self.plugin_dir, "plugin.json")
+        default_hk = "F8"
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    default_hk = json.load(f).get("default_hotkey", "F8")
+            except Exception:
+                pass
+                
         # Default configuration
         self.hud_position = "Right-Half"
         self.hud_opacity = 0.85
         self.hud_scale = 1.0
-        self.hotkey_vk = 0x77  # F8 default
+        self.hotkey_vk = self.get_vk_code(default_hk)
         self.last_config_check = 0.0
         self.config_mtime = 0.0
         
@@ -276,6 +286,10 @@ class AchievementsOverlayApp:
         self.scanner_thread = threading.Thread(target=self.ram_scanner_loop, daemon=True)
         self.scanner_thread.start()
         
+    def get_vk_code(self, hotkey_str):
+        mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
+        return mapping.get(hotkey_str, 0x77)  # F8 default
+
     def load_config(self):
         if os.path.exists(self.config_path):
             try:
@@ -285,7 +299,7 @@ class AchievementsOverlayApp:
                 self.hud_position = cfg.get("position", "Right-Half")
                 self.hud_opacity = float(cfg.get("opacity", 0.85))
                 self.hud_scale = float(cfg.get("scale", 1.0))
-                self.hotkey_vk = int(cfg.get("hotkey_vk", 0x77))
+                self.hotkey_vk = int(cfg.get("hotkey_vk", self.hotkey_vk))
             except Exception:
                 pass
 
