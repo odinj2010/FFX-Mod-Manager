@@ -1,0 +1,12 @@
+{
+  "name": "Rikku Thief",
+  "bg_color": "#161914",
+  "card_color": "#22281e",
+  "accent_color": "#ea580c",
+  "accent_hover": "#f97316",
+  "text_color": "#f4fce3",
+  "text_dim": "#a3e635",
+  "border_color": "#3f6212",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

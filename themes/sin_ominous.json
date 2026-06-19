@@ -1,0 +1,12 @@
+{
+  "name": "Sin Ominous",
+  "bg_color": "#09090b",
+  "card_color": "#18181b",
+  "accent_color": "#dc2626",
+  "accent_hover": "#ef4444",
+  "text_color": "#f4f4f5",
+  "text_dim": "#a1a1aa",
+  "border_color": "#27272a",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

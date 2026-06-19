@@ -1,0 +1,12 @@
+{
+  "name": "Chocobo Yellow",
+  "bg_color": "#252016",
+  "card_color": "#383120",
+  "accent_color": "#fbbf24",
+  "accent_hover": "#f59e0b",
+  "text_color": "#fef08a",
+  "text_dim": "#ca8a04",
+  "border_color": "#5c4f30",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

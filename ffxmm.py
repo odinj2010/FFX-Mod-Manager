@@ -8,6 +8,7 @@ import base64
 import ctypes
 import ctypes.wintypes
 from tkinter import ttk, filedialog, messagebox, simpledialog
+from tooltip import ToolTip
 
 # Load kernel32 for process memory reading & process scanning
 try:
@@ -18,7 +19,7 @@ except Exception:
 
 
 CONFIG_FILE = "ffxmm_config.json"
-APP_VERSION = "2.3.0"
+APP_VERSION = "3.0.0"
 
 def encode_metadata(data_dict):
     try:
@@ -68,17 +69,17 @@ class FFXModManagerGUI:
                 "success_color": "#10b981",
                 "error_color": "#ef4444"
             },
-            "Yuna White": {
-                "name": "Yuna White",
-                "bg_color": "#f3f4f6",
+            "Yuna Summoner": {
+                "name": "Yuna Summoner",
+                "bg_color": "#f1f5f9",
                 "card_color": "#ffffff",
-                "accent_color": "#4f46e5",
-                "accent_hover": "#4338ca",
-                "text_color": "#111827",
-                "text_dim": "#6b7280",
-                "border_color": "#e5e7eb",
-                "success_color": "#059669",
-                "error_color": "#dc2626"
+                "accent_color": "#0284c7",
+                "accent_hover": "#0369a1",
+                "text_color": "#0f172a",
+                "text_dim": "#db2777",
+                "border_color": "#cbd5e1",
+                "success_color": "#10b981",
+                "error_color": "#ef4444"
             }
         }
         self.load_custom_themes()
@@ -156,13 +157,13 @@ class FFXModManagerGUI:
 
             # Treeview Styling
             self.style.configure("Treeview", background=self.card_color, fieldbackground=self.card_color, 
-                                 foreground=self.text_color, borderwidth=1, bordercolor=self.border_color,
+                                 foreground=self.text_dim, borderwidth=1, bordercolor=self.border_color,
                                  font=("Segoe UI", 9), rowheight=24)
             self.style.configure("Treeview.Heading", background=self.bg_color, foreground=self.accent_color,
                                  font=("Segoe UI", 9, "bold"), borderwidth=1, bordercolor=self.border_color)
             self.style.map("Treeview", 
                            background=[("selected", self.accent_color), ("!selected", self.card_color)],
-                           foreground=[("selected", "#ffffff"), ("!selected", self.text_color)])
+                           foreground=[("selected", "#ffffff"), ("!selected", self.text_dim)])
 
         # Option Database for Listboxes
         self.root.option_add("*TCombobox*Listbox.background", "#ffffff")
@@ -200,6 +201,7 @@ class FFXModManagerGUI:
         self.game_dir = ""
         self.mods_dir = ""
         self.mods_disabled_dir = ""
+        self.active_game_mode = self.config.get("active_game_mode", "FFX")
         
         # State tracking for pages & themes
         self.selected_mod_id = ""
@@ -208,6 +210,7 @@ class FFXModManagerGUI:
         self.pages = {}
         self.sidebar_buttons = {}
         self.current_page = ""
+        self.active_game_pid = None
         
         self.init_paths()
         
@@ -226,6 +229,9 @@ class FFXModManagerGUI:
         
         # Check for Updates asynchronously in the background
         self.root.after(1000, self.check_for_updates)
+        
+        # Start persistent background game monitoring
+        self.start_persistent_game_monitoring()
 
     def load_custom_themes(self):
         if getattr(sys, 'frozen', False):
@@ -291,17 +297,32 @@ class FFXModManagerGUI:
                        bordercolor=[("focus", self.accent_color), ("!focus", self.border_color)])
         
         self.style.configure("Treeview", background=self.card_color, fieldbackground=self.card_color, 
-                             foreground=self.text_color, borderwidth=1, bordercolor=self.border_color)
+                             foreground=self.text_dim, borderwidth=1, bordercolor=self.border_color)
         self.style.configure("Treeview.Heading", background=self.bg_color, foreground=self.accent_color,
                              borderwidth=1, bordercolor=self.border_color)
         self.style.map("Treeview", 
                        background=[("selected", self.accent_color), ("!selected", self.card_color)],
-                       foreground=[("selected", "#ffffff"), ("!selected", self.text_color)])
+                       foreground=[("selected", "#ffffff"), ("!selected", self.text_dim)])
                        
         self.style.configure("Vertical.TScrollbar", background=self.card_color, troughcolor=self.bg_color, 
                              bordercolor=self.border_color, arrowcolor=self.accent_color)
         self.style.map("Vertical.TScrollbar",
                        background=[("active", self.accent_color), ("pressed", self.accent_color), ("", self.card_color)])
+                       
+        self.style.configure("Horizontal.TScrollbar", background=self.card_color, troughcolor=self.bg_color, 
+                             bordercolor=self.border_color, arrowcolor=self.accent_color,
+                             lightcolor=self.border_color, darkcolor=self.border_color)
+        self.style.map("Horizontal.TScrollbar",
+                       background=[("active", self.accent_color), ("pressed", self.accent_color), ("", self.card_color)],
+                       arrowcolor=[("active", "#ffffff"), ("", self.accent_color)])
+
+        self.style.configure("TNotebook", background=self.bg_color, borderwidth=0)
+        self.style.configure("TNotebook.Tab", background=self.card_color, foreground=self.text_dim, 
+                             padding=[15, 6], font=("Segoe UI", 9, "bold"), borderwidth=1, bordercolor=self.border_color)
+        self.style.map("TNotebook.Tab", 
+                       background=[("selected", self.accent_color), ("active", self.border_color), ("", self.card_color)],
+                       foreground=[("selected", "#ffffff"), ("active", self.text_color), ("", self.text_dim)])
+
                        
         # Update widgets recursively
         self.update_widget_colors(self.parent)
@@ -379,6 +400,20 @@ class FFXModManagerGUI:
                 else:
                     widget.configure(bg=self.bg_color)
                     
+            elif w_class == "Labelframe":
+                is_sidebar_plugins = (hasattr(self, "sidebar_plugins_container") and widget == self.sidebar_plugins_container)
+                if is_sidebar_plugins:
+                    widget.configure(bg=self.card_color, fg=self.text_dim, highlightbackground=self.border_color)
+                else:
+                    is_card = getattr(widget, "_is_card", False)
+                    is_active_card = getattr(widget, "_is_active_card", False)
+                    if is_active_card:
+                        widget.configure(bg=self.card_color, fg=self.accent_color, highlightbackground=self.accent_color)
+                    elif is_card:
+                        widget.configure(bg=self.card_color, fg=self.text_color, highlightbackground=self.border_color)
+                    else:
+                        widget.configure(bg=self.bg_color, fg=self.text_color, highlightbackground=self.border_color)
+
             elif w_class == "Label":
                 if getattr(widget, "_is_status_pill", False) or getattr(widget, "_is_diagnostic", False):
                     # Do not overwrite custom color-coded status pills or diagnostic banners!
@@ -392,7 +427,7 @@ class FFXModManagerGUI:
                     while curr:
                         try:
                             c_class = curr.winfo_class()
-                            if c_class == "Frame":
+                            if c_class in ("Frame", "Labelframe"):
                                 is_card = getattr(curr, "_is_card", False)
                                 is_active_card = getattr(curr, "_is_active_card", False)
                                 is_sidebar_panel = getattr(curr, "_is_sidebar_panel", False)
@@ -428,7 +463,8 @@ class FFXModManagerGUI:
             "game_dir": "",
             "mods_dir": "",
             "mods_disabled_dir": "",
-            "selected_theme": "Midnight Dark"
+            "selected_theme": "Midnight Dark",
+            "active_game_mode": "FFX"
         }
         
         # 1. Try Mod Manager config
@@ -447,6 +483,7 @@ class FFXModManagerGUI:
             self.config["game_dir"] = self.game_dir
             self.config["mods_dir"] = self.mods_dir
             self.config["mods_disabled_dir"] = self.mods_disabled_dir
+            self.config["active_game_mode"] = getattr(self, "active_game_mode", "FFX")
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=2)
         except Exception:
@@ -489,10 +526,17 @@ class FFXModManagerGUI:
                 self.is_fahrenheit_mode = True
                 # In Fahrenheit, everything lives inside the fahrenheit/ folder
                 self.mods_dir = os.path.join(self.game_dir, "fahrenheit", "mods")
-                self.mods_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled")
+                if self.active_game_mode == "FFX-2":
+                    self.mods_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled_x2")
+                else:
+                    self.mods_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled")
             else:
-                self.mods_dir = os.path.join(self.game_dir, "data", "mods")
-                self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
+                if self.active_game_mode == "FFX-2":
+                    self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx2_data")
+                    self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled_x2")
+                else:
+                    self.mods_dir = os.path.join(self.game_dir, "data", "mods")
+                    self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
             
             # Create directories only for what is actually needed
             try:
@@ -555,9 +599,19 @@ class FFXModManagerGUI:
         self.sidebar.pack(side="left", fill="y")
         
         # Logo/Header inside Sidebar
-        lbl_logo = tk.Label(self.sidebar, text="🎮 FFX MODS", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color, pady=15)
+        lbl_logo = tk.Label(self.sidebar, text="🎮 FFX MODS", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color, pady=10)
         lbl_logo._is_title = True
         lbl_logo.pack(fill="x")
+        
+        # Game Mode Switcher
+        switcher_frame = tk.Frame(self.sidebar, bg=self.card_color)
+        switcher_frame.pack(fill="x", padx=15, pady=(0, 10))
+        
+        self.game_mode_var = tk.StringVar(value=self.active_game_mode)
+        self.cmb_game_mode = ttk.Combobox(switcher_frame, textvariable=self.game_mode_var, state="readonly", values=["FFX", "FFX-2"], font=("Segoe UI", 9, "bold"))
+        self.cmb_game_mode.pack(fill="x")
+        self.cmb_game_mode.bind("<<ComboboxSelected>>", self.on_game_mode_selected)
+        ToolTip(self.cmb_game_mode, "Select active game target. Partitions mods, paths, and launch files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Global Launch Button
         self.btn_sidebar_launch = tk.Button(self.sidebar, text="🎮 PLAY GAME", font=("Segoe UI", 10, "bold"),
@@ -566,14 +620,22 @@ class FFXModManagerGUI:
         self.btn_sidebar_launch._is_primary = True
         self.btn_sidebar_launch.pack(fill="x", padx=15, pady=(5, 15))
         self.bind_hover(self.btn_sidebar_launch, is_primary=True)
+        ToolTip(self.btn_sidebar_launch, "Launches the selected game target (FFX.exe or FFX-2.exe). Supports Fahrenheit bypass injection if active loader detected.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Navigation Buttons Container (Bottom)
         self.sidebar_bottom_frame = tk.Frame(self.sidebar, bg=self.card_color)
         self.sidebar_bottom_frame.pack(side="bottom", fill="x", pady=15)
         
-        # Navigation Buttons Container (Top)
         self.sidebar_buttons_frame = tk.Frame(self.sidebar, bg=self.card_color)
-        self.sidebar_buttons_frame.pack(fill="x", pady=10)
+        self.sidebar_buttons_frame.pack(fill="x", padx=15, pady=5)
+        
+        # 1b. Plugins Buttons Container (Boxed style)
+        self.sidebar_plugins_container = tk.LabelFrame(self.sidebar, text=" Active Plugins ", font=("Segoe UI", 8, "bold"), fg=self.text_dim, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, bd=0, labelanchor="n")
+        self.sidebar_plugins_container._is_card = True
+        self.sidebar_plugins_container.pack(fill="x", padx=10, pady=5)
+        
+        self.sidebar_plugins_frame = tk.Frame(self.sidebar_plugins_container, bg=self.card_color)
+        self.sidebar_plugins_frame.pack(fill="x", padx=5, pady=5)
         
         # 2. Right Content & Workspace Panel
         self.content_container = tk.Frame(main_layout, bg=self.bg_color)
@@ -585,6 +647,7 @@ class FFXModManagerGUI:
         
         # Standard Pages Frames
         self.page_mods_frame = tk.Frame(self.content_container, bg=self.bg_color)
+        self.page_saves_frame = tk.Frame(self.content_container, bg=self.bg_color)
         self.page_settings_frame = tk.Frame(self.content_container, bg=self.bg_color)
         self.page_plugins_browser_frame = tk.Frame(self.content_container, bg=self.bg_color)
         
@@ -593,6 +656,11 @@ class FFXModManagerGUI:
             "name": "Mods",
             "frame": self.page_mods_frame,
             "icon": "📁"
+        }
+        self.pages["saves"] = {
+            "name": "Saves",
+            "frame": self.page_saves_frame,
+            "icon": "💾"
         }
         self.pages["plugins_browser"] = {
             "name": "Plugin Browser",
@@ -607,6 +675,7 @@ class FFXModManagerGUI:
         
         # Add sidebar navigation options for standard pages
         self.add_sidebar_nav_button("mods", "Mods", "📁")
+        self.add_sidebar_nav_button("saves", "Saves", "💾")
         
         # ----------------------------------------------------
         # PAGE 1: MODS PANEL LAYOUT
@@ -665,9 +734,68 @@ class FFXModManagerGUI:
         btn_del_prof.pack(side="left")
         self.bind_hover(btn_del_prof)
         
+        # Action buttons underneath card list
+        btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
+        btn_p_frame.pack(fill="x", side="bottom")
+        
+        btn_enable = tk.Button(btn_p_frame, text="⚡ Enable Mod (Install)", command=self.enable_mod, bg=self.success_color,
+                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", height=2)
+        btn_enable._is_success = True
+        btn_enable.pack(fill="x", pady=3)
+        self.bind_hover(btn_enable)
+        ToolTip(btn_enable, "Move this mod's files into the active staging game folder (makes the mod active in-game).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_disable = tk.Button(btn_p_frame, text="⏪ Disable Mod (Uninstall)", command=self.disable_mod, bg=self.card_color,
+                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, height=2)
+        btn_disable.pack(fill="x", pady=3)
+        self.bind_hover(btn_disable)
+        ToolTip(btn_disable, "Remove this mod's files from the active game folder and return them to the mod manager repository.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_new = tk.Button(btn_p_frame, text="Create New Mod", command=self.create_mod, bg=self.accent_color,
+                            fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
+        btn_new._is_primary = True
+        btn_new.pack(fill="x", pady=2)
+        self.bind_hover(btn_new, is_primary=True)
+        ToolTip(btn_new, "Initialize a new empty local mod structure folder with an auto-generated manifest.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_import = tk.Button(btn_p_frame, text="📥 Import Mod Archive (.zip / .rar)", command=self.import_zip_mod, bg=self.accent_color,
+                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
+        btn_import._is_primary = True
+        btn_import.pack(fill="x", pady=2)
+        self.bind_hover(btn_import, is_primary=True)
+        ToolTip(btn_import, "Import and unpack a compressed zip/rar archive mod. Automatically restructures/normalizes folder paths.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_del = tk.Button(btn_p_frame, text="Delete Mod From Disk", command=self.delete_mod, bg=self.error_color,
+                            fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626")
+        btn_del._is_danger = True
+        btn_del.pack(fill="x", pady=2)
+        self.bind_hover(btn_del)
+        ToolTip(btn_del, "Permanently delete this mod's repository folder and all contained assets from your computer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Load Order control frame (only packed when in Fahrenheit mode)
+        self.load_order_frame = ttk.Frame(btn_p_frame)
+        
+        btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
+                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_up.pack(side="left", fill="x", expand=True, padx=(0, 2), pady=2)
+        self.bind_hover(btn_move_up)
+        ToolTip(btn_move_up, "Move selected mod up in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_move_down = tk.Button(self.load_order_frame, text="🔽 Move Down", command=self.move_mod_down, bg=self.card_color,
+                                  fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_down.pack(side="right", fill="x", expand=True, padx=(2, 0), pady=2)
+        self.bind_hover(btn_move_down)
+        ToolTip(btn_move_down, "Move selected mod down in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_refresh = tk.Button(btn_p_frame, text="🔄 Refresh Mod List", command=self.refresh_list, bg=self.card_color,
+                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_refresh.pack(fill="x", pady=2)
+        self.bind_hover(btn_refresh)
+        ToolTip(btn_refresh, "Force a disk rescan of enabled and disabled folders to refresh the mods list state.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+
         # Scrollable Mod Cards Frame
         cards_pane = ttk.Frame(left_frame)
-        cards_pane.pack(fill="both", expand=True)
+        cards_pane.pack(fill="both", expand=True, side="top")
         
         self.cards_canvas = tk.Canvas(cards_pane, bg=self.bg_color, highlightthickness=0, borderwidth=0)
         self.cards_scrollbar = ttk.Scrollbar(cards_pane, orient="vertical", command=self.cards_canvas.yview)
@@ -696,57 +824,6 @@ class FFXModManagerGUI:
             self.cards_canvas.unbind_all("<MouseWheel>")
         self.cards_canvas.bind("<Enter>", bind_cards_mouse)
         self.cards_canvas.bind("<Leave>", unbind_cards_mouse)
-        
-        # Action buttons underneath card list
-        btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
-        btn_p_frame.pack(fill="x")
-        
-        btn_enable = tk.Button(btn_p_frame, text="⚡ Enable Mod (Install)", command=self.enable_mod, bg=self.success_color,
-                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", height=2)
-        btn_enable._is_success = True
-        btn_enable.pack(fill="x", pady=3)
-        self.bind_hover(btn_enable)
-        
-        btn_disable = tk.Button(btn_p_frame, text="⏪ Disable Mod (Uninstall)", command=self.disable_mod, bg=self.card_color,
-                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, height=2)
-        btn_disable.pack(fill="x", pady=3)
-        self.bind_hover(btn_disable)
-        
-        btn_new = tk.Button(btn_p_frame, text="Create New Mod", command=self.create_mod, bg=self.accent_color,
-                            fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
-        btn_new._is_primary = True
-        btn_new.pack(fill="x", pady=2)
-        self.bind_hover(btn_new, is_primary=True)
-        
-        btn_import = tk.Button(btn_p_frame, text="📥 Import Mod Archive (.zip / .rar)", command=self.import_zip_mod, bg=self.accent_color,
-                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
-        btn_import._is_primary = True
-        btn_import.pack(fill="x", pady=2)
-        self.bind_hover(btn_import, is_primary=True)
-        
-        btn_del = tk.Button(btn_p_frame, text="Delete Mod From Disk", command=self.delete_mod, bg=self.error_color,
-                            fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626")
-        btn_del._is_danger = True
-        btn_del.pack(fill="x", pady=2)
-        self.bind_hover(btn_del)
-        
-        # Load Order control frame (only packed when in Fahrenheit mode)
-        self.load_order_frame = ttk.Frame(btn_p_frame)
-        
-        btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
-                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_move_up.pack(side="left", fill="x", expand=True, padx=(0, 2), pady=2)
-        self.bind_hover(btn_move_up)
-        
-        btn_move_down = tk.Button(self.load_order_frame, text="🔽 Move Down", command=self.move_mod_down, bg=self.card_color,
-                                  fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_move_down.pack(side="right", fill="x", expand=True, padx=(2, 0), pady=2)
-        self.bind_hover(btn_move_down)
-        
-        btn_refresh = tk.Button(btn_p_frame, text="🔄 Refresh Mod List", command=self.refresh_list, bg=self.card_color,
-                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_refresh.pack(fill="x", pady=2)
-        self.bind_hover(btn_refresh)
         
         # Right Panel - Mod Details
         right_frame = ttk.Frame(paned, padding=(15, 0, 0, 0))
@@ -962,6 +1039,52 @@ class FFXModManagerGUI:
                                     fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
         btn_open_themes.pack(anchor="w", pady=(15, 0))
         self.bind_hover(btn_open_themes)
+
+        # Saves Directory Settings (Card Style)
+        save_path_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        save_path_card._is_card = True
+        save_path_card.pack(fill="x", pady=10)
+        
+        lbl_saves_title = tk.Label(save_path_card, text="Saves Location Configuration", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_saves_title._is_title = True
+        lbl_saves_title.pack(anchor="w", pady=(0, 10))
+        
+        saves_row = tk.Frame(save_path_card, bg=self.card_color)
+        saves_row.pack(fill="x")
+        saves_row.columnconfigure(1, weight=1)
+        
+        lbl_saves_path = tk.Label(saves_row, text="Saves Directory:", bg=self.card_color, fg=self.text_color)
+        lbl_saves_path.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        
+        self.ent_saves_path = ttk.Entry(saves_row, width=40)
+        self.ent_saves_path.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        
+        default_saves = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+        configured_saves = self.config.get("saves_dir", default_saves)
+        self.ent_saves_path.insert(0, configured_saves)
+        
+        def save_custom_saves_path(event=None):
+            path = self.ent_saves_path.get().strip()
+            self.config["saves_dir"] = path
+            self.save_config()
+            self.log(f"Updated saves directory configuration: {path}", "info")
+            
+        self.ent_saves_path.bind("<FocusOut>", save_custom_saves_path)
+        self.ent_saves_path.bind("<Return>", save_custom_saves_path)
+        
+        def browse_saves_folder():
+            folder = filedialog.askdirectory(title="Select Game Saves Folder Location")
+            if folder:
+                abspath = os.path.abspath(folder)
+                self.ent_saves_path.delete(0, tk.END)
+                self.ent_saves_path.insert(0, abspath)
+                save_custom_saves_path()
+                
+        btn_saves_browse = tk.Button(saves_row, text="Browse...", command=browse_saves_folder, bg=self.bg_color,
+                                     fg=self.text_color, relief="flat", activebackground=self.border_color, padx=10)
+        btn_saves_browse.grid(row=0, column=2)
+        self.bind_hover(btn_saves_browse)
+        ToolTip(btn_saves_browse, "Browse and configure a custom documents path location for game save files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # ----------------------------------------------------
         # 3. GLOBAL CONSOLE LOG PANEL (Always at bottom of Content Panel)
@@ -988,6 +1111,9 @@ class FFXModManagerGUI:
         
         # Build Plugins Browser page UI
         self.create_plugins_browser_page()
+        
+        # Build Saves manager page UI
+        self.create_saves_page()
 
         # Add bottom-aligned navigation buttons
         self.add_sidebar_nav_button("plugins_browser", "Plugin Browser", "🔌", side="bottom")
@@ -997,9 +1123,15 @@ class FFXModManagerGUI:
         self.switch_to_page("mods")
 
     def add_sidebar_nav_button(self, page_id, text, icon="", side="top"):
-        parent_frame = self.sidebar_bottom_frame if side == "bottom" else self.sidebar_buttons_frame
-        btn = tk.Button(parent_frame, text=f"  {icon}   {text}", font=("Segoe UI", 10, "bold"),
-                        anchor="w", relief="flat", padx=20, pady=10, bg=self.card_color, fg=self.text_color,
+        if side == "bottom":
+            parent_frame = self.sidebar_bottom_frame
+        elif side == "plugins":
+            parent_frame = self.sidebar_plugins_frame
+        else:
+            parent_frame = self.sidebar_buttons_frame
+            
+        btn = tk.Button(parent_frame, text=f"  {icon}   {text}", font=("Segoe UI", 9, "bold"),
+                        anchor="w", relief="flat", padx=15, pady=8, bg=self.card_color, fg=self.text_color,
                         activebackground=self.border_color, activeforeground=self.text_color, bd=0)
         btn._is_sidebar = True
         btn._page_id = page_id
@@ -1022,6 +1154,12 @@ class FFXModManagerGUI:
         active_p = self.pages[page_id]
         active_p["frame"].pack(fill="both", expand=True, padx=15, pady=15)
         
+        if page_id == "saves" and hasattr(self, "refresh_saves_lists"):
+            try:
+                self.refresh_saves_lists()
+            except Exception:
+                pass
+                
         btn = self.sidebar_buttons.get(page_id)
         if btn:
             btn.configure(bg=self.accent_color, fg="#ffffff")
@@ -1076,6 +1214,30 @@ class FFXModManagerGUI:
             self.save_config()
             self.update_loader_status_ui()
             self.scan_mods()
+
+    def on_game_mode_selected(self, event=None):
+        new_mode = self.game_mode_var.get()
+        if new_mode != self.active_game_mode:
+            self.active_game_mode = new_mode
+            self.log(f"Switched game mode to {new_mode}.", "info")
+            self.init_paths()
+            self.save_config()
+            
+            # Auto-theme switch
+            if new_mode == "FFX-2" and "Celsius Purple" in self.themes:
+                self.apply_theme("Celsius Purple")
+            elif new_mode == "FFX" and "Spira Cobalt" in self.themes:
+                self.apply_theme("Spira Cobalt")
+            elif new_mode == "FFX" and "Midnight Dark" in self.themes:
+                self.apply_theme("Midnight Dark")
+                
+            self.refresh_list()
+            
+            if hasattr(self, "refresh_saves_lists"):
+                try:
+                    self.refresh_saves_lists()
+                except Exception:
+                    pass
 
     def refresh_list(self):
         self.update_loader_status_ui()
@@ -1364,22 +1526,32 @@ class FFXModManagerGUI:
             if self.selected_mod_id != mod_id:
                 c.configure(highlightbackground=self.border_color)
                 
-        card.bind("<Enter>", on_enter)
-        card.bind("<Leave>", on_leave)
+        card.bind("<Enter>", on_enter, add="+")
+        card.bind("<Leave>", on_leave, add="+")
+        
+        # Tooltip content configuration
+        creator_lbl = info.get("creator", "Unknown")
+        ver_lbl = info.get("version", "1.0")
+        desc_lbl = info.get("description", "No description provided.")
+        tooltip_txt = f"{info['name']}\nVersion: {ver_lbl}  |  By: {creator_lbl}\n\n{desc_lbl}"
+        
+        # Bind tooltip to card and all its child widgets
+        for widget in [card, top_row, middle_row, lbl_name, lbl_status, lbl_info, lbl_cat]:
+            ToolTip(widget, tooltip_txt, get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Propagate hovers from inner elements to card container
-        top_row.bind("<Enter>", on_enter)
-        top_row.bind("<Leave>", on_leave)
-        middle_row.bind("<Enter>", on_enter)
-        middle_row.bind("<Leave>", on_leave)
-        lbl_name.bind("<Enter>", on_enter)
-        lbl_name.bind("<Leave>", on_leave)
-        lbl_status.bind("<Enter>", on_enter)
-        lbl_status.bind("<Leave>", on_leave)
-        lbl_info.bind("<Enter>", on_enter)
-        lbl_info.bind("<Leave>", on_leave)
-        lbl_cat.bind("<Enter>", on_enter)
-        lbl_cat.bind("<Leave>", on_leave)
+        top_row.bind("<Enter>", on_enter, add="+")
+        top_row.bind("<Leave>", on_leave, add="+")
+        middle_row.bind("<Enter>", on_enter, add="+")
+        middle_row.bind("<Leave>", on_leave, add="+")
+        lbl_name.bind("<Enter>", on_enter, add="+")
+        lbl_name.bind("<Leave>", on_leave, add="+")
+        lbl_status.bind("<Enter>", on_enter, add="+")
+        lbl_status.bind("<Leave>", on_leave, add="+")
+        lbl_info.bind("<Enter>", on_enter, add="+")
+        lbl_info.bind("<Leave>", on_leave, add="+")
+        lbl_cat.bind("<Enter>", on_enter, add="+")
+        lbl_cat.bind("<Leave>", on_leave, add="+")
 
     def select_mod(self, mod_id):
         self.selected_mod_id = mod_id
@@ -1504,6 +1676,8 @@ class FFXModManagerGUI:
         
         if not conflicts:
             self.lbl_conflict_summary.config(text="No conflicts detected. This mod's files are unique among enabled mods.", fg=self.success_color)
+            if hasattr(self, "_conflict_tooltip"):
+                self._conflict_tooltip.text = ""
             try:
                 self.mod_details_notebook.tab(2, text=" Conflicts ")
             except Exception:
@@ -1511,6 +1685,11 @@ class FFXModManagerGUI:
         else:
             total_files = sum(len(fs) for fs in conflicts.values())
             self.lbl_conflict_summary.config(text=f"⚠️ Warning: {total_files} file(s) conflict with {len(conflicts)} other enabled mod(s). Priority is determined by load order.", fg=self.error_color)
+            
+            conflict_mods_str = ", ".join(conflicts.keys())
+            tooltip_txt = f"Conflicting Mods:\n{conflict_mods_str}\n\nAdjust priority by using Move Up/Down (if Fahrenheit) or by controlling enabled order."
+            self._conflict_tooltip = ToolTip(self.lbl_conflict_summary, tooltip_txt, get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+            
             try:
                 self.mod_details_notebook.tab(2, text=f" Conflicts ({total_files}) ")
             except Exception:
@@ -1825,39 +2004,153 @@ class FFXModManagerGUI:
             self.log(f"Failed to save metadata: {e}", "error")
 
     def create_mod(self):
-        name = simpledialog.askstring("Create Mod", "Enter Mod name:", parent=self.root)
-        if not name:
-            return
-            
-        clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip()
-        if not clean_name:
-            messagebox.showerror("Error", "Invalid name.")
-            return
-            
-        mod_id = clean_name.replace(" ", "_")
-        mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
-        if os.path.exists(mod_repo_path):
-            messagebox.showerror("Error", f"Mod with ID '{mod_id}' already exists.")
-            return
-            
-        try:
-            os.makedirs(mod_repo_path, exist_ok=True)
-            info = {
-                "name": clean_name,
-                "creator": "User",
-                "version": "1.0",
-                "description": "",
-                "category": "General",
-                "files": []
-            }
-            with open(os.path.join(mod_repo_path, "modinfo.ffxmod"), "w") as f:
-                f.write(encode_metadata(info))
+        # Build Custom Creator Dialog Window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Create New Mod Project")
+        dialog.geometry("450x420")
+        dialog.configure(bg=self.bg_color)
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Title Label
+        lbl_title = tk.Label(dialog, text="🆕 Create New Mod Project", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_title.pack(anchor="w", padx=20, pady=(15, 10))
+
+        # Fields frame
+        form = tk.Frame(dialog, bg=self.bg_color)
+        form.pack(fill="x", padx=20, pady=5)
+        form.columnconfigure(1, weight=1)
+
+        # Mod Name
+        tk.Label(form, text="Mod Name:", fg=self.text_color, bg=self.bg_color, font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w", pady=6)
+        ent_name = ttk.Entry(form)
+        ent_name.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=6)
+        ent_name.focus()
+
+        # Creator
+        tk.Label(form, text="Creator/Author:", fg=self.text_color, bg=self.bg_color).grid(row=1, column=0, sticky="w", pady=6)
+        ent_creator = ttk.Entry(form)
+        ent_creator.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=6)
+        ent_creator.insert(0, "User")
+
+        # Version
+        tk.Label(form, text="Version:", fg=self.text_color, bg=self.bg_color).grid(row=2, column=0, sticky="w", pady=6)
+        ent_version = ttk.Entry(form)
+        ent_version.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=6)
+        ent_version.insert(0, "1.0")
+
+        # Description
+        tk.Label(form, text="Description:", fg=self.text_color, bg=self.bg_color).grid(row=3, column=0, sticky="nw", pady=6)
+        ent_desc = ttk.Entry(form)
+        ent_desc.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+        # Category
+        tk.Label(form, text="Category:", fg=self.text_color, bg=self.bg_color).grid(row=4, column=0, sticky="w", pady=6)
+        cmb_cat = ttk.Combobox(form, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], state="readonly")
+        cmb_cat.grid(row=4, column=1, sticky="ew", padx=(10, 0), pady=6)
+        cmb_cat.set("General")
+
+        # Target Game
+        tk.Label(form, text="Target Game:", fg=self.text_color, bg=self.bg_color, font=("Segoe UI", 9, "bold")).grid(row=5, column=0, sticky="w", pady=6)
+        target_game_var = tk.StringVar(value=self.active_game_mode)
+        radio_frame = tk.Frame(form, bg=self.bg_color)
+        radio_frame.grid(row=5, column=1, sticky="w", padx=(10, 0), pady=6)
+        
+        # Style radio buttons custom colors
+        r_ffx = tk.Radiobutton(radio_frame, text="FFX", variable=target_game_var, value="FFX", bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.accent_color)
+        r_ffx.pack(side="left", padx=(0, 15))
+        r_ffx2 = tk.Radiobutton(radio_frame, text="FFX-2", variable=target_game_var, value="FFX-2", bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.accent_color)
+        r_ffx2.pack(side="left")
+
+        def submit():
+            name = ent_name.get().strip()
+            if not name:
+                messagebox.showerror("Error", "Mod Name cannot be empty.", parent=dialog)
+                return
                 
-            self.log(f"Created new mod project '{clean_name}'.", "success")
-            self.scan_mods()
-            self.select_mod(mod_id)
-        except Exception as e:
-            self.log(f"Failed to create mod: {e}", "error")
+            clean_name = "".join(c for c in name if c.isalnum() or c in (" ", "_", "-")).strip()
+            if not clean_name:
+                messagebox.showerror("Error", "Invalid characters in Mod Name.", parent=dialog)
+                return
+                
+            mod_id = clean_name.replace(" ", "_").lower()
+            creator = ent_creator.get().strip() or "Unknown"
+            version = ent_version.get().strip() or "1.0"
+            desc = ent_desc.get().strip()
+            category = cmb_cat.get()
+            selected_target = target_game_var.get()
+
+            # Determine disabled mods repository base directory based on selected game target
+            if selected_target == "FFX-2":
+                if self.is_fahrenheit_mode:
+                    base_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled_x2")
+                else:
+                    base_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled_x2")
+            else:
+                if self.is_fahrenheit_mode:
+                    base_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled")
+                else:
+                    base_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
+
+            mod_repo_path = os.path.join(base_disabled_dir, mod_id)
+            if os.path.exists(mod_repo_path):
+                messagebox.showerror("Error", f"Mod project folder '{mod_id}' already exists.", parent=dialog)
+                return
+
+            try:
+                os.makedirs(mod_repo_path, exist_ok=True)
+                
+                # Pre-create virtual data directories for convenience
+                if selected_target == "FFX-2":
+                    data_subfolder = os.path.join(mod_repo_path, "ffx2_data")
+                    os.makedirs(data_subfolder, exist_ok=True)
+                    rel_files = ["ffx2_data/"]
+                else:
+                    data_subfolder = os.path.join(mod_repo_path, "ffx_data")
+                    os.makedirs(data_subfolder, exist_ok=True)
+                    rel_files = ["ffx_data/"]
+
+                info = {
+                    "name": clean_name,
+                    "author": creator,
+                    "creator": creator,
+                    "version": version,
+                    "description": desc,
+                    "category": category,
+                    "files": rel_files
+                }
+                
+                with open(os.path.join(mod_repo_path, "modinfo.ffxmod"), "w") as f:
+                    f.write(encode_metadata(info))
+
+                self.log(f"Successfully created empty {selected_target} mod '{clean_name}' under '{mod_id}/'.", "success")
+                
+                # Auto-switch switcher view to match target game if created mod target differs
+                if selected_target != self.active_game_mode:
+                    self.game_mode_var.set(selected_target)
+                    self.on_game_mode_selected()
+                else:
+                    self.scan_mods()
+                    self.select_mod(mod_id)
+                    
+                dialog.destroy()
+            except Exception as e:
+                self.log(f"Failed to create mod structure: {e}", "error")
+                messagebox.showerror("Error", f"Failed to create mod directory: {e}", parent=dialog)
+
+        # Confirm / Cancel buttons
+        btn_frame = tk.Frame(dialog, bg=self.bg_color)
+        btn_frame.pack(fill="x", padx=20, pady=25)
+
+        btn_cancel = tk.Button(btn_frame, text="Cancel", command=dialog.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=15, pady=6)
+        btn_cancel.pack(side="left")
+        self.bind_hover(btn_cancel)
+
+        btn_create = tk.Button(btn_frame, text="Create Project", command=submit, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+        btn_create.pack(side="right")
+        btn_create._is_primary = True
+        self.bind_hover(btn_create, is_primary=True)
 
     def delete_mod(self):
         mod_id = self.selected_mod_id
@@ -2434,6 +2727,88 @@ class FFXModManagerGUI:
             mod_version = simpledialog.askstring("Import Mod", "Enter Version:", initialvalue="1.0") or "1.0"
             mod_desc = simpledialog.askstring("Import Mod", "Enter Description:") or ""
             
+        # UnX Texture Auto-Specialization: detect and wrap loose textures/inject folders under UnX_Res/inject/textures
+        has_dds = False
+        all_extracted_files = []
+        for r, d, fs in os.walk(root_dir):
+            for f in fs:
+                all_extracted_files.append(os.path.join(r, f))
+                if f.lower().endswith(".dds"):
+                    has_dds = True
+                    
+        if has_dds:
+            needs_restructure = False
+            for fpath in all_extracted_files:
+                if fpath.lower().endswith(".dds"):
+                    rel = os.path.relpath(fpath, root_dir)
+                    lower_rel = rel.lower().replace("\\", "/")
+                    if not lower_rel.startswith("unx_res/inject/textures/"):
+                        needs_restructure = True
+                        break
+                        
+            if needs_restructure:
+                self.log("UnX textures detected. Normalizing texture folders for UnX compatibility...", "info")
+                # Move files to new relative paths
+                for fpath in all_extracted_files:
+                    if fpath.lower().endswith(".dds"):
+                        rel = os.path.relpath(fpath, root_dir)
+                        lower_rel = rel.lower().replace("\\", "/")
+                        if not lower_rel.startswith("unx_res/inject/textures/"):
+                            if lower_rel.startswith("inject/textures/"):
+                                new_rel = "UnX_Res/" + rel
+                            elif lower_rel.startswith("textures/"):
+                                new_rel = "UnX_Res/inject/" + rel
+                            elif "inject/textures/" in lower_rel:
+                                idx = lower_rel.find("inject/textures/")
+                                new_rel = "UnX_Res/" + rel[idx:]
+                            elif "textures/" in lower_rel:
+                                idx = lower_rel.find("textures/")
+                                new_rel = "UnX_Res/inject/" + rel[idx:]
+                            else:
+                                new_rel = "UnX_Res/inject/textures/" + rel
+                                
+                            dest_path = os.path.join(root_dir, new_rel)
+                            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                            try:
+                                shutil.move(fpath, dest_path)
+                            except Exception as me:
+                                self.log(f"Texture move warning: {me}", "warning")
+                                
+                # Clean up empty folders in root_dir recursively
+                for r, d, fs in os.walk(root_dir, topdown=False):
+                    for folder in d:
+                        folder_path = os.path.join(r, folder)
+                        try:
+                            if not os.listdir(folder_path):
+                                os.rmdir(folder_path)
+                        except Exception:
+                            pass
+
+        # Restructure for FFX-2 mode if files don't have standard prefixes
+        if self.active_game_mode == "FFX-2":
+            # Check if any files are at root or in directories other than ffx2_data / UnX_Res
+            loose_files = False
+            for f in os.listdir(root_dir):
+                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                    continue
+                if f != "ffx2_data" and f != "UnX_Res":
+                    loose_files = True
+                    break
+            
+            if loose_files:
+                self.log("Restructuring loose files for FFX-2 compatibility under 'ffx2_data/'...", "info")
+                wrap_dir = os.path.join(root_dir, "ffx2_data")
+                os.makedirs(wrap_dir, exist_ok=True)
+                for f in os.listdir(root_dir):
+                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx2_data"]:
+                        continue
+                    src_item = os.path.join(root_dir, f)
+                    dest_item = os.path.join(wrap_dir, f)
+                    try:
+                        shutil.move(src_item, dest_item)
+                    except Exception as me:
+                        self.log(f"Restructure warning: {me}", "warning")
+
         # Gather file list relative to the root_dir
         mod_files = []
         for r, d, fs in os.walk(root_dir):
@@ -2505,6 +2880,291 @@ class FFXModManagerGUI:
                 pass
                 
         self.scan_mods()
+
+    def create_saves_page(self):
+        frame = self.page_saves_frame
+        frame.config(padx=15, pady=15)
+        
+        lbl_title = tk.Label(frame, text="💾 Save Game & Backups Manager", font=("Segoe UI", 14, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_title._is_title = True
+        lbl_title.pack(anchor="w", pady=(0, 15))
+        
+        paned = ttk.Panedwindow(frame, orient="horizontal")
+        paned.pack(fill="both", expand=True)
+        
+        # Left Panel - Live Game Saves
+        left_panel = ttk.Frame(paned)
+        paned.add(left_panel, weight=1)
+        
+        lbl_live_title = tk.Label(left_panel, text="Live Game Saves (Documents)", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_live_title._is_title = True
+        lbl_live_title.pack(anchor="w", pady=(0, 5))
+        
+        self.tree_live_saves = ttk.Treeview(left_panel, columns=("slot", "name", "date", "size"), show="headings")
+        self.tree_live_saves.heading("slot", text="Slot")
+        self.tree_live_saves.heading("name", text="Save Name")
+        self.tree_live_saves.heading("date", text="Last Modified")
+        self.tree_live_saves.heading("size", text="Size")
+        self.tree_live_saves.column("slot", width=50, anchor="center")
+        self.tree_live_saves.column("name", width=120, anchor="w")
+        self.tree_live_saves.column("date", width=140, anchor="w")
+        self.tree_live_saves.column("size", width=70, anchor="e")
+        self.tree_live_saves.pack(fill="both", expand=True, side="left")
+        
+        scroll_l = ttk.Scrollbar(left_panel, command=self.tree_live_saves.yview)
+        scroll_l.pack(fill="y", side="right")
+        self.tree_live_saves.config(yscrollcommand=scroll_l.set)
+        
+        # Save Actions (Middle Control buttons block)
+        ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0))
+        ctrl_frame.pack(fill="x", side="bottom")
+        
+        btn_backup = tk.Button(ctrl_frame, text="📥 Backup Selected Live Save", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
+        btn_backup.pack(side="left", padx=5)
+        self.bind_hover(btn_backup, is_primary=True)
+        ToolTip(btn_backup, "Copy the selected live save file into the local FFXMM backups storage with a custom description label.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_restore = tk.Button(ctrl_frame, text="⏪ Restore Backup to Live Game", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
+        btn_restore.pack(side="left", padx=5)
+        self.bind_hover(btn_restore)
+        ToolTip(btn_restore, "Overwrite the live game save file with the selected backup snapshot copy.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_delete_b = tk.Button(ctrl_frame, text="🗑️ Delete Backup", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
+        btn_delete_b.pack(side="left", padx=5)
+        self.bind_hover(btn_delete_b)
+        ToolTip(btn_delete_b, "Permanently delete the selected backup snapshot file from disk.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_refresh_s = tk.Button(ctrl_frame, text="🔄 Refresh Saves Lists", command=self.refresh_saves_lists, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
+        btn_refresh_s.pack(side="right")
+        self.bind_hover(btn_refresh_s)
+        ToolTip(btn_refresh_s, "Scan the documents folder and local backup logs to update lists.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Right Panel - Backups
+        right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0))
+        paned.add(right_panel, weight=1)
+        
+        lbl_backup_title = tk.Label(right_panel, text="FFXMM Backup Logs Repository", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_backup_title._is_title = True
+        lbl_backup_title.pack(anchor="w", pady=(0, 5))
+        
+        self.tree_backups = ttk.Treeview(right_panel, columns=("label", "filename", "date"), show="headings")
+        self.tree_backups.heading("label", text="Backup Label/Tag")
+        self.tree_backups.heading("filename", text="Source Save")
+        self.tree_backups.heading("date", text="Backup Date")
+        self.tree_backups.column("label", width=150, anchor="w")
+        self.tree_backups.column("filename", width=90, anchor="w")
+        self.tree_backups.column("date", width=140, anchor="w")
+        self.tree_backups.pack(fill="both", expand=True, side="left")
+        
+        scroll_b = ttk.Scrollbar(right_panel, command=self.tree_backups.yview)
+        scroll_b.pack(fill="y", side="right")
+        self.tree_backups.config(yscrollcommand=scroll_b.set)
+        
+        # Trigger initial list loads
+        self.root.after(1000, self.refresh_saves_lists)
+
+    def get_saves_dir(self):
+        default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+        return self.config.get("saves_dir", default_path)
+
+    def refresh_saves_lists(self):
+        self.load_live_saves()
+        self.load_saves_backups()
+
+    def load_live_saves(self):
+        self.tree_live_saves.delete(*self.tree_live_saves.get_children())
+        saves_dir = self.get_saves_dir()
+        if not os.path.exists(saves_dir):
+            self.log(f"Warning: Game Saves folder not found: {saves_dir}", "warning")
+            return
+            
+        import time
+        prefix = "ffx2_" if self.active_game_mode == "FFX-2" else "ffx_"
+        try:
+            for f in sorted(os.listdir(saves_dir)):
+                if f.lower().startswith(prefix.lower()) and not f.endswith(".tmp"):
+                    slot_str = "".join(c for c in f if c.isdigit())
+                    slot = int(slot_str) if slot_str else 0
+                    fpath = os.path.join(saves_dir, f)
+                    mtime = os.path.getmtime(fpath)
+                    date_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mtime))
+                    fsize = os.path.getsize(fpath)
+                    self.tree_live_saves.insert("", tk.END, values=(slot, f, date_str, self.get_friendly_size(fsize)))
+        except Exception as e:
+            self.log(f"Error loading live saves: {e}", "error")
+
+    def load_saves_backups(self):
+        self.tree_backups.delete(*self.tree_backups.get_children())
+        backup_base = os.path.join("backups", "ffx2" if self.active_game_mode == "FFX-2" else "ffx")
+        os.makedirs(backup_base, exist_ok=True)
+        
+        meta_file = os.path.join(backup_base, "backups_meta.json")
+        if not os.path.exists(meta_file):
+            return
+            
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            
+            # Populate sorted by backup date descending
+            for entry in sorted(meta.get("entries", []), key=lambda x: x.get("date", ""), reverse=True):
+                self.tree_backups.insert("", tk.END, values=(
+                    entry.get("label", "No label"),
+                    entry.get("filename", ""),
+                    entry.get("date", "")
+                ))
+        except Exception as e:
+            self.log(f"Error loading save backups: {e}", "error")
+
+    def create_save_backup(self):
+        selected = self.tree_live_saves.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a live save slot to backup.")
+            return
+            
+        slot, filename, _, _ = self.tree_live_saves.item(selected[0], "values")
+        saves_dir = self.get_saves_dir()
+        src_path = os.path.join(saves_dir, filename)
+        if not os.path.exists(src_path):
+            self.log("Error: Live save file does not exist on disk.", "error")
+            return
+            
+        label = simpledialog.askstring("Backup Save", f"Enter description label/tag for {filename}:", parent=self.root)
+        if label is None: # Canceled
+            return
+        label = label.strip() or f"Manual Backup Slot {slot}"
+        
+        backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
+        backup_base = os.path.join("backups", backup_sub)
+        os.makedirs(backup_base, exist_ok=True)
+        
+        import time
+        timestamp = time.strftime('%Y%m%d_%H%M%S')
+        dest_filename = f"{filename}_{timestamp}.bak"
+        dest_path = os.path.join(backup_base, dest_filename)
+        
+        try:
+            shutil.copy2(src_path, dest_path)
+            
+            # Write to metadata entries log
+            meta_file = os.path.join(backup_base, "backups_meta.json")
+            meta = {"entries": []}
+            if os.path.exists(meta_file):
+                try:
+                    with open(meta_file, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                except Exception:
+                    pass
+                    
+            date_str = time.strftime('%Y-%m-%d %H:%M:%S')
+            meta["entries"].append({
+                "label": label,
+                "filename": filename,
+                "backup_file": dest_filename,
+                "date": date_str
+            })
+            
+            with open(meta_file, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+                
+            self.log(f"Backed up save file '{filename}' as '{label}'.", "success")
+            self.load_saves_backups()
+        except Exception as e:
+            self.log(f"Failed to create save backup: {e}", "error")
+
+    def restore_save_backup(self):
+        selected = self.tree_backups.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a backup log to restore.")
+            return
+            
+        label, filename, date_str = self.tree_backups.item(selected[0], "values")
+        
+        # Look up backup file from metadata JSON
+        backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
+        backup_base = os.path.join("backups", backup_sub)
+        meta_file = os.path.join(backup_base, "backups_meta.json")
+        if not os.path.exists(meta_file):
+            return
+            
+        backup_file = None
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            for entry in meta.get("entries", []):
+                if entry.get("label") == label and entry.get("filename") == filename and entry.get("date") == date_str:
+                    backup_file = entry.get("backup_file")
+                    break
+        except Exception as e:
+            self.log(f"Error loading backups logs metadata: {e}", "error")
+            return
+            
+        if not backup_file:
+            self.log("Error: Target backup file could not be resolved from metadata.", "error")
+            return
+            
+        src_path = os.path.join(backup_base, backup_file)
+        if not os.path.exists(src_path):
+            self.log(f"Error: Backup source file '{backup_file}' is missing from directory.", "error")
+            return
+            
+        saves_dir = self.get_saves_dir()
+        dest_path = os.path.join(saves_dir, filename)
+        
+        if not messagebox.askyesno("Confirm Restore", f"Are you sure you want to restore '{label}'?\n\nThis will completely overwrite your live game save '{filename}'. This cannot be undone."):
+            return
+            
+        try:
+            # Safe override
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            shutil.copy2(src_path, dest_path)
+            self.log(f"Successfully restored backup '{label}' to game save file '{filename}'.", "success")
+            self.load_live_saves()
+        except Exception as e:
+            self.log(f"Failed to restore save backup: {e}", "error")
+
+    def delete_save_backup(self):
+        selected = self.tree_backups.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a backup log to delete.")
+            return
+            
+        label, filename, date_str = self.tree_backups.item(selected[0], "values")
+        
+        if not messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete backup '{label}' from disk?"):
+            return
+            
+        backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
+        backup_base = os.path.join("backups", backup_sub)
+        meta_file = os.path.join(backup_base, "backups_meta.json")
+        if not os.path.exists(meta_file):
+            return
+            
+        try:
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+            
+            remaining_entries = []
+            deleted_file = None
+            for entry in meta.get("entries", []):
+                if entry.get("label") == label and entry.get("filename") == filename and entry.get("date") == date_str:
+                    deleted_file = entry.get("backup_file")
+                else:
+                    remaining_entries.append(entry)
+                    
+            meta["entries"] = remaining_entries
+            with open(meta_file, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+                
+            if deleted_file:
+                target_path = os.path.join(backup_base, deleted_file)
+                if os.path.exists(target_path):
+                    os.remove(target_path)
+                    
+            self.log(f"Deleted backup log '{label}' from disk.", "success")
+            self.load_saves_backups()
+        except Exception as e:
+            self.log(f"Failed to delete backup entry: {e}", "error")
 
     def create_plugins_browser_page(self):
         frame = self.page_plugins_browser_frame
@@ -3693,77 +4353,74 @@ class FFXModManagerGUI:
 
     def launch_game(self):
         if not self.game_dir:
-            messagebox.showwarning("Warning", "Please configure your FFX Game Folder first.")
+            messagebox.showwarning("Warning", "Please configure your FFX/FFX-2 Game Folder first.")
             return
             
         fh_launcher = os.path.join(self.game_dir, "fahrenheit", "bin", "fhstage0.exe")
+        target_exe = "FFX-2.exe" if self.active_game_mode == "FFX-2" else "FFX.exe"
+        game_name = "Final Fantasy X-2" if self.active_game_mode == "FFX-2" else "Final Fantasy X"
+        
         if os.path.exists(fh_launcher):
             self.is_fahrenheit_mode = True
-            self.log("Launching Final Fantasy X via Fahrenheit Framework...", "info")
+            self.log(f"Launching {game_name} via Fahrenheit Framework...", "info")
             try:
-                game_exe = os.path.join(self.game_dir, "FFX.exe")
+                game_exe = os.path.join(self.game_dir, target_exe)
                 fh_dir = os.path.join(self.game_dir, "fahrenheit", "bin")
                 p = subprocess.Popen(
                     [fh_launcher, game_exe],
                     cwd=fh_dir
                 )
-                self.log(f"Fahrenheit launcher started (PID: {p.pid}). Monitoring game process...", "success")
-                
-                # Start background monitoring for game process & plugin trackers
-                self.root.after(2000, self.start_game_monitoring)
+                self.log(f"Fahrenheit launcher started for {target_exe} (PID: {p.pid}).", "success")
             except Exception as e:
                 self.log(f"Failed to launch Fahrenheit: {e}", "error")
         else:
             self.is_fahrenheit_mode = False
-            self.log("Launching Final Fantasy X via Steam...", "info")
+            self.log(f"Launching {game_name} via Steam...", "info")
             try:
                 import webbrowser
                 webbrowser.open("steam://run/359870")
-                
-                # Start background monitoring for game process & plugin trackers
-                self.root.after(2000, self.start_game_monitoring)
             except Exception as e:
                 self.log(f"Failed to launch game: {e}", "error")
 
-    def start_game_monitoring(self):
+    def start_persistent_game_monitoring(self):
         import threading
-        t = threading.Thread(target=self.monitor_game_process, daemon=True)
+        t = threading.Thread(target=self.persistent_game_monitor_loop, daemon=True)
         t.start()
 
-    def monitor_game_process(self):
+    def persistent_game_monitor_loop(self):
         import time
-        self.log("Waiting for game process (FFX.exe or FFX-2.exe) to start...", "info")
+        self.log("Persistent background game process monitor started.", "info")
         
-        pid = None
-        detected_exe = None
-        # Loop checking for FFX.exe or FFX-2.exe up to 60 seconds
-        for _ in range(60):
-            for exe in ["FFX.exe", "FFX-2.exe"]:
-                pid = self.find_process_id(exe)
-                if pid:
-                    detected_exe = exe
-                    break
-            if pid:
-                break
-            time.sleep(1)
-            
-        if not pid:
-            self.log("Game launch monitoring timed out.", "warning")
-            return
-            
-        self.log(f"Game process {detected_exe} detected running (PID: {pid})!", "success")
-        
-        # Fire plugin launch hooks
-        self.on_game_launched(pid, detected_exe)
-        
-        # Monitor until it closes
         while True:
-            if not self.is_process_running(pid):
-                break
+            try:
+                pid = None
+                detected_exe = None
+                for exe in ["FFX.exe", "FFX-2.exe"]:
+                    pid = self.find_process_id(exe)
+                    if pid:
+                        detected_exe = exe
+                        break
+                        
+                if pid:
+                    # Check if this is a newly detected process or if PID changed
+                    if self.active_game_pid != pid:
+                        if self.active_game_pid is not None:
+                            self.log("Detected PID change/new game instance. Cleaning up old trackers...", "warning")
+                            self.on_game_closed()
+                            
+                        self.active_game_pid = pid
+                        self.log(f"Game process {detected_exe} detected running (PID: {pid})!", "success")
+                        self.on_game_launched(pid, detected_exe)
+                else:
+                    # No process detected. If we had an active one, it closed.
+                    if self.active_game_pid is not None:
+                        self.log("Game process closed.", "info")
+                        self.on_game_closed()
+                        self.active_game_pid = None
+            except Exception as e:
+                pass
+                
             time.sleep(2)
-            
-        self.log(f"Game process {detected_exe} closed.", "info")
-        self.on_game_closed()
 
     def find_process_id(self, process_name):
         if not kernel32:
@@ -3995,7 +4652,7 @@ class FFXModManagerGUI:
                                 "icon": meta.get("icon", "🔌")
                             }
                             
-                            self.add_sidebar_nav_button(page_id, name, meta.get("icon", "🔌"))
+                            self.add_sidebar_nav_button(page_id, name, meta.get("icon", "🔌"), side="plugins")
                             self.plugins.append(plugin_inst)
                             self.log(f"Successfully loaded plugin: {name} (v{meta.get('version', '1.0')})", "success")
                             
@@ -4003,6 +4660,17 @@ class FFXModManagerGUI:
                             self.log(f"Failed to load plugin from '{d}': {e}", "error")
         except Exception as e:
             self.log(f"Error scanning plugins: {e}", "error")
+
+        if not self.plugins:
+            try:
+                self.sidebar_plugins_container.pack_forget()
+            except Exception:
+                pass
+        else:
+            try:
+                self.sidebar_plugins_container.pack(fill="x", padx=10, pady=5)
+            except Exception:
+                pass
 
 
 class ThemeCreatorDialog:

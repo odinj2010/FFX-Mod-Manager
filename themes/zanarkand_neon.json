@@ -1,0 +1,12 @@
+{
+  "name": "Zanarkand Neon",
+  "bg_color": "#0b0914",
+  "card_color": "#161224",
+  "accent_color": "#a855f7",
+  "accent_hover": "#c084fc",
+  "text_color": "#faf5ff",
+  "text_dim": "#701a75",
+  "border_color": "#3b0764",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

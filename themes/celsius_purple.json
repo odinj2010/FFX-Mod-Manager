@@ -1,0 +1,12 @@
+{
+  "name": "Celsius Purple",
+  "bg_color": "#120e16",
+  "card_color": "#1f1826",
+  "accent_color": "#a855f7",
+  "accent_hover": "#c084fc",
+  "text_color": "#f3f4f6",
+  "text_dim": "#a1a1aa",
+  "border_color": "#3f334d",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}

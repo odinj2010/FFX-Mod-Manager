@@ -330,8 +330,11 @@ class AchievementsOverlayApp:
     def check_hotkey_and_game(self):
         if not self.is_game_running():
             print("Game exited. Closing tracker overlay.", flush=True)
-            self.root.quit()
-            return
+            try:
+                self.root.destroy()
+            except Exception:
+                pass
+            sys.exit(0)
             
         # Check config updates periodically
         if time.time() - self.last_config_check > 2.0:

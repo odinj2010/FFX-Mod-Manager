@@ -2,6 +2,12 @@
 
 All notable changes to the Achievements plugin will be documented in this file.
 
+## [1.3] - 2026-06-19
+- Upgraded process exit logic to call `destroy()` and `sys.exit(0)` to guarantee clean tracker process shutdown on game exit.
+
+## [1.2] - 2026-06-18
+- Version bump for local/unreleased fixes.
+
 ## [1.1] - 2026-06-18
 - Refactored the main UI to use a `ttk.Notebook` tab switcher, grouping achievements progress cards in the **Achievements** tab and overlay settings in the **Settings** tab.
 - Replaced the hardcoded F8 trigger in the RAM scanner with custom hotkey variables loaded from `overlay_config.json`.

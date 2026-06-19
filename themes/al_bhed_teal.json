@@ -1,0 +1,12 @@
+{
+  "name": "Al Bhed Teal",
+  "bg_color": "#0f172a",
+  "card_color": "#1e293b",
+  "accent_color": "#06b6d4",
+  "accent_hover": "#22d3ee",
+  "text_color": "#f1f5f9",
+  "text_dim": "#64748b",
+  "border_color": "#334155",
+  "success_color": "#10b981",
+  "error_color": "#ef4444"
+}
