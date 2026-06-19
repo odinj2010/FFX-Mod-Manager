@@ -1,0 +1,10 @@
+{
+  "name": "Scene Skipper",
+  "icon": "⏩",
+  "version": "1.0",
+  "creator": "NfgOdin",
+  "entry_point": "gui.SceneSkipperTab",
+  "tracker_script": "tracker.py",
+  "description": "Allows safely fast-forwarding cutscenes when the game is paused by pressing a skip hotkey.",
+  "default_hotkey": "F7"
+}

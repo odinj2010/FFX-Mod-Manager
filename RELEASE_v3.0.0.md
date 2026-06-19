@@ -71,6 +71,7 @@ This release introduces a fully refactored, namespace-isolated plugin system des
 
 
 ### 🎨 Expanded UI Color Themes
+*   **Independent Theme Memory**: Refactored config logic to store chosen themes separately for each game target (`selected_theme_ffx` and `selected_theme_ffx2`). Switching between FFX and FFX-2 modes now automatically restores your preferred theme for that specific game.
 *   **Themed Presets**: Bundled new custom-themed palettes inside the `themes/` directory (plus core definitions), automatically parsed and loaded by the UI engine:
     *   **Yuna Summoner**: Crisp slate-white background and white cards with summoner azure-blue and rose-pink accents.
     *   **Rikku Thief**: Muted olive-green cards and dark green backgrounds with vibrant orange accents representing her FFX-2 thief outfit.

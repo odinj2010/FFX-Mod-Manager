@@ -18,8 +18,12 @@ except Exception:
 
 
 
-CONFIG_FILE = "ffxmm_config.json"
-APP_VERSION = "3.0.0"
+if getattr(sys, 'frozen', False):
+    _base_dir = os.path.dirname(sys.executable)
+else:
+    _base_dir = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(_base_dir, "ffxmm_config.json")
+APP_VERSION = "3.0.1"
 
 def encode_metadata(data_dict):
     try:
@@ -87,10 +91,19 @@ class FFXModManagerGUI:
         # Load configs
         self.config = self.load_config()
         
-        # Load current theme
-        selected_theme = self.config.get("selected_theme", "Midnight Dark")
+        # Load current theme based on active game mode
+        active_mode = self.config.get("active_game_mode", "FFX")
+        if active_mode == "FFX-2":
+            selected_theme = self.config.get("selected_theme_ffx2", "Celsius Purple")
+        else:
+            selected_theme = self.config.get("selected_theme_ffx", "Midnight Dark")
+            
         if selected_theme not in self.themes:
-            selected_theme = "Midnight Dark"
+            # Fallback to general selected_theme if game-specific ones don't exist yet
+            selected_theme = self.config.get("selected_theme", "Midnight Dark")
+            if selected_theme not in self.themes:
+                selected_theme = "Midnight Dark"
+                
         self.current_theme_name = selected_theme
         theme = self.themes[selected_theme]
         
@@ -260,6 +273,10 @@ class FFXModManagerGUI:
             return
         self.current_theme_name = theme_name
         self.config["selected_theme"] = theme_name
+        if getattr(self, "active_game_mode", "FFX") == "FFX-2":
+            self.config["selected_theme_ffx2"] = theme_name
+        else:
+            self.config["selected_theme_ffx"] = theme_name
         self.save_config()
         
         theme = self.themes[theme_name]
@@ -324,6 +341,9 @@ class FFXModManagerGUI:
                        foreground=[("selected", "#ffffff"), ("active", self.text_color), ("", self.text_dim)])
 
                        
+        if hasattr(self, "theme_selector"):
+            self.theme_selector.set(theme_name)
+            
         # Update widgets recursively
         self.update_widget_colors(self.parent)
         
@@ -486,8 +506,8 @@ class FFXModManagerGUI:
             self.config["active_game_mode"] = getattr(self, "active_game_mode", "FFX")
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            self.log(f"Config save failed: {e}", "error")
 
     def get_steam_install_path(self):
         try:
@@ -1059,15 +1079,22 @@ class FFXModManagerGUI:
         self.ent_saves_path = ttk.Entry(saves_row, width=40)
         self.ent_saves_path.grid(row=0, column=1, sticky="ew", padx=(0, 10))
         
-        default_saves = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
-        configured_saves = self.config.get("saves_dir", default_saves)
+        default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+        default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+        if self.active_game_mode == "FFX-2":
+            configured_saves = self.config.get("saves_dir_x2", default_saves_ffx2)
+        else:
+            configured_saves = self.config.get("saves_dir", default_saves_ffx)
         self.ent_saves_path.insert(0, configured_saves)
         
         def save_custom_saves_path(event=None):
             path = self.ent_saves_path.get().strip()
-            self.config["saves_dir"] = path
+            if self.active_game_mode == "FFX-2":
+                self.config["saves_dir_x2"] = path
+            else:
+                self.config["saves_dir"] = path
             self.save_config()
-            self.log(f"Updated saves directory configuration: {path}", "info")
+            self.log(f"Updated {self.active_game_mode} saves directory configuration: {path}", "info")
             
         self.ent_saves_path.bind("<FocusOut>", save_custom_saves_path)
         self.ent_saves_path.bind("<Return>", save_custom_saves_path)
@@ -1198,8 +1225,10 @@ class FFXModManagerGUI:
         path = self.ent_game_path.get().strip()
         if path != self.game_dir:
             self.game_dir = path
+            self.config["game_dir"] = path
             self.init_paths()
             self.save_config()
+            self.log(f"Updated game directory configuration: {path}", "info")
             self.update_loader_status_ui()
             self.scan_mods()
 
@@ -1210,8 +1239,10 @@ class FFXModManagerGUI:
             self.ent_game_path.delete(0, tk.END)
             self.ent_game_path.insert(0, abspath)
             self.game_dir = abspath
+            self.config["game_dir"] = abspath
             self.init_paths()
             self.save_config()
+            self.log(f"Updated game directory configuration: {abspath}", "info")
             self.update_loader_status_ui()
             self.scan_mods()
 
@@ -1223,13 +1254,25 @@ class FFXModManagerGUI:
             self.init_paths()
             self.save_config()
             
-            # Auto-theme switch
-            if new_mode == "FFX-2" and "Celsius Purple" in self.themes:
-                self.apply_theme("Celsius Purple")
-            elif new_mode == "FFX" and "Spira Cobalt" in self.themes:
-                self.apply_theme("Spira Cobalt")
-            elif new_mode == "FFX" and "Midnight Dark" in self.themes:
-                self.apply_theme("Midnight Dark")
+            # Update saves directory entry field in Settings tab dynamically
+            if hasattr(self, "ent_saves_path") and self.ent_saves_path:
+                self.ent_saves_path.delete(0, tk.END)
+                default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+                default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+                if new_mode == "FFX-2":
+                    configured_saves = self.config.get("saves_dir_x2", default_saves_ffx2)
+                else:
+                    configured_saves = self.config.get("saves_dir", default_saves_ffx)
+                self.ent_saves_path.insert(0, configured_saves)
+            
+            # Auto-theme switch - restore user's preferred theme for this game mode
+            if new_mode == "FFX-2":
+                preferred_theme = self.config.get("selected_theme_ffx2", "Celsius Purple")
+            else:
+                preferred_theme = self.config.get("selected_theme_ffx", "Midnight Dark")
+            
+            if preferred_theme in self.themes:
+                self.apply_theme(preferred_theme)
                 
             self.refresh_list()
             
@@ -1718,11 +1761,12 @@ class FFXModManagerGUI:
         except Exception:
             pass
             
-        # 2. Find truly unmanaged loose files inside ffx_data and ffx_ps2
+        # 2. Find truly unmanaged loose files inside current game folders only
         unmanaged_files = []
         total_size = 0
         
-        for folder in ["ffx_data", "ffx_ps2", "ffx2_data", "ffx2_ps2"]:
+        target_folders = ["ffx2_data", "ffx2_ps2"] if self.active_game_mode == "FFX-2" else ["ffx_data", "ffx_ps2"]
+        for folder in target_folders:
             src_folder = os.path.join(self.mods_dir, folder)
             if os.path.isdir(src_folder):
                 for root, dirs, files in os.walk(src_folder):
@@ -2007,7 +2051,7 @@ class FFXModManagerGUI:
         # Build Custom Creator Dialog Window
         dialog = tk.Toplevel(self.root)
         dialog.title("Create New Mod Project")
-        dialog.geometry("450x420")
+        dialog.geometry("450x620")
         dialog.configure(bg=self.bg_color)
         dialog.resizable(False, False)
         dialog.transient(self.root)
@@ -2063,6 +2107,102 @@ class FFXModManagerGUI:
         r_ffx2 = tk.Radiobutton(radio_frame, text="FFX-2", variable=target_game_var, value="FFX-2", bg=self.bg_color, fg=self.text_color, selectcolor=self.card_color, activebackground=self.bg_color, activeforeground=self.accent_color)
         r_ffx2.pack(side="left")
 
+        # Nexus Mod ID
+        tk.Label(form, text="Nexus Mod ID:", fg=self.text_color, bg=self.bg_color).grid(row=6, column=0, sticky="w", pady=6)
+        ent_nexus_id = ttk.Entry(form)
+        ent_nexus_id.grid(row=6, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+        # Mod Link
+        tk.Label(form, text="Mod Link:", fg=self.text_color, bg=self.bg_color).grid(row=7, column=0, sticky="w", pady=6)
+        ent_mod_link = ttk.Entry(form)
+        ent_mod_link.grid(row=7, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+        # Import Files & Folders
+        tk.Label(form, text="Import Data:", fg=self.text_color, bg=self.bg_color).grid(row=8, column=0, sticky="w", pady=6)
+        btn_import_frame = tk.Frame(form, bg=self.bg_color)
+        btn_import_frame.grid(row=8, column=1, sticky="w", padx=(10, 0), pady=6)
+        
+        imported_files = {} # maps abs_path -> resolved_rel_path
+        
+        lbl_import_status = tk.Label(form, text="No external files staged.", fg=self.text_dim, bg=self.bg_color, font=("Segoe UI", 8, "italic"))
+        lbl_import_status.grid(row=9, column=1, sticky="w", padx=(10, 0), pady=(0, 6))
+
+        def select_files():
+            paths = filedialog.askopenfilenames(title="Select Files to Import", parent=dialog)
+            if paths:
+                # Try to resolve master path for help
+                master_path = ""
+                potential_master = os.path.abspath(os.path.join(os.getcwd(), "..", "VBF Browser", "extracted", "ffx_ps2", "ffx", "master"))
+                if os.path.exists(potential_master):
+                    master_path = potential_master
+
+                for fpath in paths:
+                    rel = self.resolve_mod_relative_path(fpath)
+                    if not rel and master_path:
+                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                    if not rel:
+                        rel = simpledialog.askstring(
+                            "Relative Game Path",
+                            f"Could not automatically resolve game path for:\n{os.path.basename(fpath)}\n\nEnter relative path (e.g. ffx_data/gamedata/abc.bin):",
+                            parent=dialog
+                        )
+                    if rel:
+                        rel = rel.replace("\\", "/").strip().lstrip("/")
+                        imported_files[fpath] = rel
+                update_status()
+
+        def select_folder():
+            path = filedialog.askdirectory(title="Select Folder to Import", parent=dialog)
+            if path:
+                all_files = []
+                for root, dirs, filenames in os.walk(path):
+                    for filename in filenames:
+                        all_files.append(os.path.join(root, filename))
+                if not all_files:
+                    messagebox.showwarning("Warning", "The selected folder is empty.", parent=dialog)
+                    return
+                
+                ans = messagebox.askyesno(
+                    "Confirm Folder Import",
+                    f"Found {len(all_files)} files in the selected folder.\n\nDo you want to stage all of them?",
+                    parent=dialog
+                )
+                if not ans:
+                    return
+
+                # Try to resolve master path for help
+                master_path = ""
+                potential_master = os.path.abspath(os.path.join(os.getcwd(), "..", "VBF Browser", "extracted", "ffx_ps2", "ffx", "master"))
+                if os.path.exists(potential_master):
+                    master_path = potential_master
+
+                for fpath in all_files:
+                    rel = self.resolve_mod_relative_path(fpath)
+                    if not rel and master_path:
+                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                    if not rel:
+                        rel = simpledialog.askstring(
+                            "Relative Game Path",
+                            f"Could not automatically resolve game path for:\n{os.path.basename(fpath)}\n\nEnter relative path (e.g. ffx_data/gamedata/abc.bin):",
+                            parent=dialog
+                        )
+                    if rel:
+                        rel = rel.replace("\\", "/").strip().lstrip("/")
+                        imported_files[fpath] = rel
+                update_status()
+                
+        def update_status():
+            total_f = len(imported_files)
+            lbl_import_status.config(text=f"Staged: {total_f} file(s)")
+
+        btn_sel_files = tk.Button(btn_import_frame, text="📄 Import File(s)", command=select_files, bg=self.card_color, fg=self.text_color, relief="flat", padx=6, pady=2)
+        btn_sel_files.pack(side="left", padx=(0, 10))
+        self.bind_hover(btn_sel_files)
+
+        btn_sel_folder = tk.Button(btn_import_frame, text="📁 Import Folder(s)", command=select_folder, bg=self.card_color, fg=self.text_color, relief="flat", padx=6, pady=2)
+        btn_sel_folder.pack(side="left")
+        self.bind_hover(btn_sel_folder)
+
         def submit():
             name = ent_name.get().strip()
             if not name:
@@ -2080,6 +2220,8 @@ class FFXModManagerGUI:
             desc = ent_desc.get().strip()
             category = cmb_cat.get()
             selected_target = target_game_var.get()
+            nexus_id = ent_nexus_id.get().strip()
+            mod_link = ent_mod_link.get().strip()
 
             # Determine disabled mods repository base directory based on selected game target
             if selected_target == "FFX-2":
@@ -2101,15 +2243,35 @@ class FFXModManagerGUI:
             try:
                 os.makedirs(mod_repo_path, exist_ok=True)
                 
-                # Pre-create virtual data directories for convenience
                 if selected_target == "FFX-2":
-                    data_subfolder = os.path.join(mod_repo_path, "ffx2_data")
-                    os.makedirs(data_subfolder, exist_ok=True)
-                    rel_files = ["ffx2_data/"]
+                    data_subfolder_name = "ffx2_data"
                 else:
-                    data_subfolder = os.path.join(mod_repo_path, "ffx_data")
-                    os.makedirs(data_subfolder, exist_ok=True)
-                    rel_files = ["ffx_data/"]
+                    data_subfolder_name = "ffx_data"
+                    
+                data_subfolder = os.path.join(mod_repo_path, data_subfolder_name)
+                os.makedirs(data_subfolder, exist_ok=True)
+
+                # Copy staged files to their resolved relative paths
+                for filepath, rel in imported_files.items():
+                    if os.path.exists(filepath):
+                        dest = os.path.join(mod_repo_path, rel)
+                        os.makedirs(os.path.dirname(dest), exist_ok=True)
+                        shutil.copy2(filepath, dest)
+                            
+                # Scan for mod_files relative to mod_repo_path
+                rel_files = []
+                for r, d, fs in os.walk(mod_repo_path):
+                    for file_item in fs:
+                        if file_item in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                            continue
+                        fpath = os.path.join(r, file_item)
+                        rel = os.path.relpath(fpath, mod_repo_path)
+                        rel = rel.replace("\\", "/")
+                        rel_files.append(rel)
+                        
+                # If absolutely empty, fall back to default virtual folders
+                if not rel_files:
+                    rel_files = [f"{data_subfolder_name}/"]
 
                 info = {
                     "name": clean_name,
@@ -2118,6 +2280,8 @@ class FFXModManagerGUI:
                     "version": version,
                     "description": desc,
                     "category": category,
+                    "nexus_id": nexus_id,
+                    "link": mod_link,
                     "files": rel_files
                 }
                 
@@ -2250,7 +2414,10 @@ class FFXModManagerGUI:
             
         for rel in files:
             src = os.path.join(mod_repo, rel)
-            dest = os.path.join(active_files_dir, rel)
+            if rel.lower().replace("\\", "/").startswith("unx_res/"):
+                dest = os.path.join(self.game_dir, rel)
+            else:
+                dest = os.path.join(active_files_dir, rel)
             if os.path.exists(src):
                 try:
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -2396,7 +2563,10 @@ class FFXModManagerGUI:
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
         
         for rel in files:
-            dest = os.path.join(active_files_dir, rel)
+            if rel.lower().replace("\\", "/").startswith("unx_res/"):
+                dest = os.path.join(self.game_dir, rel)
+            else:
+                dest = os.path.join(active_files_dir, rel)
             src_back = os.path.join(mod_repo, rel)
             if os.path.exists(dest):
                 try:
@@ -2425,7 +2595,8 @@ class FFXModManagerGUI:
                                 self.log(f"[Conflict Error] Failed to restore file '{rel}' for '{other_owner}': {re}", "error")
                                 
                     parent = os.path.dirname(dest)
-                    while parent and parent != active_files_dir:
+                    limit_dir = self.game_dir if rel.lower().replace("\\", "/").startswith("unx_res/") else active_files_dir
+                    while parent and parent != limit_dir and parent != self.game_dir:
                         if not os.listdir(parent):
                             os.rmdir(parent)
                             parent = os.path.dirname(parent)
@@ -2701,31 +2872,117 @@ class FFXModManagerGUI:
         mod_creator = ""
         mod_version = "1.0"
         mod_desc = ""
+        mod_category = "General"
+        mod_nexus_id = ""
+        mod_link = ""
         
         if meta_data and meta_data.get("name"):
             # Existing mod metadata found! Credits Lock active.
             mod_name = meta_data.get("name")
             mod_creator = meta_data.get("author", meta_data.get("creator", "Unknown"))
             mod_version = meta_data.get("version", "1.0")
-            mod_desc = meta_data.get("description", "")
+            mod_desc = meta_data.get("description", meta_data.get("desc", ""))
+            mod_category = meta_data.get("category", "General")
+            mod_nexus_id = meta_data.get("nexus_id", "")
+            mod_link = meta_data.get("link", meta_data.get("url", ""))
             self.log(f"Existing metadata detected. Mod: '{mod_name}' by '{mod_creator}' (Credits Locked).", "success")
         else:
-            # No pre-existing metadata. Open popup dialog.
-            from tkinter import simpledialog
-            mod_name = simpledialog.askstring("Import Mod", "Enter Mod Name:")
-            if not mod_name:
+            # No pre-existing metadata. Open custom styled modal dialog.
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Import Mod Details")
+            dialog.geometry("450x480")
+            dialog.configure(bg=self.bg_color)
+            dialog.resizable(False, False)
+            dialog.transient(self.root)
+            dialog.grab_set()
+
+            lbl_title = tk.Label(dialog, text="📥 Import Mod Metadata", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+            lbl_title.pack(anchor="w", padx=20, pady=(15, 10))
+
+            form = tk.Frame(dialog, bg=self.bg_color)
+            form.pack(fill="x", padx=20, pady=5)
+            form.columnconfigure(1, weight=1)
+
+            # Name
+            tk.Label(form, text="Mod Name:", fg=self.text_color, bg=self.bg_color, font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w", pady=6)
+            ent_name = ttk.Entry(form)
+            ent_name.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=6)
+            ent_name.focus()
+
+            # Creator
+            tk.Label(form, text="Creator/Author:", fg=self.text_color, bg=self.bg_color).grid(row=1, column=0, sticky="w", pady=6)
+            ent_creator = ttk.Entry(form)
+            ent_creator.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=6)
+            ent_creator.insert(0, "Unknown")
+
+            # Version
+            tk.Label(form, text="Version:", fg=self.text_color, bg=self.bg_color).grid(row=2, column=0, sticky="w", pady=6)
+            ent_version = ttk.Entry(form)
+            ent_version.grid(row=2, column=1, sticky="ew", padx=(10, 0), pady=6)
+            ent_version.insert(0, "1.0")
+
+            # Description
+            tk.Label(form, text="Description:", fg=self.text_color, bg=self.bg_color).grid(row=3, column=0, sticky="nw", pady=6)
+            ent_desc = ttk.Entry(form)
+            ent_desc.grid(row=3, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+            # Category
+            tk.Label(form, text="Category:", fg=self.text_color, bg=self.bg_color).grid(row=4, column=0, sticky="w", pady=6)
+            cmb_cat = ttk.Combobox(form, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], state="readonly")
+            cmb_cat.grid(row=4, column=1, sticky="ew", padx=(10, 0), pady=6)
+            cmb_cat.set("General")
+
+            # Nexus ID
+            tk.Label(form, text="Nexus Mod ID:", fg=self.text_color, bg=self.bg_color).grid(row=5, column=0, sticky="w", pady=6)
+            ent_nexus = ttk.Entry(form)
+            ent_nexus.grid(row=5, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+            # Mod Link
+            tk.Label(form, text="Mod Link:", fg=self.text_color, bg=self.bg_color).grid(row=6, column=0, sticky="w", pady=6)
+            ent_link = ttk.Entry(form)
+            ent_link.grid(row=6, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+            dialog_submitted = [False]
+            mod_details = {}
+            def submit():
+                name = ent_name.get().strip()
+                if not name:
+                    messagebox.showerror("Error", "Mod Name cannot be empty.", parent=dialog)
+                    return
+                mod_details["name"] = name
+                mod_details["creator"] = ent_creator.get().strip() or "Unknown"
+                mod_details["version"] = ent_version.get().strip() or "1.0"
+                mod_details["desc"] = ent_desc.get().strip()
+                mod_details["category"] = cmb_cat.get()
+                mod_details["nexus_id"] = ent_nexus.get().strip()
+                mod_details["link"] = ent_link.get().strip()
+                dialog_submitted[0] = True
+                dialog.destroy()
+
+            btn_frame = tk.Frame(dialog, bg=self.bg_color)
+            btn_frame.pack(fill="x", padx=20, pady=25)
+
+            btn_cancel = tk.Button(btn_frame, text="Cancel", command=dialog.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=15, pady=6)
+            btn_cancel.pack(side="left")
+            self.bind_hover(btn_cancel)
+
+            btn_import = tk.Button(btn_frame, text="Import Mod", command=submit, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+            btn_import.pack(side="right")
+            btn_import._is_primary = True
+            self.bind_hover(btn_import, is_primary=True)
+
+            self.root.wait_window(dialog)
+            if not dialog_submitted[0]:
                 shutil.rmtree(temp_dir)
                 return
-            mod_name = mod_name.strip()
-            if not mod_name:
-                shutil.rmtree(temp_dir)
-                return
-                
-            mod_creator = simpledialog.askstring("Import Mod", "Enter Creator/Author:") or "Unknown"
-            mod_creator = mod_creator.strip()
-            
-            mod_version = simpledialog.askstring("Import Mod", "Enter Version:", initialvalue="1.0") or "1.0"
-            mod_desc = simpledialog.askstring("Import Mod", "Enter Description:") or ""
+
+            mod_name = mod_details["name"]
+            mod_creator = mod_details["creator"]
+            mod_version = mod_details["version"]
+            mod_desc = mod_details["desc"]
+            mod_category = mod_details["category"]
+            mod_nexus_id = mod_details["nexus_id"]
+            mod_link = mod_details["link"]
             
         # UnX Texture Auto-Specialization: detect and wrap loose textures/inject folders under UnX_Res/inject/textures
         has_dds = False
@@ -2830,7 +3087,9 @@ class FFXModManagerGUI:
             "author": mod_creator,
             "version": mod_version,
             "description": mod_desc,
-            "category": "General",
+            "category": mod_category,
+            "nexus_id": mod_nexus_id,
+            "link": mod_link,
             "files": mod_files
         }
         
@@ -2964,8 +3223,12 @@ class FFXModManagerGUI:
         self.root.after(1000, self.refresh_saves_lists)
 
     def get_saves_dir(self):
-        default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
-        return self.config.get("saves_dir", default_path)
+        if self.active_game_mode == "FFX-2":
+            default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+            return self.config.get("saves_dir_x2", default_path)
+        else:
+            default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+            return self.config.get("saves_dir", default_path)
 
     def refresh_saves_lists(self):
         self.load_live_saves()
