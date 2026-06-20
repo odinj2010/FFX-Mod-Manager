@@ -65,6 +65,8 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Details**:
   * **Dynamic Python Runner**: Execute raw `.py` scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled Python interpreter, bypassing PyInstaller compilation requirements.
   * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
+  * **Component-Based Architecture**: Support multiple plugin roles (e.g., rendering a configuration tab, running background scripts, and registering event listeners) defined inside a `components` array in `plugin.json`.
+  * **Legacy Compatibility**: Gracefully auto-wrap older single-entry point plugin manifests into a standard single-tab component internally.
   * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
 
 ### 10. Modern Glassmorphism UI Overhaul (Proposed)
