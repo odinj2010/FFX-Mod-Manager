@@ -3432,7 +3432,25 @@ class FFXModManagerGUI:
         lbl_sub = tk.Label(dialog, text="Configure target slots for the detected save files below:", font=("Segoe UI", 9), fg=self.text_color, bg=self.bg_color)
         lbl_sub.pack(anchor="w", padx=20, pady=(0, 10))
 
-        # Scrollable container for list of saves
+        # Bottom Button Row (packed first using side="bottom" so it stays anchored at the bottom)
+        dialog_submitted = [False]
+        def submit():
+            dialog_submitted[0] = True
+            dialog.destroy()
+
+        btn_frame = tk.Frame(dialog, bg=self.bg_color)
+        btn_frame.pack(fill="x", side="bottom", padx=20, pady=15)
+
+        btn_cancel = tk.Button(btn_frame, text="Cancel", command=dialog.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=15, pady=6)
+        btn_cancel.pack(side="left")
+        self.bind_hover(btn_cancel)
+
+        btn_import = tk.Button(btn_frame, text="Import Saves", command=submit, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+        btn_import.pack(side="right")
+        btn_import._is_primary = True
+        self.bind_hover(btn_import, is_primary=True)
+
+        # Scrollable container for list of saves (packed after bottom row, fills remaining middle space)
         container = tk.Frame(dialog, bg=self.bg_color)
         container.pack(fill="both", expand=True, padx=20, pady=5)
 
@@ -3527,24 +3545,6 @@ class FFXModManagerGUI:
             check_conflict(slot_var, lbl_status)
 
             import_items.append((save_path, slot_var))
-
-        dialog_submitted = [False]
-
-        def submit():
-            dialog_submitted[0] = True
-            dialog.destroy()
-
-        btn_frame = tk.Frame(dialog, bg=self.bg_color)
-        btn_frame.pack(fill="x", padx=20, pady=15)
-
-        btn_cancel = tk.Button(btn_frame, text="Cancel", command=dialog.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=15, pady=6)
-        btn_cancel.pack(side="left")
-        self.bind_hover(btn_cancel)
-
-        btn_import = tk.Button(btn_frame, text="Import Saves", command=submit, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
-        btn_import.pack(side="right")
-        btn_import._is_primary = True
-        self.bind_hover(btn_import, is_primary=True)
 
         self.root.wait_window(dialog)
 
