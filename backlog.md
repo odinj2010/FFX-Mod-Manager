@@ -67,6 +67,66 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
   * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
   * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
 
+### 10. Modern Glassmorphism UI Overhaul (Proposed)
+* **Goal**: Modernize the Tkinter UI to have a sleeker, web-like premium appearance.
+* **Details**: Implement semi-transparent glass card panels, rounded frame overlays, ambient glowing borders, and high-quality custom icons.
+
+### 11. Interactive Character Dashboard Profiles (Proposed)
+* **Goal**: Personalize the manager with FFX/FFX-2 character styles.
+* **Details**: Switch themes based on standard profiles (Tidus, Yuna, Rikku, Auron) and automatically shift the active color schemes, ambient artwork, and background details to match.
+
+### 12. Live Graphic Mod Asset Previewer (Proposed)
+* **Goal**: View mod graphics directly in the manager before enabling.
+* **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
+
+### 13. Monster Arena Capture Live Overlay (Proposed)
+* **Goal**: Eliminate manual checks at the Calm Lands arena.
+* **Details**: Read live game memory to render a HUD overlay tracking captures (e.g. Calm Lands: 6/10 Coeurls) for active areas.
+
+### 14. Rikku Active Battle Mix Suggester (Proposed)
+* **Goal**: Suggest the best Mixes dynamically during active turns.
+* **Details**: Read in-battle inventory and target enemy vulnerabilities to overlay optimal Rikku Mix combinations.
+
+### 15. Al Bhed Translator and Collection Companion (Proposed)
+* **Goal**: Track missing primers and translate vocabulary.
+* **Details**: Read save data to list missing Primers and provide a side-panel dictionary translator tool.
+
+### 16. Blitzball Scouting and Tech Tracker (Proposed)
+* **Goal**: Assist team building and tech copy alerts.
+* **Details**: Track player contract timers, tech copy availability, and tournament schedules in an active HUD.
+
+### 17. Interactive Sphere Grid Node Planner (Proposed)
+* **Goal**: Design and share character path maps.
+* **Details**: Render standard and expert sphere grid planners, allowing users to calculate SLvs and export build files.
+
+### 18. Built-in VBF Archive Explorer (Proposed)
+* **Goal**: Native unpacking and editing of main game archives.
+* **Details**: Add a lightweight `.vbf` parser to inspect and patch assets without requiring third-party tools.
+
+### 19. Drag-and-Drop FMOD Music Injector (Proposed)
+* **Goal**: Customize soundtracks easily.
+* **Details**: Convert MP3/WAV files to FMOD bank formats to swap audio files or combine original/arrange tracks.
+
+### 20. Visual Save Game Data Editor (Proposed)
+* **Goal**: Edit player inventory and coordinates natively.
+* **Details**: Embed a visual save modifier into the Saves tab to adjust Gil, stats, sphere grid nodes, and coordinates.
+
+### 21. Mod Presets and Modpack Bundling (Proposed)
+* **Goal**: Share and download custom configurations.
+* **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
+
+### 22. Local Cloud Save Auto-Sync (Proposed)
+* **Goal**: Keep saves backed up to the cloud automatically.
+* **Details**: Hook into local Google Drive/OneDrive/Dropbox folders to sync save backups upon game exit.
+
+### 23. Steam Deck / Proton Compatibility Optimization (Proposed)
+* **Goal**: Seamless Linux controller and path mapping.
+* **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
+
+### 24. Live Memory Offset Online Database Sync (Proposed)
+* **Goal**: Auto-update game memory offsets if Steam patches the game.
+* **Details**: Pull latest memory offset JSON maps from a remote GitHub repository to prevent plugins from breaking during game updates.
+
 ---
 
 ## 💾 Done / Completed Track
