@@ -26,6 +26,7 @@
 ### Theme System & Button Colorizations
 *   **Customizable Semantic Button Colors**: Added customizable theme properties for semantic button categories: Action/Accept, Caution/Danger, Success/Enable, and Utility/Default.
 *   **Theme Creator Dialog Restructure**: Re-arranged the Theme Creator UI into a side-by-side two-column grid ("Base Colors" and "Button Colors"), widening the dialog container to `920x560` to accommodate all 21 color properties cleanly.
+*   **Theme Creator Previews**: Replaced the single preview button with **four distinct buttons** representing each semantic style (Accept, Success, Caution, Utility) and bound dynamic hover events to display the custom hover color changes in real-time.
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
 
 

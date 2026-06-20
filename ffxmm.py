@@ -5230,8 +5230,26 @@ class ThemeCreatorDialog:
         self.prev_desc = tk.Label(self.prev_card, text="This is a description of the mod.", font=("Segoe UI", 8))
         self.prev_desc.pack(anchor="w", pady=(2, 5))
         
-        self.prev_btn = tk.Button(self.prev_card, text="Sample Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
-        self.prev_btn.pack(fill="x")
+        self.prev_btn_accept = tk.Button(self.prev_card, text="⚡ Accept Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
+        self.prev_btn_accept.pack(fill="x", pady=2)
+        
+        self.prev_btn_success = tk.Button(self.prev_card, text="✔️ Success Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
+        self.prev_btn_success.pack(fill="x", pady=2)
+        
+        self.prev_btn_caution = tk.Button(self.prev_card, text="⚠️ Caution Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
+        self.prev_btn_caution.pack(fill="x", pady=2)
+        
+        self.prev_btn_utility = tk.Button(self.prev_card, text="🔄 Utility Button", font=("Segoe UI", 8, "bold"), relief="flat", padx=8, pady=3)
+        self.prev_btn_utility.pack(fill="x", pady=2)
+        
+        def bind_preview_hover(btn, bg_var, hover_var):
+            btn.bind("<Enter>", lambda e: btn.config(bg=hover_var.get()))
+            btn.bind("<Leave>", lambda e: btn.config(bg=bg_var.get()))
+            
+        bind_preview_hover(self.prev_btn_accept, self.colors["btn_accept_bg"], self.colors["btn_accept_hover"])
+        bind_preview_hover(self.prev_btn_success, self.colors["btn_success_bg"], self.colors["btn_success_hover"])
+        bind_preview_hover(self.prev_btn_caution, self.colors["btn_caution_bg"], self.colors["btn_caution_hover"])
+        bind_preview_hover(self.prev_btn_utility, self.colors["btn_utility_bg"], self.colors["btn_utility_hover"])
         
         self.update_preview()
         
@@ -5267,11 +5285,26 @@ class ThemeCreatorDialog:
             self.prev_lbl.config(bg=card, fg=text)
             self.prev_desc.config(bg=card, fg=dim)
             
-            # Use accept button colors from inputs for preview
-            btn_accept_bg = self.colors["btn_accept_bg"].get()
-            btn_accept_fg = self.colors["btn_accept_fg"].get()
-            btn_accept_hover = self.colors["btn_accept_hover"].get()
-            self.prev_btn.config(bg=btn_accept_bg, fg=btn_accept_fg, activebackground=btn_accept_hover, activeforeground=btn_accept_fg)
+            # Accept Button
+            self.prev_btn_accept.config(bg=self.colors["btn_accept_bg"].get(),
+                                        fg=self.colors["btn_accept_fg"].get(),
+                                        activebackground=self.colors["btn_accept_hover"].get(),
+                                        activeforeground=self.colors["btn_accept_fg"].get())
+            # Success Button
+            self.prev_btn_success.config(bg=self.colors["btn_success_bg"].get(),
+                                         fg=self.colors["btn_success_fg"].get(),
+                                         activebackground=self.colors["btn_success_hover"].get(),
+                                         activeforeground=self.colors["btn_success_fg"].get())
+            # Caution Button
+            self.prev_btn_caution.config(bg=self.colors["btn_caution_bg"].get(),
+                                         fg=self.colors["btn_caution_fg"].get(),
+                                         activebackground=self.colors["btn_caution_hover"].get(),
+                                         activeforeground=self.colors["btn_caution_fg"].get())
+            # Utility Button
+            self.prev_btn_utility.config(bg=self.colors["btn_utility_bg"].get(),
+                                         fg=self.colors["btn_utility_fg"].get(),
+                                         activebackground=self.colors["btn_utility_hover"].get(),
+                                         activeforeground=self.colors["btn_utility_fg"].get())
         except Exception:
             pass
             
