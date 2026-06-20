@@ -1937,7 +1937,7 @@ class FFXModManagerGUI:
         unmanaged_files = []
         total_size = 0
         
-        target_folders = ["ffx-2_data", "ffx2_ps2"] if self.active_game_mode == "FFX-2" else ["ffx_data", "ffx_ps2"]
+        target_folders = ["ffx-2_data", "ffx_ps2"] if self.active_game_mode == "FFX-2" else ["ffx_data", "ffx_ps2"]
         for folder in target_folders:
             src_folder = os.path.join(self.mods_dir, folder)
             if os.path.isdir(src_folder):
@@ -4186,9 +4186,6 @@ class FFXModManagerGUI:
         parts = abs_path.split("/")
         
         # 1. If absolute path contains the root folders explicitly
-        if "ffx2_ps2/" in abs_path.lower():
-            idx = abs_path.lower().find("ffx2_ps2/")
-            return abs_path[idx:]
         if "ffx-2_data/" in abs_path.lower():
             idx = abs_path.lower().find("ffx-2_data/")
             return abs_path[idx:]
@@ -4202,7 +4199,7 @@ class FFXModManagerGUI:
         # 2. If it contains subfolders ffx2/master, ffx/master or gamedata
         if "ffx2/master" in abs_path.lower():
             idx = abs_path.lower().find("ffx2/master")
-            return "ffx2_ps2/" + abs_path[idx:]
+            return "ffx_ps2/" + abs_path[idx:]
         if "ffx/master" in abs_path.lower():
             idx = abs_path.lower().find("ffx/master")
             return "ffx_ps2/" + abs_path[idx:]
@@ -4221,7 +4218,7 @@ class FFXModManagerGUI:
                 is_ffx2 = "ffx2" in abs_path.lower()
                 
                 if ext in [".bin", ".dat", ".evt"]:
-                    prefix = "ffx2_ps2/ffx2/master/" if is_ffx2 else "ffx_ps2/ffx/master/"
+                    prefix = "ffx_ps2/ffx2/master/" if is_ffx2 else "ffx_ps2/ffx/master/"
                     return prefix + "/".join(parts[idx:])
                 else:
                     prefix = "ffx-2_data/gamedata/" if is_ffx2 else "ffx_data/gamedata/"
