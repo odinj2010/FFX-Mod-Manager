@@ -587,7 +587,7 @@ class FFXModManagerGUI:
                     self.mods_disabled_dir = os.path.join(self.game_dir, "fahrenheit", "mods_disabled")
             else:
                 if self.active_game_mode == "FFX-2":
-                    self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx2_data")
+                    self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx-2_data")
                     self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled_x2")
                 else:
                     self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx_data")
@@ -1937,7 +1937,7 @@ class FFXModManagerGUI:
         unmanaged_files = []
         total_size = 0
         
-        target_folders = ["ffx2_data", "ffx2_ps2"] if self.active_game_mode == "FFX-2" else ["ffx_data", "ffx_ps2"]
+        target_folders = ["ffx-2_data", "ffx2_ps2"] if self.active_game_mode == "FFX-2" else ["ffx_data", "ffx_ps2"]
         for folder in target_folders:
             src_folder = os.path.join(self.mods_dir, folder)
             if os.path.isdir(src_folder):
@@ -2454,7 +2454,7 @@ class FFXModManagerGUI:
                 os.makedirs(mod_repo_path, exist_ok=True)
                 
                 if selected_target == "FFX-2":
-                    data_subfolder_name = "ffx2_data"
+                    data_subfolder_name = "ffx-2_data"
                 else:
                     data_subfolder_name = "ffx_data"
 
@@ -3251,21 +3251,21 @@ class FFXModManagerGUI:
 
         # Restructure for FFX-2 mode if files don't have standard prefixes
         if self.active_game_mode == "FFX-2":
-            # Check if any files are at root or in directories other than ffx2_data / UnX_Res
+            # Check if any files are at root or in directories other than ffx-2_data / UnX_Res
             loose_files = False
             for f in os.listdir(root_dir):
                 if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
                     continue
-                if f != "ffx2_data" and f != "UnX_Res":
+                if f != "ffx-2_data" and f != "UnX_Res":
                     loose_files = True
                     break
             
             if loose_files:
-                self.log("Restructuring loose files for FFX-2 compatibility under 'ffx2_data/'...", "info")
-                wrap_dir = os.path.join(root_dir, "ffx2_data")
+                self.log("Restructuring loose files for FFX-2 compatibility under 'ffx-2_data/'...", "info")
+                wrap_dir = os.path.join(root_dir, "ffx-2_data")
                 os.makedirs(wrap_dir, exist_ok=True)
                 for f in os.listdir(root_dir):
-                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx2_data"]:
+                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data"]:
                         continue
                     src_item = os.path.join(root_dir, f)
                     dest_item = os.path.join(wrap_dir, f)
@@ -4189,8 +4189,8 @@ class FFXModManagerGUI:
         if "ffx2_ps2/" in abs_path.lower():
             idx = abs_path.lower().find("ffx2_ps2/")
             return abs_path[idx:]
-        if "ffx2_data/" in abs_path.lower():
-            idx = abs_path.lower().find("ffx2_data/")
+        if "ffx-2_data/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx-2_data/")
             return abs_path[idx:]
         if "ffx_ps2/" in abs_path.lower():
             idx = abs_path.lower().find("ffx_ps2/")
@@ -4209,7 +4209,7 @@ class FFXModManagerGUI:
         if "gamedata" in abs_path.lower():
             idx = abs_path.lower().find("gamedata")
             if "ffx2" in abs_path.lower():
-                return "ffx2_data/" + abs_path[idx:]
+                return "ffx-2_data/" + abs_path[idx:]
             else:
                 return "ffx_data/" + abs_path[idx:]
             
@@ -4224,7 +4224,7 @@ class FFXModManagerGUI:
                     prefix = "ffx2_ps2/ffx2/master/" if is_ffx2 else "ffx_ps2/ffx/master/"
                     return prefix + "/".join(parts[idx:])
                 else:
-                    prefix = "ffx2_data/gamedata/" if is_ffx2 else "ffx_data/gamedata/"
+                    prefix = "ffx-2_data/gamedata/" if is_ffx2 else "ffx_data/gamedata/"
                     return prefix + "/".join(parts[idx:])
                     
         return ""
