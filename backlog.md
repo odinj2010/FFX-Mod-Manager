@@ -26,7 +26,8 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 ---
 
 ## 💾 Done / Completed Track
-*(Features completed in v3.0.0 track)*
+* [x] **Scrollable Settings Tab & Unified Directories Layout** (Next_Release)
+* [x] **Compact Mods Tab Buttons Layout** (Next_Release)
 * [x] **Expanded Game-Themed UI Palettes**: custom JSON color presets (Yuna Summoner, Rikku Thief, Al Bhed Teal, Sin Ominous, Chocobo Yellow, Zanarkand Neon) parsed and loaded automatically.
 * [x] **UnX Texture Mod Auto-Specialization**: detect, wrap, and normalize loose texture files under `UnX_Res/inject/textures/`.
 * [x] **Dual-Game Switching**: isolated mods/configurations between FFX and FFX-2.

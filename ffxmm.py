@@ -58,6 +58,7 @@ class FFXModManagerGUI:
         self.parent = parent
         self.is_embedded = is_embedded
         self.root = parent.winfo_toplevel() if is_embedded else parent
+        self.log_history = []
         
         # Define Themes dictionary
         self.themes = {
@@ -591,6 +592,55 @@ class FFXModManagerGUI:
         else:
             return "⚠️ Mod Loader DLL NOT Detected! (Mods will not load. Please install External File Loader)", self.error_color
 
+    def show_log_window(self):
+        if hasattr(self, "log_window") and self.log_window:
+            try:
+                self.log_window.lift()
+                self.log_window.focus_force()
+                return
+            except Exception:
+                pass
+                
+        self.log_window = tk.Toplevel(self.root)
+        self.log_window.title("📜 FFX Mod Manager - System Log")
+        self.log_window.geometry("700x400")
+        self.log_window.configure(bg=self.bg_color)
+        
+        log_frame = tk.Frame(self.log_window, bg=self.bg_color, padx=10, pady=10)
+        log_frame.pack(fill="both", expand=True)
+        
+        self.txt_log = tk.Text(log_frame, bg="#0d0d0d", fg="#d1d5db", insertbackground="white",
+                               relief="flat", font=("Consolas", 9), borderwidth=0)
+        self.txt_log.pack(fill="both", side="left", expand=True)
+        
+        self.txt_log.tag_configure("info", foreground="#60a5fa")
+        self.txt_log.tag_configure("success", foreground="#34d399")
+        self.txt_log.tag_configure("error", foreground="#f87171")
+        self.txt_log.tag_configure("default", foreground="#d1d5db")
+        
+        log_scroll = ttk.Scrollbar(log_frame, command=self.txt_log.yview)
+        log_scroll.pack(fill="y", side="right")
+        self.txt_log.config(yscrollcommand=log_scroll.set)
+        
+        btn_row = tk.Frame(self.log_window, bg=self.bg_color, padx=10, pady=(0, 10))
+        btn_row.pack(fill="x")
+        
+        btn_clear = tk.Button(btn_row, text="Clear Log", command=self.clear_log, bg=self.card_color,
+                              fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        btn_clear.pack(side="left")
+        self.bind_hover(btn_clear)
+        
+        btn_close = tk.Button(btn_row, text="Close", command=self.log_window.destroy, bg=self.accent_color,
+                              fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
+        btn_close._is_primary = True
+        btn_close.pack(side="right")
+        self.bind_hover(btn_close, is_primary=True)
+        
+        # Populate history
+        for msg, tag in getattr(self, "log_history", []):
+            self.txt_log.insert(tk.END, msg, tag)
+        self.txt_log.see(tk.END)
+
     def log(self, text, tag=None):
         msg = str(text)
         if not msg.endswith("\n"):
@@ -598,15 +648,26 @@ class FFXModManagerGUI:
         if tag is None:
             tag = "error" if "error" in msg.lower() or "failed" in msg.lower() else "success" if "success" in msg.lower() else "info"
         
+        if not hasattr(self, "log_history"):
+            self.log_history = []
+        self.log_history.append((msg, tag))
+        
         def update():
             if hasattr(self, "txt_log") and self.txt_log:
-                self.txt_log.insert(tk.END, msg, tag)
-                self.txt_log.see(tk.END)
+                try:
+                    self.txt_log.insert(tk.END, msg, tag)
+                    self.txt_log.see(tk.END)
+                except Exception:
+                    pass
         self.root.after(0, update)
 
     def clear_log(self):
+        self.log_history = []
         if hasattr(self, "txt_log") and self.txt_log:
-            self.txt_log.delete("1.0", tk.END)
+            try:
+                self.txt_log.delete("1.0", tk.END)
+            except Exception:
+                pass
 
     def create_widgets(self):
         # Main Layout Container
@@ -758,37 +819,45 @@ class FFXModManagerGUI:
         btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
         btn_p_frame.pack(fill="x", side="bottom")
         
-        btn_enable = tk.Button(btn_p_frame, text="⚡ Enable Mod (Install)", command=self.enable_mod, bg=self.success_color,
-                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", height=2)
+        # Row 1: Enable, Disable, Create, Import
+        row1 = ttk.Frame(btn_p_frame)
+        row1.pack(fill="x", pady=2)
+        
+        btn_enable = tk.Button(row1, text="⚡ Enable", command=self.enable_mod, bg=self.success_color,
+                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669")
         btn_enable._is_success = True
-        btn_enable.pack(fill="x", pady=3)
+        btn_enable.pack(side="left", fill="x", expand=True, padx=(0, 2))
         self.bind_hover(btn_enable)
         ToolTip(btn_enable, "Move this mod's files into the active staging game folder (makes the mod active in-game).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_disable = tk.Button(btn_p_frame, text="⏪ Disable Mod (Uninstall)", command=self.disable_mod, bg=self.card_color,
-                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, height=2)
-        btn_disable.pack(fill="x", pady=3)
+        btn_disable = tk.Button(row1, text="⏪ Disable", command=self.disable_mod, bg=self.card_color,
+                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_disable.pack(side="left", fill="x", expand=True, padx=2)
         self.bind_hover(btn_disable)
         ToolTip(btn_disable, "Remove this mod's files from the active game folder and return them to the mod manager repository.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_new = tk.Button(btn_p_frame, text="Create New Mod", command=self.create_mod, bg=self.accent_color,
+        btn_new = tk.Button(row1, text="🆕 Create", command=self.create_mod, bg=self.accent_color,
                             fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
         btn_new._is_primary = True
-        btn_new.pack(fill="x", pady=2)
+        btn_new.pack(side="left", fill="x", expand=True, padx=2)
         self.bind_hover(btn_new, is_primary=True)
         ToolTip(btn_new, "Initialize a new empty local mod structure folder with an auto-generated manifest.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_import = tk.Button(btn_p_frame, text="📥 Import Mod Archive (.zip / .rar)", command=self.import_zip_mod, bg=self.accent_color,
+        btn_import = tk.Button(row1, text="📥 Import", command=self.import_zip_mod, bg=self.accent_color,
                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
         btn_import._is_primary = True
-        btn_import.pack(fill="x", pady=2)
+        btn_import.pack(side="left", fill="x", expand=True, padx=(2, 0))
         self.bind_hover(btn_import, is_primary=True)
         ToolTip(btn_import, "Import and unpack a compressed zip/rar archive mod. Automatically restructures/normalizes folder paths.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_del = tk.Button(btn_p_frame, text="Delete Mod From Disk", command=self.delete_mod, bg=self.error_color,
+        # Row 2: Delete, Refresh
+        row2 = ttk.Frame(btn_p_frame)
+        row2.pack(fill="x", pady=2)
+        
+        btn_del = tk.Button(row2, text="🗑️ Delete", command=self.delete_mod, bg=self.error_color,
                             fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626")
         btn_del._is_danger = True
-        btn_del.pack(fill="x", pady=2)
+        btn_del.pack(side="left", fill="x", expand=True, padx=(0, 2))
         self.bind_hover(btn_del)
         ToolTip(btn_del, "Permanently delete this mod's repository folder and all contained assets from your computer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
@@ -807,9 +876,9 @@ class FFXModManagerGUI:
         self.bind_hover(btn_move_down)
         ToolTip(btn_move_down, "Move selected mod down in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_refresh = tk.Button(btn_p_frame, text="🔄 Refresh Mod List", command=self.refresh_list, bg=self.card_color,
+        btn_refresh = tk.Button(row2, text="🔄 Refresh", command=self.refresh_list, bg=self.card_color,
                                 fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_refresh.pack(fill="x", pady=2)
+        btn_refresh.pack(side="right", fill="x", expand=True, padx=(2, 0))
         self.bind_hover(btn_refresh)
         ToolTip(btn_refresh, "Force a disk rescan of enabled and disabled folders to refresh the mods list state.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
 
@@ -960,18 +1029,49 @@ class FFXModManagerGUI:
         self.tree_conflicts.pack(fill="both", expand=True)
         
         scroll_c = ttk.Scrollbar(self.tab_conflicts, command=self.tree_conflicts.yview)
-        scroll_c.pack(fill="y", side="right")
-        self.tree_conflicts.config(yscrollcommand=scroll_c.set)
+        scroll_c.pack(fill="y", side="right")        # ----------------------------------------------------
+        # PAGE 2: SETTINGS PANEL LAYOUT (SCROLLABLE)
+        # ----------------------------------------------------
+        settings_canvas = tk.Canvas(self.page_settings_frame, bg=self.bg_color, highlightthickness=0, borderwidth=0)
+        settings_scrollbar = ttk.Scrollbar(self.page_settings_frame, orient="vertical", command=settings_canvas.yview)
         
-        # ----------------------------------------------------
-        # PAGE 2: SETTINGS PANEL LAYOUT
-        # ----------------------------------------------------
-        # Folder directory settings (Card Style)
-        dir_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.settings_cards_container = tk.Frame(settings_canvas, bg=self.bg_color)
+        settings_canvas.configure(yscrollcommand=settings_scrollbar.set)
+        
+        settings_scrollbar.pack(side="right", fill="y")
+        settings_canvas.pack(side="left", fill="both", expand=True)
+        
+        settings_window = settings_canvas.create_window((0, 0), window=self.settings_cards_container, anchor="nw")
+        
+        def on_settings_configure(event):
+            settings_canvas.configure(scrollregion=settings_canvas.bbox("all"))
+        self.settings_cards_container.bind("<Configure>", on_settings_configure)
+        
+        def on_settings_canvas_configure(event):
+            settings_canvas.itemconfig(settings_window, width=event.width)
+        settings_canvas.bind("<Configure>", on_settings_canvas_configure)
+        
+        def _on_settings_mousewheel(event):
+            settings_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        def bind_settings_mouse(event):
+            settings_canvas.bind_all("<MouseWheel>", _on_settings_mousewheel)
+        def unbind_settings_mouse(event):
+            settings_canvas.unbind_all("<MouseWheel>")
+        settings_canvas.bind("<Enter>", bind_settings_mouse)
+        settings_canvas.bind("<Leave>", unbind_settings_mouse)
+        
+        # Mod Loader Diagnostic Banner (At the very top)
+        self.lbl_loader_status = tk.Label(self.settings_cards_container, text="", font=("Segoe UI", 9, "bold"), anchor="w")
+        self.lbl_loader_status._is_diagnostic = True
+        self.lbl_loader_status.pack(fill="x", pady=5)
+        self.update_loader_status_ui()
+        
+        # Unified Directory Settings (Card Style)
+        dir_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
         dir_card._is_card = True
         dir_card.pack(fill="x", pady=(0, 10))
         
-        lbl_dir_title = tk.Label(dir_card, text="Game Directory Settings", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_dir_title = tk.Label(dir_card, text="Directory Settings", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
         lbl_dir_title._is_title = True
         lbl_dir_title.pack(anchor="w", pady=(0, 10))
         
@@ -979,11 +1079,12 @@ class FFXModManagerGUI:
         path_row.pack(fill="x")
         path_row.columnconfigure(1, weight=1)
         
-        lbl_path = tk.Label(path_row, text="FFX Game Folder:", bg=self.card_color, fg=self.text_color)
-        lbl_path.grid(row=0, column=0, sticky="w", padx=(0, 10))
+        # Game folder path picker (Row 0)
+        lbl_path = tk.Label(path_row, text="FFX&X2 Game Folder:", bg=self.card_color, fg=self.text_color)
+        lbl_path.grid(row=0, column=0, sticky="w", padx=(0, 10), pady=6)
         
         self.ent_game_path = ttk.Entry(path_row, width=40)
-        self.ent_game_path.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        self.ent_game_path.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=6)
         
         if self.game_dir:
             self.ent_game_path.insert(0, self.game_dir)
@@ -992,92 +1093,15 @@ class FFXModManagerGUI:
         
         btn_browse = tk.Button(path_row, text="Browse...", command=self.browse_game_folder, bg=self.bg_color, 
                                fg=self.text_color, relief="flat", activebackground=self.border_color, padx=10)
-        btn_browse.grid(row=0, column=2, padx=(0, 10))
+        btn_browse.grid(row=0, column=2, pady=6)
         self.bind_hover(btn_browse)
         
-        btn_launch = tk.Button(path_row, text="🎮 Launch FFX", command=self.launch_game, bg=self.accent_color,
-                               fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=10)
-        btn_launch._is_primary = True
-        btn_launch.grid(row=0, column=3)
-        self.bind_hover(btn_launch, is_primary=True)
+        # Saves folder path picker (Row 1)
+        lbl_saves_path = tk.Label(path_row, text="Saves Directory:", bg=self.card_color, fg=self.text_color)
+        lbl_saves_path.grid(row=1, column=0, sticky="w", padx=(0, 10), pady=6)
         
-        # Mod Loader Diagnostic Banner
-        self.lbl_loader_status = tk.Label(self.page_settings_frame, text="", font=("Segoe UI", 9, "bold"), anchor="w")
-        self.lbl_loader_status._is_diagnostic = True
-        self.lbl_loader_status.pack(fill="x", pady=5)
-        self.update_loader_status_ui()
-        
-        # Safe Mode & Diagnostics Card (Card Style)
-        safe_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
-        safe_card._is_card = True
-        safe_card.pack(fill="x", pady=10)
-        
-        lbl_safe_title = tk.Label(safe_card, text="Safety & Diagnostics Controls", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
-        lbl_safe_title._is_title = True
-        lbl_safe_title.pack(anchor="w", pady=(0, 10))
-        
-        safe_row = tk.Frame(safe_card, bg=self.card_color)
-        safe_row.pack(fill="x")
-        
-        btn_safe_reset = tk.Button(safe_row, text="⚠️ Disable All Active Mods (Safe Reset)", command=self.safe_mode_reset, bg=self.error_color,
-                                   fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=4)
-        btn_safe_reset._is_danger = True
-        btn_safe_reset.pack(side="left", padx=(0, 15))
-        self.bind_hover(btn_safe_reset)
-        
-        btn_verify_disk = tk.Button(safe_row, text="💾 Verify Disk & Permissions", command=self.verify_deployment_safety, bg=self.bg_color,
-                                    fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
-        btn_verify_disk.pack(side="left")
-        self.bind_hover(btn_verify_disk)
-
-        # Theme Settings (Card Style)
-        theme_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
-        theme_card._is_card = True
-        theme_card.pack(fill="x", pady=10)
-        
-        lbl_theme_title = tk.Label(theme_card, text="Appearance Theme Settings", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
-        lbl_theme_title._is_title = True
-        lbl_theme_title.pack(anchor="w", pady=(0, 10))
-        
-        theme_row = tk.Frame(theme_card, bg=self.card_color)
-        theme_row.pack(fill="x")
-        
-        lbl_select = tk.Label(theme_row, text="Active Theme:", bg=self.card_color, fg=self.text_color)
-        lbl_select.pack(side="left", padx=(0, 10))
-        
-        self.theme_selector = ttk.Combobox(theme_row, values=list(self.themes.keys()), state="readonly", width=20)
-        self.theme_selector.set(self.current_theme_name)
-        self.theme_selector.pack(side="left", padx=(0, 15))
-        self.theme_selector.bind("<<ComboboxSelected>>", lambda e: self.apply_theme(self.theme_selector.get()))
-        
-        btn_create_theme = tk.Button(theme_row, text="🎨 Create Custom Theme", command=self.open_theme_creator, bg=self.bg_color,
-                                     fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
-        btn_create_theme.pack(side="left")
-        self.bind_hover(btn_create_theme)
-        
-        btn_open_themes = tk.Button(theme_card, text="📂 Open Custom Themes Folder", command=self.open_themes_folder, bg=self.bg_color,
-                                    fg=self.text_color, relief="flat", activebackground=self.border_color, padx=12, pady=4)
-        btn_open_themes.pack(anchor="w", pady=(15, 0))
-        self.bind_hover(btn_open_themes)
-
-        # Saves Directory Settings (Card Style)
-        save_path_card = tk.Frame(self.page_settings_frame, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
-        save_path_card._is_card = True
-        save_path_card.pack(fill="x", pady=10)
-        
-        lbl_saves_title = tk.Label(save_path_card, text="Saves Location Configuration", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
-        lbl_saves_title._is_title = True
-        lbl_saves_title.pack(anchor="w", pady=(0, 10))
-        
-        saves_row = tk.Frame(save_path_card, bg=self.card_color)
-        saves_row.pack(fill="x")
-        saves_row.columnconfigure(1, weight=1)
-        
-        lbl_saves_path = tk.Label(saves_row, text="Saves Directory:", bg=self.card_color, fg=self.text_color)
-        lbl_saves_path.grid(row=0, column=0, sticky="w", padx=(0, 10))
-        
-        self.ent_saves_path = ttk.Entry(saves_row, width=40)
-        self.ent_saves_path.grid(row=0, column=1, sticky="ew", padx=(0, 10))
+        self.ent_saves_path = ttk.Entry(path_row, width=40)
+        self.ent_saves_path.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=6)
         
         default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
         default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
@@ -1107,34 +1131,73 @@ class FFXModManagerGUI:
                 self.ent_saves_path.insert(0, abspath)
                 save_custom_saves_path()
                 
-        btn_saves_browse = tk.Button(saves_row, text="Browse...", command=browse_saves_folder, bg=self.bg_color,
+        btn_saves_browse = tk.Button(path_row, text="Browse...", command=browse_saves_folder, bg=self.bg_color,
                                      fg=self.text_color, relief="flat", activebackground=self.border_color, padx=10)
-        btn_saves_browse.grid(row=0, column=2)
+        btn_saves_browse.grid(row=1, column=2, pady=6)
         self.bind_hover(btn_saves_browse)
         ToolTip(btn_saves_browse, "Browse and configure a custom documents path location for game save files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        # ----------------------------------------------------
-        # 3. GLOBAL CONSOLE LOG PANEL (Always at bottom of Content Panel)
-        # ----------------------------------------------------
-        log_label = tk.Label(self.content_container, text="Console Log", font=("Segoe UI", 10, "bold"), fg=self.accent_color, bg=self.bg_color, anchor="w")
-        log_label._is_title = True
-        log_label.pack(fill="x", pady=(15, 2), padx=15)
+        # Side-by-Side bottom row for Appearance Theme Settings and Safety & Diagnostics
+        bottom_cards_row = tk.Frame(self.settings_cards_container, bg=self.bg_color)
+        bottom_cards_row.pack(fill="x", pady=10)
+        bottom_cards_row.columnconfigure(0, weight=1)
+        bottom_cards_row.columnconfigure(1, weight=1)
+        bottom_cards_row.columnconfigure(2, weight=1)
         
-        log_frame = tk.Frame(self.content_container, bg=self.bg_color)
-        log_frame.pack(fill="x", side="bottom", expand=False, padx=15, pady=(0, 15))
+        # Left Panel: Appearance Theme Settings (Card Style)
+        theme_card = tk.Frame(bottom_cards_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=12, pady=12)
+        theme_card._is_card = True
+        theme_card.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         
-        self.txt_log = tk.Text(log_frame, height=5, bg="#0d0d0d", fg="#d1d5db", insertbackground="white",
-                               relief="flat", font=("Consolas", 9), borderwidth=0)
-        self.txt_log.pack(fill="both", side="left", expand=True)
+        lbl_theme_title = tk.Label(theme_card, text="Appearance Theme Settings", font=("Segoe UI", 10, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_theme_title._is_title = True
+        lbl_theme_title.pack(anchor="w", pady=(0, 8))
         
-        self.txt_log.tag_configure("info", foreground="#60a5fa")
-        self.txt_log.tag_configure("success", foreground="#34d399")
-        self.txt_log.tag_configure("error", foreground="#f87171")
-        self.txt_log.tag_configure("default", foreground="#d1d5db")
+        theme_row = tk.Frame(theme_card, bg=self.card_color)
+        theme_row.pack(fill="x")
         
-        log_scroll = ttk.Scrollbar(log_frame, command=self.txt_log.yview)
-        log_scroll.pack(fill="y", side="right")
-        self.txt_log.config(yscrollcommand=log_scroll.set)
+        lbl_select = tk.Label(theme_row, text="Theme:", bg=self.card_color, fg=self.text_color, font=("Segoe UI", 8))
+        lbl_select.pack(side="left", padx=(0, 6))
+        
+        self.theme_selector = ttk.Combobox(theme_row, values=list(self.themes.keys()), state="readonly", width=20, font=("Segoe UI", 8))
+        self.theme_selector.set(self.current_theme_name)
+        self.theme_selector.pack(side="left", padx=(0, 6))
+        self.theme_selector.bind("<<ComboboxSelected>>", lambda e: self.apply_theme(self.theme_selector.get()))
+        
+        btn_create_theme = tk.Button(theme_card, text="🎨 Create Custom Theme", command=self.open_theme_creator, bg=self.bg_color,
+                                     fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_create_theme.pack(anchor="w", pady=(8, 0))
+        self.bind_hover(btn_create_theme)
+        
+        btn_open_themes = tk.Button(theme_card, text="📂 Open Themes Folder", command=self.open_themes_folder, bg=self.bg_color,
+                                    fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_open_themes.pack(anchor="w", pady=(8, 0))
+        self.bind_hover(btn_open_themes)
+        
+        # Center Panel: Safety & Diagnostics (Card Style)
+        safe_card = tk.Frame(bottom_cards_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=12, pady=12)
+        safe_card._is_card = True
+        safe_card.grid(row=0, column=1, sticky="nsew", padx=6)
+        
+        lbl_safe_title = tk.Label(safe_card, text="Safety & Diagnostics", font=("Segoe UI", 10, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_safe_title._is_title = True
+        lbl_safe_title.pack(anchor="w", pady=(0, 8))
+        
+        btn_safe_reset = tk.Button(safe_card, text="⚠️ Safe Reset", command=self.safe_mode_reset, bg=self.error_color,
+                                   fg="white", font=("Segoe UI", 8, "bold"), relief="flat", activebackground="#dc2626", padx=10, pady=3)
+        btn_safe_reset._is_danger = True
+        btn_safe_reset.pack(anchor="w", pady=(4, 0))
+        self.bind_hover(btn_safe_reset)
+        
+        btn_verify_disk = tk.Button(safe_card, text="💾 Verify Permissions", command=self.verify_deployment_safety, bg=self.bg_color,
+                                    fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_verify_disk.pack(anchor="w", pady=(8, 0))
+        self.bind_hover(btn_verify_disk)
+        
+        btn_show_logs = tk.Button(safe_card, text="📜 View Console Log", command=self.show_log_window, bg=self.bg_color,
+                                  fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_show_logs.pack(anchor="w", pady=(8, 0))
+        self.bind_hover(btn_show_logs)
         
         # Build Plugins Browser page UI
         self.create_plugins_browser_page()
@@ -3178,25 +3241,25 @@ class FFXModManagerGUI:
         ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0))
         ctrl_frame.pack(fill="x", side="bottom")
         
-        btn_backup = tk.Button(ctrl_frame, text="📥 Backup Selected Live Save", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
+        btn_backup = tk.Button(ctrl_frame, text="📥 Backup", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
         btn_backup.pack(side="left", padx=5)
         self.bind_hover(btn_backup, is_primary=True)
         ToolTip(btn_backup, "Copy the selected live save file into the local FFXMM backups storage with a custom description label.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_restore = tk.Button(ctrl_frame, text="⏪ Restore Backup to Live Game", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
+        btn_restore = tk.Button(ctrl_frame, text="⏪ Restore", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
         btn_restore.pack(side="left", padx=5)
         self.bind_hover(btn_restore)
         ToolTip(btn_restore, "Overwrite the live game save file with the selected backup snapshot copy.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_delete_b = tk.Button(ctrl_frame, text="🗑️ Delete Backup", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
-        btn_delete_b.pack(side="left", padx=5)
-        self.bind_hover(btn_delete_b)
-        ToolTip(btn_delete_b, "Permanently delete the selected backup snapshot file from disk.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
-        
-        btn_refresh_s = tk.Button(ctrl_frame, text="🔄 Refresh Saves Lists", command=self.refresh_saves_lists, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
-        btn_refresh_s.pack(side="right")
+        btn_refresh_s = tk.Button(ctrl_frame, text="🔄 Refresh", command=self.refresh_saves_lists, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
+        btn_refresh_s.pack(side="left", padx=5)
         self.bind_hover(btn_refresh_s)
         ToolTip(btn_refresh_s, "Scan the documents folder and local backup logs to update lists.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_delete_b = tk.Button(ctrl_frame, text="🗑️ Delete", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
+        btn_delete_b.pack(side="right")
+        self.bind_hover(btn_delete_b)
+        ToolTip(btn_delete_b, "Permanently delete the selected backup snapshot file from disk.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Right Panel - Backups
         right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0))
@@ -3546,6 +3609,11 @@ class FFXModManagerGUI:
         installed_any = False
         disabled_plugins = self.config.get("disabled_plugins", [])
         
+        # Configure columns for 2-column grid
+        self.installed_grid.columnconfigure(0, weight=1)
+        self.installed_grid.columnconfigure(1, weight=1)
+        
+        idx_grid = 0
         try:
             for d in sorted(os.listdir(plugins_dir)):
                 dpath = os.path.join(plugins_dir, d)
@@ -3568,7 +3636,10 @@ class FFXModManagerGUI:
                             
                             card = tk.Frame(self.installed_grid, bd=1, relief="solid", highlightthickness=0, bg=self.card_color, padx=15, pady=15)
                             card._is_card = True
-                            card.pack(fill="x", pady=6, padx=5)
+                            
+                            # Place card in 2-column grid
+                            card.grid(row=idx_grid // 2, column=idx_grid % 2, sticky="nsew", pady=6, padx=5)
+                            idx_grid += 1
                             
                             title_row = ttk.Frame(card)
                             title_row.pack(fill="x", pady=(0, 5))
@@ -3578,35 +3649,40 @@ class FFXModManagerGUI:
                             lbl_p_name._is_title = True
                             lbl_p_name.pack(side="left")
                             
-                            lbl_p_creator = tk.Label(title_row, text=f"by {creator}", font=("Segoe UI", 9, "italic"), fg=self.text_dim, bg=self.card_color)
-                            lbl_p_creator.pack(side="left", padx=15)
-                            
-                            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=500, justify="left", anchor="w")
+                            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=350, justify="left", anchor="w")
                             lbl_p_desc.pack(fill="x", pady=(0, 10))
                             
-                            button_row = ttk.Frame(card)
-                            button_row.pack(fill="x", anchor="e")
+                            # Frame for buttons and signature
+                            bot_row = ttk.Frame(card)
+                            bot_row.pack(fill="x", pady=(5, 0))
                             
-                            # Delete Button
-                            btn_delete = tk.Button(button_row, text="🗑️ Delete", bg=self.error_color if hasattr(self, "error_color") else "#ef4444", fg="white",
-                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=4,
-                                                   command=lambda pid=p_id: self.delete_plugin_action(pid))
-                            btn_delete._is_danger = True
-                            btn_delete.pack(side="right", padx=5)
-                            self.bind_hover(btn_delete)
+                            button_row = ttk.Frame(bot_row)
+                            button_row.pack(side="left")
                             
                             # Toggle Enable/Disable Button
                             toggle_text = "🟢 Enable" if is_disabled else "🔴 Disable"
                             toggle_bg = self.success_color if is_disabled else self.border_color
                             btn_toggle = tk.Button(button_row, text=toggle_text, bg=toggle_bg, fg="white",
-                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4,
+                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=8, pady=3, width=10,
                                                    command=lambda pid=p_id, dis=is_disabled: self.toggle_plugin_action(pid, dis))
                             if is_disabled:
                                 btn_toggle._is_success = True
                             else:
                                 btn_toggle._is_primary = False
-                            btn_toggle.pack(side="right")
+                            btn_toggle.pack(side="left", padx=(0, 6))
                             self.bind_hover(btn_toggle)
+                            
+                            # Delete Button
+                            btn_delete = tk.Button(button_row, text="🗑️ Delete", bg=self.error_color if hasattr(self, "error_color") else "#ef4444", fg="white",
+                                                   font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=8, pady=3, width=10,
+                                                   command=lambda pid=p_id: self.delete_plugin_action(pid))
+                            btn_delete._is_danger = True
+                            btn_delete.pack(side="left")
+                            self.bind_hover(btn_delete)
+                            
+                            # Creator signature underneath the buttons
+                            sig_label = tk.Label(bot_row, text=f"by {creator}", font=("Segoe UI", 8, "italic"), fg=self.text_dim, bg=self.card_color)
+                            sig_label.pack(side="right", anchor="se")
                             
                         except Exception as e:
                             self.log(f"Error reading local plugin manifest '{d}': {e}", "error")
@@ -3716,6 +3792,10 @@ class FFXModManagerGUI:
             self.update_widget_colors(self.plugins_grid)
             return
         
+        # Configure columns for 2-column grid
+        self.plugins_grid.columnconfigure(0, weight=1)
+        self.plugins_grid.columnconfigure(1, weight=1)
+        
         for idx, plugin in enumerate(plugins_list):
             p_id = plugin["id"]
             name = plugin["name"]
@@ -3727,7 +3807,9 @@ class FFXModManagerGUI:
             
             card = tk.Frame(self.plugins_grid, bd=1, relief="solid", highlightthickness=0, bg=self.card_color, padx=15, pady=15)
             card._is_card = True
-            card.pack(fill="x", pady=6, padx=5)
+            
+            # Place card in 2-column grid
+            card.grid(row=idx // 2, column=idx % 2, sticky="nsew", pady=6, padx=5)
             
             title_row = ttk.Frame(card)
             title_row.pack(fill="x", pady=(0, 5))
@@ -3736,10 +3818,7 @@ class FFXModManagerGUI:
             lbl_p_name._is_title = True
             lbl_p_name.pack(side="left")
             
-            lbl_p_creator = tk.Label(title_row, text=f"by {creator}", font=("Segoe UI", 9, "italic"), fg=self.text_dim, bg=self.card_color)
-            lbl_p_creator.pack(side="left", padx=15)
-            
-            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=500, justify="left", anchor="w")
+            lbl_p_desc = tk.Label(card, text=desc, font=("Segoe UI", 9), fg=self.text_color, bg=self.card_color, wraplength=350, justify="left", anchor="w")
             lbl_p_desc.pack(fill="x", pady=(0, 10))
             
             is_installed = False
@@ -3794,14 +3873,22 @@ class FFXModManagerGUI:
                 
             btn_state = "normal"
             
-            btn_action = tk.Button(card, text=btn_text, state=btn_state, bg=btn_bg, fg="white",
+            # Row for buttons and signature
+            bot_row = ttk.Frame(card)
+            bot_row.pack(fill="x", pady=(5, 0))
+            
+            btn_action = tk.Button(bot_row, text=btn_text, state=btn_state, bg=btn_bg, fg="white",
                                    font=("Segoe UI", 9, "bold"), relief="flat", 
-                                   activebackground=self.accent_hover if is_primary_btn else self.border_color, padx=12, pady=4)
+                                   activebackground=self.accent_hover if is_primary_btn else self.border_color, padx=8, pady=3, width=18)
             btn_action._is_primary = is_primary_btn
-            btn_action.pack(anchor="e")
+            btn_action.pack(side="left")
             if btn_state == "normal":
                 btn_action.config(command=lambda pid=p_id, dl_url=url, btn=btn_action: self.install_plugin(pid, dl_url, btn))
                 self.bind_hover(btn_action, is_primary=is_primary_btn)
+                
+            # Creator signature underneath the buttons
+            sig_label = tk.Label(bot_row, text=f"by {creator}", font=("Segoe UI", 8, "italic"), fg=self.text_dim, bg=self.card_color)
+            sig_label.pack(side="right", anchor="se")
                 
         self.update_widget_colors(self.plugins_grid)
 

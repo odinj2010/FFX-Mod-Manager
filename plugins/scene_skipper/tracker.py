@@ -520,10 +520,10 @@ class SceneSkipperOverlayHUD:
         self.hook_api("kernelbase.dll", "QueryPerformanceCounter", H + 32, self.build_qpc_detour, H + 48)
         
         # Hook 2: GetTickCount (kernelbase.dll)
-        self.hook_api("kernelbase.dll", "GetTickCount", H + 224, self.build_tick_detour, H + 240)
+        # self.hook_api("kernelbase.dll", "GetTickCount", H + 224, self.build_tick_detour, H + 240)
         
         # Hook 3: timeGetTime (winmm.dll)
-        self.hook_api("winmm.dll", "timeGetTime", H + 416, self.build_tick_detour, H + 432)
+        # self.hook_api("winmm.dll", "timeGetTime", H + 416, self.build_tick_detour, H + 432)
         
         self.log_debug(f"install_speedhack_hook finished. Active hooks count: {len(self.active_hooks)}")
         return len(self.active_hooks) > 0
