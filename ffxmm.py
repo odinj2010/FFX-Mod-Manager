@@ -2383,9 +2383,10 @@ class FFXModManagerGUI:
                     data_subfolder_name = "ffx2_data"
                 else:
                     data_subfolder_name = "ffx_data"
-                    
-                data_subfolder = os.path.join(mod_repo_path, data_subfolder_name)
-                os.makedirs(data_subfolder, exist_ok=True)
+
+                if not imported_files:
+                    data_subfolder = os.path.join(mod_repo_path, data_subfolder_name)
+                    os.makedirs(data_subfolder, exist_ok=True)
 
                 # Copy staged files to their resolved relative paths
                 for filepath, rel in imported_files.items():
