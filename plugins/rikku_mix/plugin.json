@@ -1,0 +1,8 @@
+{
+  "name": "Rikku's Mix",
+  "icon": "🧪",
+  "version": "1.0",
+  "creator": "NfgOdin",
+  "entry_point": "gui.RikkuMixTab",
+  "description": "Interactive calculator and recipe directory for Rikku's Overdrive Mixes."
+}

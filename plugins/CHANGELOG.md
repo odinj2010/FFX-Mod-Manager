@@ -2,6 +2,15 @@
 
 This changelog tracks updates, bug fixes, and feature improvements for the official FFX Mod Manager plugins (Achievements & Walkthrough overlays).
 
+## [v1.4] - 2026-06-20
+
+### Rikku's Mix (New Plugin)
+* **Initial Release (v1.0)**: Introduced the Rikku's Mix Calculator & Recipe Directory plugin.
+  * **Interactive Calculator**: Pick any two mixable ingredients from drop-downs to immediately preview the resulting mix name and in-battle effects.
+  * **Recipe Directory**: Searchable list of all 64 unique Mix outcomes. Select an outcome to view its description and see all ingredient combinations.
+  * **Full Retheming**: Built-in support for theme switching, matching active light/dark UI palettes dynamically.
+  * **Cohesive Tooltips**: Tooltips attached to dropdowns, entry bars, lists, and buttons.
+
 ## [v1.3] - 2026-06-19
 
 ### Scene Skipper (v1.1)
