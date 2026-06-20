@@ -1,9 +1,21 @@
 import os
+import sys
 import json
 import tkinter as tk
 from tkinter import ttk
-from tooltip import ToolTip
 from mix_data import INGREDIENTS, MIX_OUTCOMES, calculate_mix
+
+# Retrieve ToolTip class from parent manager's modules to prevent import failures in compiled exe mode
+ToolTip = None
+if 'tooltip' in sys.modules:
+    ToolTip = getattr(sys.modules['tooltip'], 'ToolTip', None)
+if not ToolTip:
+    try:
+        from tooltip import ToolTip
+    except ImportError:
+        class ToolTip:
+            def __init__(self, *args, **kwargs):
+                pass
 
 class RikkuMixTab:
     def __init__(self, parent_frame, manager_gui):
