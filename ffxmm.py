@@ -1703,30 +1703,47 @@ class FFXModManagerGUI:
         self.ent_mod_name.delete(0, tk.END)
         self.ent_mod_name.insert(0, info.get("name", mod_id))
         
-        self.ent_mod_creator.config(state="normal")
-        self.ent_mod_creator.delete(0, tk.END)
+        # Temp enable all to insert values
+        for entry in [self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
+            entry.config(state="normal")
+            entry.delete(0, tk.END)
+            
         creator_name = info.get("creator", "")
         self.ent_mod_creator.insert(0, creator_name)
-        
-        # Lock Creator field in GUI if it is set to anything other than the default ('User' or empty)
         if creator_name.strip().lower() in ["", "user"]:
             self.ent_mod_creator.config(state="normal")
         else:
             self.ent_mod_creator.config(state="readonly")
             
-        self.ent_mod_version.delete(0, tk.END)
-        self.ent_mod_version.insert(0, info.get("version", "1.0"))
-        
-        self.ent_mod_desc.delete(0, tk.END)
-        self.ent_mod_desc.insert(0, info.get("description", ""))
-        
+        version_val = info.get("version", "1.0")
+        self.ent_mod_version.insert(0, version_val)
+        if version_val.strip().lower() in ["", "1.0"]:
+            self.ent_mod_version.config(state="normal")
+        else:
+            self.ent_mod_version.config(state="readonly")
+            
+        desc_val = info.get("description", "")
+        self.ent_mod_desc.insert(0, desc_val)
+        if desc_val.strip() == "":
+            self.ent_mod_desc.config(state="normal")
+        else:
+            self.ent_mod_desc.config(state="readonly")
+            
         self.cmb_mod_category.set(info.get("category", "General"))
         
-        self.ent_nexus_id.delete(0, tk.END)
-        self.ent_nexus_id.insert(0, info.get("nexus_id", ""))
-        
-        self.ent_mod_link.delete(0, tk.END)
-        self.ent_mod_link.insert(0, info.get("link", info.get("url", "")))
+        nexus_id_val = info.get("nexus_id", "")
+        self.ent_nexus_id.insert(0, nexus_id_val)
+        if nexus_id_val.strip() == "":
+            self.ent_nexus_id.config(state="normal")
+        else:
+            self.ent_nexus_id.config(state="readonly")
+            
+        link_val = info.get("link", info.get("url", ""))
+        self.ent_mod_link.insert(0, link_val)
+        if link_val.strip() == "":
+            self.ent_mod_link.config(state="normal")
+        else:
+            self.ent_mod_link.config(state="readonly")
         
         # Populate files list
         self.tree_files.delete(*self.tree_files.get_children())
@@ -1930,30 +1947,47 @@ class FFXModManagerGUI:
         self.ent_mod_name.delete(0, tk.END)
         self.ent_mod_name.insert(0, info.get("name", mod_id))
         
-        self.ent_mod_creator.config(state="normal")
-        self.ent_mod_creator.delete(0, tk.END)
+        # Temp enable all to insert values
+        for entry in [self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
+            entry.config(state="normal")
+            entry.delete(0, tk.END)
+            
         creator_name = info.get("creator", info.get("author", ""))
         self.ent_mod_creator.insert(0, creator_name)
-        
-        # Lock Creator field in GUI if it is set to anything other than the default ('User' or empty)
         if creator_name.strip().lower() in ["", "user"]:
             self.ent_mod_creator.config(state="normal")
         else:
             self.ent_mod_creator.config(state="readonly")
-        
-        self.ent_mod_version.delete(0, tk.END)
-        self.ent_mod_version.insert(0, info.get("version", "1.0"))
-        
-        self.ent_mod_desc.delete(0, tk.END)
-        self.ent_mod_desc.insert(0, info.get("description", ""))
-        
+            
+        version_val = info.get("version", "1.0")
+        self.ent_mod_version.insert(0, version_val)
+        if version_val.strip().lower() in ["", "1.0"]:
+            self.ent_mod_version.config(state="normal")
+        else:
+            self.ent_mod_version.config(state="readonly")
+            
+        desc_val = info.get("description", "")
+        self.ent_mod_desc.insert(0, desc_val)
+        if desc_val.strip() == "":
+            self.ent_mod_desc.config(state="normal")
+        else:
+            self.ent_mod_desc.config(state="readonly")
+            
         self.cmb_mod_category.set(info.get("category", "General"))
         
-        self.ent_nexus_id.delete(0, tk.END)
-        self.ent_nexus_id.insert(0, info.get("nexus_id", ""))
-        
-        self.ent_mod_link.delete(0, tk.END)
-        self.ent_mod_link.insert(0, info.get("link", info.get("url", "")))
+        nexus_id_val = info.get("nexus_id", "")
+        self.ent_nexus_id.insert(0, nexus_id_val)
+        if nexus_id_val.strip() == "":
+            self.ent_nexus_id.config(state="normal")
+        else:
+            self.ent_nexus_id.config(state="readonly")
+            
+        link_val = info.get("link", info.get("url", ""))
+        self.ent_mod_link.insert(0, link_val)
+        if link_val.strip() == "":
+            self.ent_mod_link.config(state="normal")
+        else:
+            self.ent_mod_link.config(state="readonly")
         
         # Populate files list
         self.tree_files.delete(*self.tree_files.get_children())
@@ -2031,19 +2065,37 @@ class FFXModManagerGUI:
         # Double check if Creator field is locked in GUI but they tried to bypass it
         creator_before = info.get("creator", info.get("author", ""))
         creator_input = self.ent_mod_creator.get().strip()
-        
-        # If creator was already set (not empty/User), do not allow modifying it
         if creator_before.strip().lower() not in ["", "user"] and creator_input != creator_before:
             creator_input = creator_before  # Keep original creator
+            
+        version_before = info.get("version", "1.0")
+        version_input = self.ent_mod_version.get().strip()
+        if version_before.strip().lower() not in ["", "1.0"] and version_input != version_before:
+            version_input = version_before
+            
+        desc_before = info.get("description", "")
+        desc_input = self.ent_mod_desc.get().strip()
+        if desc_before.strip() != "" and desc_input != desc_before:
+            desc_input = desc_before
+            
+        nexus_id_before = info.get("nexus_id", "")
+        nexus_id_input = self.ent_nexus_id.get().strip()
+        if nexus_id_before.strip() != "" and nexus_id_input != nexus_id_before:
+            nexus_id_input = nexus_id_before
+            
+        link_before = info.get("link", info.get("url", ""))
+        link_input = self.ent_mod_link.get().strip()
+        if link_before.strip() != "" and link_input != link_before:
+            link_input = link_before
             
         info["name"] = self.ent_mod_name.get().strip() or mod_id
         info["creator"] = creator_input
         info["author"] = creator_input
-        info["version"] = self.ent_mod_version.get().strip() or "1.0"
-        info["description"] = self.ent_mod_desc.get().strip()
+        info["version"] = version_input or "1.0"
+        info["description"] = desc_input
         info["category"] = self.cmb_mod_category.get().strip() or "General"
-        info["nexus_id"] = self.ent_nexus_id.get().strip()
-        info["link"] = self.ent_mod_link.get().strip()
+        info["nexus_id"] = nexus_id_input
+        info["link"] = link_input
         
         try:
             with open(info_path, "w") as f:

@@ -10,10 +10,11 @@
 *   **Side-by-Side Theme & Safety Cards**: Housed both "Appearance Theme Settings" and "Safety & Diagnostics Controls" side-by-side in a single row container at the bottom, compacting their overall widths and button sizes.
 *   **Syntax Corrections**: Patched syntax errors in mouse scroll wheel event hooks and Open Themes folder action handler.
 
-### Mods Tab Button Grid
+### Mods Tab Details Layout
 *   **Compact Action Button Grid**: Re-arranged mod list actions into a space-efficient 2-row grid featuring single-word labels:
     *   Row 1: `⚡ Enable`, `⏪ Disable`, `🆕 Create`, and `📥 Import`.
     *   Row 2: `🗑️ Delete` and `🔄 Refresh`.
+*   **Mod Metadata Field Locking**: Populated metadata details entry fields (Creator, Version, Link, Description, Nexus ID) are now dynamically locked as `readonly` in the GUI if they contain values, leaving only empty fields and the Mod Name editable to prevent accidental modifications. Values are also enforced securely during metadata save operations.
 
 ### General UI Fixes
 *   **Decoupled Console Log Window**: Completely removed the bottom-pinned console log panels from the main container.
