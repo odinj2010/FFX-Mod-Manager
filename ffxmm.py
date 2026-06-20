@@ -3249,14 +3249,42 @@ class FFXModManagerGUI:
                         except Exception:
                             pass
 
+        # Restructure for FFX mode if folder named 'ffx' exists at root
+        if self.active_game_mode == "FFX":
+            if "ffx" in os.listdir(root_dir):
+                ffx_folder = os.path.join(root_dir, "ffx")
+                if os.path.isdir(ffx_folder):
+                    self.log("Restructuring loose 'ffx' folder under 'ffx_ps2/ffx/'...", "info")
+                    dest_parent = os.path.join(root_dir, "ffx_ps2")
+                    os.makedirs(dest_parent, exist_ok=True)
+                    dest_folder = os.path.join(dest_parent, "ffx")
+                    try:
+                        shutil.move(ffx_folder, dest_folder)
+                    except Exception as me:
+                        self.log(f"Restructure warning: {me}", "warning")
+
+        # Restructure for FFX-2 mode if folder named 'ffx2' exists at root
+        if self.active_game_mode == "FFX-2":
+            if "ffx2" in os.listdir(root_dir):
+                ffx2_folder = os.path.join(root_dir, "ffx2")
+                if os.path.isdir(ffx2_folder):
+                    self.log("Restructuring loose 'ffx2' folder under 'ffx_ps2/ffx2/'...", "info")
+                    dest_parent = os.path.join(root_dir, "ffx_ps2")
+                    os.makedirs(dest_parent, exist_ok=True)
+                    dest_folder = os.path.join(dest_parent, "ffx2")
+                    try:
+                        shutil.move(ffx2_folder, dest_folder)
+                    except Exception as me:
+                        self.log(f"Restructure warning: {me}", "warning")
+
         # Restructure for FFX-2 mode if files don't have standard prefixes
         if self.active_game_mode == "FFX-2":
-            # Check if any files are at root or in directories other than ffx-2_data / UnX_Res
+            # Check if any files are at root or in directories other than ffx-2_data / UnX_Res / ffx_ps2
             loose_files = False
             for f in os.listdir(root_dir):
                 if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
                     continue
-                if f != "ffx-2_data" and f != "UnX_Res":
+                if f != "ffx-2_data" and f != "UnX_Res" and f != "ffx_ps2":
                     loose_files = True
                     break
             
@@ -3265,7 +3293,7 @@ class FFXModManagerGUI:
                 wrap_dir = os.path.join(root_dir, "ffx-2_data")
                 os.makedirs(wrap_dir, exist_ok=True)
                 for f in os.listdir(root_dir):
-                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data"]:
+                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
                         continue
                     src_item = os.path.join(root_dir, f)
                     dest_item = os.path.join(wrap_dir, f)
@@ -4195,6 +4223,14 @@ class FFXModManagerGUI:
         if "ffx_data/" in abs_path.lower():
             idx = abs_path.lower().find("ffx_data/")
             return abs_path[idx:]
+            
+        # Fallbacks for loose game asset folders that are missing the parent ffx_ps2 wrapper
+        if "ffx2/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2/")
+            return "ffx_ps2/" + abs_path[idx:]
+        if "ffx/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx/")
+            return "ffx_ps2/" + abs_path[idx:]
             
         # 2. If it contains subfolders ffx2/master, ffx/master or gamedata
         if "ffx2/master" in abs_path.lower():
