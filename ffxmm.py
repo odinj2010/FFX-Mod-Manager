@@ -1435,6 +1435,9 @@ class FFXModManagerGUI:
                                 "name": data.get("name", mod_id),
                                 "creator": data.get("author", data.get("creator", "Unknown")),
                                 "category": data.get("category", "General"),
+                                "description": data.get("description", ""),
+                                "link": data.get("link", ""),
+                                "nexus_id": data.get("nexus_id", ""),
                                 "status": "Enabled",
                                 "files": data.get("files", []),
                                 "size": data.get("size", 0)
@@ -1471,6 +1474,9 @@ class FFXModManagerGUI:
                                         "name": data.get("name", mod_id),
                                         "creator": data.get("author", data.get("creator", "Unknown")),
                                         "category": data.get("category", "General"),
+                                        "description": data.get("description", ""),
+                                        "link": data.get("link", ""),
+                                        "nexus_id": data.get("nexus_id", ""),
                                         "status": "Enabled",
                                         "files": data.get("files", []),
                                         "size": data.get("size", 0)
@@ -1507,6 +1513,9 @@ class FFXModManagerGUI:
                                     "name": data.get("name", d),
                                     "creator": data.get("author", data.get("creator", "Unknown")),
                                     "category": data.get("category", "General"),
+                                    "description": data.get("description", ""),
+                                    "link": data.get("link", ""),
+                                    "nexus_id": data.get("nexus_id", ""),
                                     "status": "Disabled",
                                     "files": files_list,
                                     "size": total_size
