@@ -117,6 +117,23 @@ class FFXModManagerGUI:
         self.border_color = theme["border_color"]
         self.success_color = theme["success_color"]
         self.error_color = theme["error_color"]
+        
+        # Initialize semantic button colors with fallbacks
+        self.btn_accept_bg = theme.get("btn_accept_bg", self.accent_color)
+        self.btn_accept_fg = theme.get("btn_accept_fg", "#ffffff")
+        self.btn_accept_hover = theme.get("btn_accept_hover", self.accent_hover)
+        
+        self.btn_success_bg = theme.get("btn_success_bg", self.success_color)
+        self.btn_success_fg = theme.get("btn_success_fg", "#ffffff")
+        self.btn_success_hover = theme.get("btn_success_hover", "#059669")
+        
+        self.btn_caution_bg = theme.get("btn_caution_bg", self.error_color)
+        self.btn_caution_fg = theme.get("btn_caution_fg", "#ffffff")
+        self.btn_caution_hover = theme.get("btn_caution_hover", "#dc2626")
+        
+        self.btn_utility_bg = theme.get("btn_utility_bg", self.card_color)
+        self.btn_utility_fg = theme.get("btn_utility_fg", self.text_color)
+        self.btn_utility_hover = theme.get("btn_utility_hover", self.border_color)
 
         if not is_embedded:
             self.root.title("FFX Mod Manager")
