@@ -30,7 +30,8 @@
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
 
 ### UI Hover Tooltips
-*   **Comprehensive Hover Tooltips**: Added informative, custom hover tooltips to key inputs, filters, buttons, and settings across the entire interface. This includes:
+*   **Comprehensive Hover Tooltips**: Added informative, custom hover tooltips to key inputs, filters, buttons, tabs, and settings across the entire interface. This includes:
+    *   Sidebar navigation tabs (`Mods`, `Saves`, `Plugin Browser`, `Settings`, and dynamic plugin panels).
     *   Search filter input, Category filter combobox, Profile selection dropdown, and Profile action buttons (`Apply`, `Save`, `Delete`).
     *   Mod metadata fields (`Name`, `Creator`, `Version`, `Description`, `Category`, `Nexus ID`, `Link`), "Visit Link" button, and "Save Metadata" button.
     *   Files tab operations (`Import File`, `Import Folder`, `Open Folder Location`).

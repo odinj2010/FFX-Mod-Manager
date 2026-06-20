@@ -1273,6 +1273,22 @@ class FFXModManagerGUI:
         btn.config(command=lambda: self.switch_to_page(page_id))
         self.sidebar_buttons[page_id] = btn
         self.bind_hover(btn)
+        
+        # Tooltips for main and plugin sidebar tabs
+        tooltip_msg = ""
+        if page_id == "mods":
+            tooltip_msg = "View, enable, disable, and manage your installed mods."
+        elif page_id == "saves":
+            tooltip_msg = "Manage your game save files, create backups, and restore saves."
+        elif page_id == "plugins_browser":
+            tooltip_msg = "Browse, download, install, and manage custom plugins."
+        elif page_id == "settings":
+            tooltip_msg = "Configure game directories, active themes, and safety options."
+        else:
+            tooltip_msg = f"Open the {text} plugin panel."
+            
+        if tooltip_msg:
+            ToolTip(btn, tooltip_msg, get_theme_colors=lambda: self.themes.get(self.current_theme_name))
 
     def switch_to_page(self, page_id):
         self.current_page = page_id
