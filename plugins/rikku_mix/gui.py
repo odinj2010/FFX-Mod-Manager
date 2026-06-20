@@ -229,7 +229,7 @@ class RikkuMixTab:
         self.lbl_settings_title.pack(anchor="w", pady=(0, 15))
         
         # Config Card Frame
-        hud_card = tk.LabelFrame(settings_container, text=" Transparent HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
+        hud_card = tk.LabelFrame(self.settings_container, text=" Transparent HUD Settings ", labelanchor="nw", bg=self.bg_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"))
         hud_card.pack(fill="x", pady=(5, 0))
         self.overlay_card = hud_card
         
