@@ -3069,7 +3069,8 @@ class FFXModManagerGUI:
         for r, d, fs in os.walk(temp_dir):
             for f in fs:
                 if f.lower().startswith(prefix.lower()) and not os.path.splitext(f)[1] and not f.endswith(".tmp"):
-                    slot_str = "".join(c for c in f if c.isdigit())
+                    suffix = f[len(prefix):]
+                    slot_str = "".join(c for c in suffix if c.isdigit())
                     if slot_str and len(slot_str) == 3:
                         save_files.append(os.path.join(r, f))
                         
@@ -3459,7 +3460,8 @@ class FFXModManagerGUI:
         try:
             for f in os.listdir(saves_dir):
                 if f.lower().startswith(prefix.lower()) and not f.endswith(".tmp"):
-                    slot_str = "".join(c for c in f if c.isdigit())
+                    suffix = f[len(prefix):]
+                    slot_str = "".join(c for c in suffix if c.isdigit())
                     if slot_str:
                         try:
                             existing_slots.add(int(slot_str))
@@ -3480,7 +3482,8 @@ class FFXModManagerGUI:
         # Populate rows
         for idx, save_path in enumerate(save_files):
             orig_name = os.path.basename(save_path)
-            slot_digits = "".join(c for c in orig_name if c.isdigit())
+            suffix = orig_name[len(prefix):]
+            slot_digits = "".join(c for c in suffix if c.isdigit())
             orig_slot = int(slot_digits) if slot_digits else 0
 
             # Find a non-conflicting default slot
@@ -3670,7 +3673,8 @@ class FFXModManagerGUI:
         try:
             for f in sorted(os.listdir(saves_dir)):
                 if f.lower().startswith(prefix.lower()) and not f.endswith(".tmp"):
-                    slot_str = "".join(c for c in f if c.isdigit())
+                    suffix = f[len(prefix):]
+                    slot_str = "".join(c for c in suffix if c.isdigit())
                     slot = int(slot_str) if slot_str else 0
                     fpath = os.path.join(saves_dir, f)
                     mtime = os.path.getmtime(fpath)
