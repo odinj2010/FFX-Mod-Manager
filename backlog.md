@@ -33,6 +33,14 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
     * **Caution/Danger Buttons** (`🗑️ Delete`, `⏪ Disable`, `Safe Reset`): High-contrast warning colors (e.g. defined by `"btn_caution_bg"` and `"btn_caution_fg"`).
     * **Utility/Refresh Buttons** (`🔄 Refresh`, `📂 Open Folder`): Neutral or secondary theme colors (e.g. defined by `"btn_utility_bg"` and `"btn_utility_fg"`).
 
+### 5. Open Plugin Developer SDK & Extensible Runner (Proposed)
+* **Goal**: Enable any mod creator or community member to write, run, and customize plugins easily.
+* **Details**:
+  * **Dynamic Interpreter Execution**: Run raw Python scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled/local interpreter, removing PyInstaller compile requirements for developers.
+  * **Simplified UI Builder Wrapper**: Expose a simplified Tkinter wrapping API that auto-applies themes, layouts, hover colors, opacity, snapped screen layout positions, and click-through attributes.
+  * **Unified Game Memory and Event API**: Wrap hex offset scanning and `ctypes` processes inside a simplified `game.read()` library and run event callbacks (e.g. `on_battle_start`, `on_save_load`).
+  * **Interactive Plugin Scaffold Generator**: Add a developer utility button in Settings to auto-generate a starter plugin directory (containing boilerplate `plugin.json` and basic query routines) for immediate testing.
+
 ---
 
 ## 💾 Done / Completed Track
