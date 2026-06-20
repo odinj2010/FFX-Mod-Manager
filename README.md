@@ -1,12 +1,26 @@
-# FFX Mod Manager
+# 🎮 FFX Mod Manager
 
-A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD Remaster** (Steam). Built with a modern dark interface, it handles installation, conflict resolution, load order, and backups automatically while saving disk space.
+A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD Remaster** (Steam). Built with a modern dark interface, it handles installation, conflict resolution, load order, saves backups, and restores automatically while saving disk space.
+
+---
+
+## 📥 Direct Download & Quick Start
+
+If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
+
+### [👉 Click here to download the Newest Stable Release (v3.0.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.0.1/ffxmm.zip)
+
+### 🚀 Easy Installation Steps
+1. **Download** the zip archive using the link above.
+2. **Extract** the files (`ffxmm.exe` and the `themes/` folder) **anywhere on your computer** (you do not have to place them inside the main game directory; you can simply select your game directory on first launch).
+3. **Run** `ffxmm.exe` to launch the manager!
 
 ---
 
 ## 🌟 Key Features
 
-* **Fahrenheit Framework Support (New v2.1.0!):** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
+* **Fahrenheit Framework Support:** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
+* **Save Games & Backups Manager:** Track and manage game saves from the dedicated **Saves** tab. Back up your active save files with custom snapshot descriptions, delete obsolete slots, and restore snapshots cleanly.
 * **Backward Compatibility:** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
 * **Move-on-Enable Architecture:** Saves massive amounts of disk space. Mod packages are kept in a unified, loader-agnostic repository and moved into active game directories only when enabled.
 * **ZIP & RAR Auto-Unwrapping:** Drag-and-drop support for standard `.zip` and `.rar` mod archives. Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
@@ -39,8 +53,8 @@ When the manager detects `fahrenheit/bin/fhstage0.exe` in the game folder:
      "Dependencies": [],
      "LoadAfter": [],
      "Flags": "NONE"
-   }
-   ```
+    }
+    ```
 
 ---
 
@@ -53,17 +67,9 @@ The manager introduces a unified loader-agnostic layout:
 
 ---
 
-## 🚀 Installation & Usage
-
-1. Place `FFX Mod Manager.exe` (or the script) inside your game folder (where `FFX.exe` resides).
-2. Launch the mod manager and select your game directory.
-3. Click **Import Mod Archive** to load ZIP or RAR mods, or click **Create New Mod** to create empty mod projects.
-4. Click **Enable Mod** to deploy. Adjust priorities using **Move Up / Move Down** arrows if running Fahrenheit.
-5. Click **PLAY GAME** to launch.
-
----
-
 ## 🛠️ Development & Building
+
+If you are a developer looking to build or contribute to the project:
 
 ### Prerequisites
 * Python 3.10+
@@ -75,11 +81,11 @@ To compile the Python script into a single, optimized `.exe` distribution:
    ```bash
    pip install -r requirements.txt
    ```
-2. Build via PyInstaller:
+2. Build via the compilation script:
    ```bash
-   python -m PyInstaller FFX_Mod_Manager.spec --noconfirm
+   python compile_mod_manager.py
    ```
-The compiled executable will be located in the `dist/` directory.
+The compiled executable will be located in the `dist/ffxmm.exe` directory.
 
 ### Custom Plugin Index
 The **Plugin Browser** fetches from `plugins.json` in the remote repository. The format is structured as follows:
