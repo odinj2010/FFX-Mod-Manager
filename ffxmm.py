@@ -291,6 +291,23 @@ class FFXModManagerGUI:
         self.success_color = theme["success_color"]
         self.error_color = theme["error_color"]
         
+        # Semantic button colors with fallbacks
+        self.btn_accept_bg = theme.get("btn_accept_bg", self.accent_color)
+        self.btn_accept_fg = theme.get("btn_accept_fg", "#ffffff")
+        self.btn_accept_hover = theme.get("btn_accept_hover", self.accent_hover)
+        
+        self.btn_success_bg = theme.get("btn_success_bg", self.success_color)
+        self.btn_success_fg = theme.get("btn_success_fg", "#ffffff")
+        self.btn_success_hover = theme.get("btn_success_hover", "#059669")
+        
+        self.btn_caution_bg = theme.get("btn_caution_bg", self.error_color)
+        self.btn_caution_fg = theme.get("btn_caution_fg", "#ffffff")
+        self.btn_caution_hover = theme.get("btn_caution_hover", "#dc2626")
+        
+        self.btn_utility_bg = theme.get("btn_utility_bg", self.card_color)
+        self.btn_utility_fg = theme.get("btn_utility_fg", self.text_color)
+        self.btn_utility_hover = theme.get("btn_utility_hover", self.border_color)
+        
         # Configure TTK Styles
         self.style.configure(".", background=self.bg_color, foreground=self.text_color)
         self.style.configure("TFrame", background=self.bg_color)
@@ -386,13 +403,13 @@ class FFXModManagerGUI:
                     else:
                         widget.configure(bg=self.card_color, fg=self.text_color, activebackground=self.border_color, activeforeground=self.text_color)
                 elif is_primary:
-                    widget.configure(bg=self.accent_color, fg="#ffffff", activebackground=self.accent_hover, activeforeground="#ffffff")
+                    widget.configure(bg=self.btn_accept_bg, fg=self.btn_accept_fg, activebackground=self.btn_accept_hover, activeforeground=self.btn_accept_fg)
                 elif is_success:
-                    widget.configure(bg=self.success_color, fg="#ffffff", activebackground="#059669", activeforeground="#ffffff")
+                    widget.configure(bg=self.btn_success_bg, fg=self.btn_success_fg, activebackground=self.btn_success_hover, activeforeground=self.btn_success_fg)
                 elif is_danger:
-                    widget.configure(bg=self.error_color, fg="#ffffff", activebackground="#dc2626", activeforeground="#ffffff")
+                    widget.configure(bg=self.btn_caution_bg, fg=self.btn_caution_fg, activebackground=self.btn_caution_hover, activeforeground=self.btn_caution_fg)
                 else:
-                    widget.configure(bg=self.card_color, fg=self.text_color, activebackground=self.border_color, activeforeground=self.text_color)
+                    widget.configure(bg=self.btn_utility_bg, fg=self.btn_utility_fg, activebackground=self.btn_utility_hover, activeforeground=self.btn_utility_fg)
                     
             elif w_class == "Canvas":
                 widget.configure(bg=self.bg_color)
@@ -4430,17 +4447,17 @@ class FFXModManagerGUI:
                 normal_bg = self.card_color
                 hover_bg = self.border_color
         elif is_primary:
-            normal_bg = self.accent_color
-            hover_bg = self.accent_hover
+            normal_bg = self.btn_accept_bg
+            hover_bg = self.btn_accept_hover
         elif is_success:
-            normal_bg = self.success_color
-            hover_bg = "#059669"
+            normal_bg = self.btn_success_bg
+            hover_bg = self.btn_success_hover
         elif is_danger:
-            normal_bg = self.error_color
-            hover_bg = "#dc2626"
+            normal_bg = self.btn_caution_bg
+            hover_bg = self.btn_caution_hover
         else:
-            normal_bg = self.card_color
-            hover_bg = self.border_color
+            normal_bg = self.btn_utility_bg
+            hover_bg = self.btn_utility_hover
             
         return normal_bg, hover_bg
 
@@ -5087,7 +5104,7 @@ class ThemeCreatorDialog:
         self.manager = manager
         self.dialog = tk.Toplevel(manager.root)
         self.dialog.title("Create Custom Theme")
-        self.dialog.geometry("700x520")
+        self.dialog.geometry("920x560")
         self.dialog.configure(bg=manager.bg_color)
         self.dialog.transient(manager.root)
         self.dialog.grab_set()
@@ -5102,7 +5119,23 @@ class ThemeCreatorDialog:
             "text_dim": tk.StringVar(value=manager.text_dim),
             "border_color": tk.StringVar(value=manager.border_color),
             "success_color": tk.StringVar(value=manager.success_color),
-            "error_color": tk.StringVar(value=manager.error_color)
+            "error_color": tk.StringVar(value=manager.error_color),
+            
+            "btn_accept_bg": tk.StringVar(value=manager.btn_accept_bg),
+            "btn_accept_fg": tk.StringVar(value=manager.btn_accept_fg),
+            "btn_accept_hover": tk.StringVar(value=manager.btn_accept_hover),
+            
+            "btn_success_bg": tk.StringVar(value=manager.btn_success_bg),
+            "btn_success_fg": tk.StringVar(value=manager.btn_success_fg),
+            "btn_success_hover": tk.StringVar(value=manager.btn_success_hover),
+            
+            "btn_caution_bg": tk.StringVar(value=manager.btn_caution_bg),
+            "btn_caution_fg": tk.StringVar(value=manager.btn_caution_fg),
+            "btn_caution_hover": tk.StringVar(value=manager.btn_caution_hover),
+            
+            "btn_utility_bg": tk.StringVar(value=manager.btn_utility_bg),
+            "btn_utility_fg": tk.StringVar(value=manager.btn_utility_fg),
+            "btn_utility_hover": tk.StringVar(value=manager.btn_utility_hover)
         }
         
         self.theme_name_var = tk.StringVar(value="My Custom Theme")
@@ -5119,17 +5152,41 @@ class ThemeCreatorDialog:
         right_frame.pack(side="right", fill="both", expand=False)
         
         # Form: Theme Name
-        tk.Label(left_frame, text="Theme Name:", font=("Segoe UI", 10, "bold"), bg=self.manager.bg_color, fg=self.manager.text_color).grid(row=0, column=0, sticky="w", pady=5)
-        ent_name = ttk.Entry(left_frame, textvariable=self.theme_name_var, width=22)
-        ent_name.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        name_row = tk.Frame(left_frame, bg=self.manager.bg_color)
+        name_row.pack(fill="x", pady=(0, 10))
+        tk.Label(name_row, text="Theme Name:", font=("Segoe UI", 10, "bold"), bg=self.manager.bg_color, fg=self.manager.text_color).pack(side="left", padx=(0, 5))
+        ent_name = ttk.Entry(name_row, textvariable=self.theme_name_var, width=30)
+        ent_name.pack(side="left")
         
-        row_idx = 1
+        # Side-by-side columns for Base Colors and Button Colors
+        cols_container = tk.Frame(left_frame, bg=self.manager.bg_color)
+        cols_container.pack(fill="both", expand=True)
+        
+        base_frame = tk.LabelFrame(cols_container, text="Base Colors", bg=self.manager.bg_color, fg=self.manager.accent_color, font=("Segoe UI", 9, "bold"), padx=10, pady=10, relief="solid", bd=1)
+        base_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        buttons_frame = tk.LabelFrame(cols_container, text="Button Colors", bg=self.manager.bg_color, fg=self.manager.accent_color, font=("Segoe UI", 9, "bold"), padx=10, pady=10, relief="solid", bd=1)
+        buttons_frame.pack(side="left", fill="both", expand=True)
+        
+        base_row = 0
+        btn_row_idx = 0
         for key, var in self.colors.items():
-            lbl_name = key.replace("_", " ").title() + ":"
-            tk.Label(left_frame, text=lbl_name, bg=self.manager.bg_color, fg=self.manager.text_color).grid(row=row_idx, column=0, sticky="w", pady=4)
+            lbl_name = key.replace("_", " ").replace("btn ", "").title() + ":"
             
-            color_input_frame = tk.Frame(left_frame, bg=self.manager.bg_color)
-            color_input_frame.grid(row=row_idx, column=1, sticky="w", padx=5, pady=4)
+            # Route to correct parent frame
+            if key.startswith("btn_"):
+                parent_f = buttons_frame
+                r_idx = btn_row_idx
+                btn_row_idx += 1
+            else:
+                parent_f = base_frame
+                r_idx = base_row
+                base_row += 1
+                
+            tk.Label(parent_f, text=lbl_name, bg=self.manager.bg_color, fg=self.manager.text_color).grid(row=r_idx, column=0, sticky="w", pady=2)
+            
+            color_input_frame = tk.Frame(parent_f, bg=self.manager.bg_color)
+            color_input_frame.grid(row=r_idx, column=1, sticky="w", padx=5, pady=2)
             
             ent_val = ttk.Entry(color_input_frame, textvariable=var, width=10)
             ent_val.pack(side="left", padx=(0, 5))
@@ -5143,10 +5200,9 @@ class ThemeCreatorDialog:
             btn_pick.config(bg=var.get())
             
             setattr(self, f"btn_{key}", btn_pick)
-            row_idx += 1
             
         btn_frame = tk.Frame(left_frame, bg=self.manager.bg_color)
-        btn_frame.grid(row=row_idx, column=0, columnspan=2, sticky="w", pady=15)
+        btn_frame.pack(fill="x", pady=15)
         
         btn_save = tk.Button(btn_frame, text="Save & Apply", command=self.save_theme, bg=self.manager.success_color,
                              fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=4)
@@ -5210,7 +5266,12 @@ class ThemeCreatorDialog:
             self.prev_card.config(bg=card, highlightbackground=border, highlightcolor=border)
             self.prev_lbl.config(bg=card, fg=text)
             self.prev_desc.config(bg=card, fg=dim)
-            self.prev_btn.config(bg=accent, fg="white", activebackground=accent)
+            
+            # Use accept button colors from inputs for preview
+            btn_accept_bg = self.colors["btn_accept_bg"].get()
+            btn_accept_fg = self.colors["btn_accept_fg"].get()
+            btn_accept_hover = self.colors["btn_accept_hover"].get()
+            self.prev_btn.config(bg=btn_accept_bg, fg=btn_accept_fg, activebackground=btn_accept_hover, activeforeground=btn_accept_fg)
         except Exception:
             pass
             

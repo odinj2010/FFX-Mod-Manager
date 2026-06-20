@@ -23,3 +23,9 @@
 *   **2-Column Plugin Browser Layout**: Restructured both the "Plugin Directory" and "Installed Plugins" tabs to render cards in a side-by-side, 2-column grid layout, making them much more compact and squarer. Set description text wraps to 350px.
 *   **Plugin Signature Placement**: Shuffled the plugin creator name label from the header row down below the action buttons as a right-aligned signature.
 
+### Theme System & Button Colorizations
+*   **Customizable Semantic Button Colors**: Added customizable theme properties for semantic button categories: Action/Accept, Caution/Danger, Success/Enable, and Utility/Default.
+*   **Theme Creator Dialog Restructure**: Re-arranged the Theme Creator UI into a side-by-side two-column grid ("Base Colors" and "Button Colors"), widening the dialog container to `920x560` to accommodate all 21 color properties cleanly.
+*   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
+
+

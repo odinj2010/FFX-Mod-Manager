@@ -8,5 +8,17 @@
   "text_dim": "#a1a1aa",
   "border_color": "#3f334d",
   "success_color": "#10b981",
-  "error_color": "#ef4444"
+  "error_color": "#ef4444",
+  "btn_accept_bg": "#a855f7",
+  "btn_accept_fg": "#ffffff",
+  "btn_accept_hover": "#c084fc",
+  "btn_success_bg": "#10b981",
+  "btn_success_fg": "#ffffff",
+  "btn_success_hover": "#059669",
+  "btn_caution_bg": "#ef4444",
+  "btn_caution_fg": "#ffffff",
+  "btn_caution_hover": "#dc2626",
+  "btn_utility_bg": "#1f1826",
+  "btn_utility_fg": "#f3f4f6",
+  "btn_utility_hover": "#3f334d"
 }
