@@ -3063,6 +3063,37 @@ class FFXModManagerGUI:
         if len(subdirs) == 1 and os.path.isdir(os.path.join(temp_dir, subdirs[0])):
             root_dir = os.path.join(temp_dir, subdirs[0])
             
+        # Check for save files
+        prefix = "ffx2_" if self.active_game_mode == "FFX-2" else "ffx_"
+        save_files = []
+        for r, d, fs in os.walk(temp_dir):
+            for f in fs:
+                if f.lower().startswith(prefix.lower()) and not os.path.splitext(f)[1] and not f.endswith(".tmp"):
+                    slot_str = "".join(c for c in f if c.isdigit())
+                    if slot_str and len(slot_str) == 3:
+                        save_files.append(os.path.join(r, f))
+                        
+        if save_files:
+            self.show_save_import_dialog(save_files)
+            
+        non_save_files = []
+        for r, d, fs in os.walk(temp_dir):
+            for f in fs:
+                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                    continue
+                full_path = os.path.join(r, f)
+                if full_path not in save_files:
+                    non_save_files.append(full_path)
+                    
+        if save_files and not non_save_files:
+            self.log("Archive contained only save files. Save import complete.", "success")
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+            return
+
         # Check for pre-existing metadata to enforce Credits Lock
         meta_data = None
         for inf in ["modinfo.ffxmod", "modinfo.json"]:
@@ -3375,6 +3406,163 @@ class FFXModManagerGUI:
                 pass
                 
         self.scan_mods()
+
+    def show_save_import_dialog(self, save_files):
+        saves_dir = self.get_saves_dir()
+        if not os.path.exists(saves_dir):
+            try:
+                os.makedirs(saves_dir, exist_ok=True)
+            except Exception:
+                messagebox.showerror("Error", f"Saves folder does not exist and could not be created: {saves_dir}", parent=self.root)
+                return False
+
+        # Create dialog
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Save File Import Assistant")
+        dialog.geometry("550x380")
+        dialog.configure(bg=self.bg_color)
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        lbl_title = tk.Label(dialog, text="🧪 Save Game Import Assistant", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_title.pack(anchor="w", padx=20, pady=(15, 10))
+
+        lbl_sub = tk.Label(dialog, text="Configure target slots for the detected save files below:", font=("Segoe UI", 9), fg=self.text_color, bg=self.bg_color)
+        lbl_sub.pack(anchor="w", padx=20, pady=(0, 10))
+
+        # Scrollable container for list of saves
+        container = tk.Frame(dialog, bg=self.bg_color)
+        container.pack(fill="both", expand=True, padx=20, pady=5)
+
+        # Canvas with scrollbar
+        canvas = tk.Canvas(container, bg=self.bg_color, highlightthickness=0)
+        canvas.pack(side="left", fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollbar.pack(side="right", fill="y")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        list_frame = tk.Frame(canvas, bg=self.bg_color)
+        canvas_window = canvas.create_window((0, 0), window=list_frame, anchor="nw")
+
+        def on_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(canvas_window, width=event.width)
+
+        canvas.bind("<Configure>", on_configure)
+
+        prefix = "ffx2_" if self.active_game_mode == "FFX-2" else "ffx_"
+
+        # Scan existing slots in saves_dir
+        existing_slots = set()
+        try:
+            for f in os.listdir(saves_dir):
+                if f.lower().startswith(prefix.lower()) and not f.endswith(".tmp"):
+                    slot_str = "".join(c for c in f if c.isdigit())
+                    if slot_str:
+                        try:
+                            existing_slots.add(int(slot_str))
+                        except ValueError:
+                            pass
+        except Exception:
+            pass
+
+        # Helper to find first free slot
+        def find_free_slot(start):
+            slot = start
+            while slot in existing_slots:
+                slot += 1
+            return slot
+
+        import_items = []
+
+        # Populate rows
+        for idx, save_path in enumerate(save_files):
+            orig_name = os.path.basename(save_path)
+            slot_digits = "".join(c for c in orig_name if c.isdigit())
+            orig_slot = int(slot_digits) if slot_digits else 0
+
+            # Find a non-conflicting default slot
+            default_slot = find_free_slot(orig_slot) if orig_slot in existing_slots else orig_slot
+
+            row_frame = tk.Frame(list_frame, bg=self.card_color, padx=8, pady=8, highlightbackground=self.border_color, highlightthickness=1)
+            row_frame.pack(fill="x", pady=4, padx=2)
+
+            lbl_file = tk.Label(row_frame, text=orig_name, fg=self.text_color, bg=self.card_color, font=("Segoe UI", 9, "bold"))
+            lbl_file.pack(side="left", padx=5)
+
+            # Frame for actions on the right
+            right_frame = tk.Frame(row_frame, bg=self.card_color)
+            right_frame.pack(side="right", padx=5)
+
+            lbl_status = tk.Label(right_frame, text="", bg=self.card_color, font=("Segoe UI", 9))
+            lbl_status.pack(side="left", padx=10)
+
+            # Spinbox variable
+            slot_var = tk.StringVar(value=str(default_slot))
+
+            def check_conflict(var=slot_var, lbl=lbl_status, target_path=save_path):
+                try:
+                    slot_val = int(var.get())
+                except ValueError:
+                    lbl.config(text="Invalid Slot", fg="#f87171")
+                    return
+                
+                target_name = f"{prefix}{slot_val:03d}"
+                dest = os.path.join(saves_dir, target_name)
+                if os.path.exists(dest):
+                    lbl.config(text="⚠️ Overwrites existing save!", fg=self.caution_bg if hasattr(self, 'caution_bg') else "#fbbf24")
+                else:
+                    lbl.config(text="✓ Available", fg=self.success_bg if hasattr(self, 'success_bg') else "#34d399")
+
+            spin = ttk.Spinbox(right_frame, from_=0, to=999, width=5, textvariable=slot_var, command=check_conflict)
+            spin.pack(side="right")
+            spin.bind("<KeyRelease>", lambda e, var=slot_var, lbl=lbl_status: check_conflict(var, lbl))
+
+            # Initial check
+            check_conflict(slot_var, lbl_status)
+
+            import_items.append((save_path, slot_var))
+
+        dialog_submitted = [False]
+
+        def submit():
+            dialog_submitted[0] = True
+            dialog.destroy()
+
+        btn_frame = tk.Frame(dialog, bg=self.bg_color)
+        btn_frame.pack(fill="x", padx=20, pady=15)
+
+        btn_cancel = tk.Button(btn_frame, text="Cancel", command=dialog.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=15, pady=6)
+        btn_cancel.pack(side="left")
+        self.bind_hover(btn_cancel)
+
+        btn_import = tk.Button(btn_frame, text="Import Saves", command=submit, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=6)
+        btn_import.pack(side="right")
+        btn_import._is_primary = True
+        self.bind_hover(btn_import, is_primary=True)
+
+        self.root.wait_window(dialog)
+
+        if dialog_submitted[0]:
+            # Process copies
+            for save_path, slot_var in import_items:
+                try:
+                    slot_val = int(slot_var.get())
+                except ValueError:
+                    self.log(f"Skipping save {os.path.basename(save_path)} due to invalid slot value.", "error")
+                    continue
+                target_name = f"{prefix}{slot_val:03d}"
+                dest = os.path.join(saves_dir, target_name)
+                try:
+                    shutil.copy2(save_path, dest)
+                    self.log(f"Successfully imported save file as '{target_name}'.", "success")
+                except Exception as e:
+                    self.log(f"Failed to import save {target_name}: {e}", "error")
+            self.load_live_saves()
+            return True
+        return False
 
     def create_saves_page(self):
         frame = self.page_saves_frame

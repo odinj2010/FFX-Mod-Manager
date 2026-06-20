@@ -39,6 +39,10 @@
     *   Plugin directory refresh and installed plugins refresh buttons.
 *   **Dynamic Theme Integration**: All new tooltips dynamically inherit and follow the active theme's colors.
 
+## Save File Management
+*   **Save File Import Assistant**: Added automatic scanning and extraction support for extensionless game save files (`ffx_###` / `ffx2_###`) inside imported ZIP/RAR archives.
+*   **Interactive Renaming & Conflict Resolution Dialog**: If save files are detected, a custom styled interactive assistant window pops up to show slot availability and let users assign custom destination slot numbers using a spinbox (auto-suggesting the first available slot to avoid overwriting current saves).
+*   **Decoupled Saves/Mods Extraction**: If a package contains both mod files and save files, the mod manager safely separates them, deploying the mod to repository storage while routing and renaming the saves directly into the active game saves directory.
 
 ## Bug Fixes
 *   **Mod Staging Directory Path Resolution (FFX & FFX-2)**: Resolved staging directory path nesting bugs by cleanly separating active tracker `.ffxmod` files from the target deployment directories. Mod tracker files are stored isolated inside `data/mods/ffx_data` and `data/mods/ffx2_data` respectively, while the actual mod assets are written directly to `data/mods` without redundant nesting.
