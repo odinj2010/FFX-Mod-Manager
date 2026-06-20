@@ -4,5 +4,7 @@
   "version": "1.0",
   "creator": "NfgOdin",
   "entry_point": "gui.RikkuMixTab",
-  "description": "Interactive calculator and recipe directory for Rikku's Overdrive Mixes."
+  "tracker_script": "tracker.py",
+  "description": "Interactive calculator and recipe directory for Rikku's Overdrive Mixes.",
+  "default_hotkey": "F6"
 }
