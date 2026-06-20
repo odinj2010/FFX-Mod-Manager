@@ -33,13 +33,39 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
     * **Caution/Danger Buttons** (`🗑️ Delete`, `⏪ Disable`, `Safe Reset`): High-contrast warning colors (e.g. defined by `"btn_caution_bg"` and `"btn_caution_fg"`).
     * **Utility/Refresh Buttons** (`🔄 Refresh`, `📂 Open Folder`): Neutral or secondary theme colors (e.g. defined by `"btn_utility_bg"` and `"btn_utility_fg"`).
 
-### 5. Open Plugin Developer SDK & Extensible Runner (Proposed)
-* **Goal**: Enable any mod creator or community member to write, run, and customize plugins easily.
+### 5. Centralized Settings & Customization for Plugins (Proposed)
+* **Goal**: Give players dynamic, GUI-driven control over plugin properties and behaviors.
 * **Details**:
-  * **Dynamic Interpreter Execution**: Run raw Python scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled/local interpreter, removing PyInstaller compile requirements for developers.
-  * **Simplified UI Builder Wrapper**: Expose a simplified Tkinter wrapping API that auto-applies themes, layouts, hover colors, opacity, snapped screen layout positions, and click-through attributes.
-  * **Unified Game Memory and Event API**: Wrap hex offset scanning and `ctypes` processes inside a simplified `game.read()` library and run event callbacks (e.g. `on_battle_start`, `on_save_load`).
-  * **Interactive Plugin Scaffold Generator**: Add a developer utility button in Settings to auto-generate a starter plugin directory (containing boilerplate `plugin.json` and basic query routines) for immediate testing.
+  * Build a **Global Plugin Settings Card** in the Settings tab of FFXMM.
+  * **Hotkey Rebinding**: Allow users to customize toggle keys (e.g. rebinding `F8` or `F9`) directly in the manager.
+  * **Overlay Appearance**: Dynamic controls for transparency/opacity, font sizes, snapped screen positioning (Top-Right, Bottom-Left), and click-through lock.
+  * **Toggle Status**: Enable/disable individual trackers on/off dynamically.
+
+### 6. Main Manager & Plugin Inter-Process Communication (IPC) (Proposed)
+* **Goal**: Sync status, notifications, and logs between background overlay processes and FFXMM.
+* **Details**:
+  * Implement a lightweight named pipe or socket IPC hook inside FFXMM.
+  * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in FFXMM.
+  * **Unified Logs**: Route warning/error logs from active trackers back to the Mod Manager's central console log window.
+
+### 7. Core Game Memory Hook API (Proposed)
+* **Goal**: Consolidate memory scanning and handles inside FFXMM to simplify plugin code.
+* **Details**:
+  * Run a master background game-hook thread in FFXMM to manage the process handle and UAC elevation checks.
+  * Expose a clean, high-level wrapper API (e.g. `game.read_int()`) for plugins to scan memory without duplicating hex scanning or `ctypes` code.
+
+### 8. Mod-to-Plugin Integrations (Proposed)
+* **Goal**: Allow active mods to supply custom content directly to active plugins.
+* **Details**:
+  * **Mod-Specific Guides**: Retranslation or story mods can bundle `walkthrough.json` to override the overlay walkthrough dynamically when activated.
+  * **Gameplay Overhaul Compatibility**: Re-balance or recipe mods can bundle custom recipe lists to automatically update the Rikku's Mix Calculator plugin database.
+
+### 9. Open Plugin Developer SDK & Extensible Runner (Proposed)
+* **Goal**: Enable any mod creator or community member to write and test plugins easily.
+* **Details**:
+  * **Dynamic Python Runner**: Execute raw `.py` scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled Python interpreter, bypassing PyInstaller compilation requirements.
+  * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
+  * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
 
 ---
 
