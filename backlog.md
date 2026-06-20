@@ -63,9 +63,26 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 ### 9. Open Plugin Developer SDK & Extensible Runner (Proposed)
 * **Goal**: Enable any mod creator or community member to write and test plugins easily.
 * **Details**:
+  * **Current State & Limitations**:
+    * Right now, the manager's loader has a specific expectation: it reads `plugin.json` and parses `entry_point` in the format `module_name.class_name` (like `gui.RikkuMixTab`), imports the module, instantiates the class, and passes a Tkinter Frame (`tab_frame`) for the plugin to draw its interface. The `tracker.py` (compiled to `tracker.exe`) is then launched from the GUI class as a background helper process.
+    * If a developer wants to make a plugin that doesn't need a UI tab (like a Discord Rich Presence status updater, an automatic save backup script, or a hotkey overlay that runs completely in the background), they are currently forced to write a dummy Tkinter UI class just to make the manager happy.
   * **Dynamic Python Runner**: Execute raw `.py` scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled Python interpreter, bypassing PyInstaller compilation requirements.
   * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
-  * **Component-Based Architecture**: Support multiple plugin roles (e.g., rendering a configuration tab, running background scripts, and registering event listeners) defined inside a `components` array in `plugin.json`.
+  * **Flexible Component-Based Architecture**: Make the plugin loader incredibly flexible by defining a `"type"` property inside `plugin.json` (or an array of components). This tells FFXMM exactly how to handle and execute the plugin:
+    1. **Tab Plugins (Standard)**:
+       * Manifest: `{"name": "Rikku's Mix Calculator", "type": "tab", "entry_point": "gui.RikkuMixTab"}`
+       * Behavior: FFXMM renders a dedicated sidebar button and loads the UI component.
+    2. **Background Service Plugins (No GUI)**:
+       * Manifest: `{"name": "Discord Rich Presence", "type": "background", "entry_point": "presence.py"}`
+       * Behavior: FFXMM doesn't create a sidebar tab. Instead, it spins up `presence.py` as an asynchronous background thread or process the moment the manager launches and shuts it down when FFXMM closes.
+    3. **Command/Utility Plugins (One-click tools)**:
+       * Manifest: `{"name": "Save Game Decryptor", "type": "utility", "entry_point": "decrypt.py", "button_text": "🔓 Decrypt Selected Save"}`
+       * Behavior: FFXMM adds the action button automatically to a shared "Toolkit" panel. Clicking it simply runs `decrypt.py` with active game context.
+    4. **Event Listener Plugins (Reactive scripts)**:
+       * Manifest: `{"name": "Game Launch Optimizer", "type": "listener", "entry_point": "optimize.py", "events": ["on_game_launch", "on_game_exit"]}`
+       * Behavior: FFXMM imports the script and triggers its callback functions when the specified events occur.
+  * **Language Portability**: If the entry point is an executable (e.g. `entry_point: "my_tool.exe"`), FFXMM can spawn it as a subprocess, allowing plugins to be written in C++, C#, Go, Rust, or Python.
+  * **Zero Boilerplate**: If a developer just wants to run a background Python script, their entire plugin is just `plugin.json` and a single script file—no Tkinter code, no GUI wrapping, and no compilers required.
   * **Legacy Compatibility**: Gracefully auto-wrap older single-entry point plugin manifests into a standard single-tab component internally.
   * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
 
