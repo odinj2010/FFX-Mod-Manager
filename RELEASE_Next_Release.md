@@ -29,4 +29,5 @@
 *   **Theme Creator Previews**: Replaced the single preview button with **four distinct buttons** representing each semantic style (Accept, Success, Caution, Utility) and bound dynamic hover events to display the custom hover color changes in real-time.
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
 
-
+## Bug Fixes
+*   **FFX-2 Skin/Mod Staging Directory Resolution**: Fixed a path nesting bug where active FFX-2 mod files were incorrectly copied to `data/mods/ffx2_data/ffx2_data/...` instead of `data/mods/ffx2_data/...` due to duplicate folder names.

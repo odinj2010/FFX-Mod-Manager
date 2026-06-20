@@ -1773,7 +1773,7 @@ class FFXModManagerGUI:
         for rel in files_list:
             # Check size from repo if disabled, or active mods folder if enabled
             fsize = 0
-            src_path = os.path.join(mod_repo_path if mod_status == "Disabled" else self.mods_dir, rel)
+            src_path = os.path.join(mod_repo_path if mod_status == "Disabled" else self.get_active_files_dir(mod_id), rel)
             if os.path.exists(src_path):
                 fsize = os.path.getsize(src_path)
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
@@ -2021,10 +2021,7 @@ class FFXModManagerGUI:
             if mod_status == "Disabled":
                 src_path = os.path.join(mod_repo_path, rel)
             else:
-                if self.is_fahrenheit_mode:
-                    src_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data", rel)
-                else:
-                    src_path = os.path.join(self.mods_dir, rel)
+                src_path = os.path.join(self.get_active_files_dir(mod_id), rel)
                     
             if os.path.exists(src_path):
                 fsize = os.path.getsize(src_path)
@@ -2547,9 +2544,7 @@ class FFXModManagerGUI:
         # Determine target active folder
         if self.is_fahrenheit_mode:
             active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
-            active_files_dir = os.path.join(active_mod_dir, "efl", "x", "FFX_Data")
-        else:
-            active_files_dir = self.mods_dir
+        active_files_dir = self.get_active_files_dir(mod_id)
             
         for rel in files:
             src = os.path.join(mod_repo, rel)
@@ -2679,12 +2674,11 @@ class FFXModManagerGUI:
         if self.is_fahrenheit_mode:
             active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
             read_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
-            active_files_dir = os.path.join(active_mod_dir, "efl", "x", "FFX_Data")
         else:
             tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
             old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
             read_path = tracker_path if os.path.exists(tracker_path) else old_tracker_path
-            active_files_dir = self.mods_dir
+        active_files_dir = self.get_active_files_dir(mod_id)
             
         if not os.path.exists(read_path):
             self.log("Error: Active tracking file missing. Cannot uninstall cleanly.", "error")
@@ -4233,11 +4227,10 @@ class FFXModManagerGUI:
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
                     if self.is_fahrenheit_mode:
-                        active_files_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data")
                         tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
                     else:
-                        active_files_dir = self.mods_dir
                         tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                    active_files_dir = self.get_active_files_dir(mod_id)
                         
                     for rel in files_list:
                         src = os.path.join(mod_repo, rel)
@@ -4363,11 +4356,10 @@ class FFXModManagerGUI:
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
                     if self.is_fahrenheit_mode:
-                        active_files_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "efl", "x", "FFX_Data")
                         tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
                     else:
-                        active_files_dir = self.mods_dir
                         tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                    active_files_dir = self.get_active_files_dir(mod_id)
                         
                     for rel in files_list:
                         src = os.path.join(mod_repo, rel)
@@ -4431,6 +4423,19 @@ class FFXModManagerGUI:
             return f"{size_in_bytes / 1024:.2f} KB"
         else:
             return f"{size_in_bytes / (1024 * 1024):.2f} MB"
+
+    def get_active_files_dir(self, mod_id=None):
+        if getattr(self, "is_fahrenheit_mode", False):
+            mid = mod_id or getattr(self, "selected_mod_id", "unknown") or "unknown"
+            if self.active_game_mode == "FFX-2":
+                return os.path.join(self.game_dir, "fahrenheit", "mods", mid, "efl", "x", "FFX2_Data")
+            else:
+                return os.path.join(self.game_dir, "fahrenheit", "mods", mid, "efl", "x", "FFX_Data")
+        else:
+            if self.active_game_mode == "FFX-2":
+                return os.path.join(self.game_dir, "data", "mods")
+            else:
+                return self.mods_dir
 
     def get_button_colors(self, btn):
         is_primary = getattr(btn, "_is_primary", False)
