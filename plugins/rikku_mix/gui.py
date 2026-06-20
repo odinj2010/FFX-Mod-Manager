@@ -37,11 +37,11 @@ class RikkuMixTab:
         self.notebook.pack(fill="both", expand=True)
         
         # Tab 1: Calculator
-        self.tab_calc = ttk.Frame(self.notebook)
+        self.tab_calc = tk.Frame(self.notebook, bg=self.bg_color)
         self.notebook.add(self.tab_calc, text="🧪 Calculator")
         
         # Tab 2: Settings
-        self.tab_settings = ttk.Frame(self.notebook)
+        self.tab_settings = tk.Frame(self.notebook, bg=self.bg_color)
         self.notebook.add(self.tab_settings, text="⚙️ Overlay Settings")
         
         # Build widgets for each tab
@@ -209,10 +209,10 @@ class RikkuMixTab:
         self.perform_calculation()
 
     def create_settings_widgets(self):
-        settings_container = ttk.Frame(self.tab_settings, padding=15)
-        settings_container.pack(fill="both", expand=True)
+        self.settings_container = tk.Frame(self.tab_settings, bg=self.bg_color, padx=15, pady=15)
+        self.settings_container.pack(fill="both", expand=True)
         
-        self.lbl_settings_title = tk.Label(settings_container, text="⚙️ Rikku's Mix Overlay Settings", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
+        self.lbl_settings_title = tk.Label(self.settings_container, text="⚙️ Rikku's Mix Overlay Settings", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.bg_color)
         self.lbl_settings_title._is_title = True
         self.lbl_settings_title.pack(anchor="w", pady=(0, 15))
         
@@ -299,6 +299,8 @@ class RikkuMixTab:
         self.split_pane.configure(bg=self.bg_color)
         
         # Settings retheme
+        if hasattr(self, "settings_container") and self.settings_container:
+            self.settings_container.configure(bg=self.bg_color)
         if hasattr(self, "lbl_settings_title"):
             self.lbl_settings_title.configure(bg=self.bg_color, fg=self.accent_color)
         if hasattr(self, "overlay_card"):
