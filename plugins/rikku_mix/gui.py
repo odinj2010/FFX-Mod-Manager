@@ -2,7 +2,7 @@ import os
 import tkinter as tk
 from tkinter import ttk
 from tooltip import ToolTip
-from .mix_data import INGREDIENTS, MIX_OUTCOMES, calculate_mix
+from mix_data import INGREDIENTS, MIX_OUTCOMES, calculate_mix
 
 class RikkuMixTab:
     def __init__(self, parent_frame, manager_gui):
