@@ -798,11 +798,13 @@ class FFXModManagerGUI:
         
         self.ent_search = ttk.Entry(search_frame, textvariable=self.mod_search_var)
         self.ent_search.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ToolTip(self.ent_search, "Type mod name here to filter the list in real-time.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         self.cmb_category = ttk.Combobox(search_frame, textvariable=self.mod_category_var, state="readonly", width=12)
         self.cmb_category["values"] = ["All Categories"]
         self.cmb_category.pack(side="left")
         self.cmb_category.bind("<<ComboboxSelected>>", lambda e: self.refresh_list())
+        ToolTip(self.cmb_category, "Filter the mod list by specific category.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         self.mod_search_var.trace_add("write", lambda *args: self.refresh_list())
 
@@ -816,21 +818,25 @@ class FFXModManagerGUI:
         self.profile_combobox = ttk.Combobox(profile_row, values=["Default"], state="readonly", width=15)
         self.profile_combobox.set("Default")
         self.profile_combobox.pack(side="left", padx=(0, 5))
+        ToolTip(self.profile_combobox, "Select a profile containing a configured subset of active/inactive mods.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_apply_prof = tk.Button(profile_row, text="✔️ Apply", command=self.apply_profile, bg=self.card_color,
                                    fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
         btn_apply_prof.pack(side="left", padx=(0, 2))
         self.bind_hover(btn_apply_prof)
+        ToolTip(btn_apply_prof, "Apply the selected profile configuration to the active game folder.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_save_prof = tk.Button(profile_row, text="💾 Save", command=self.save_profile, bg=self.card_color,
                                   fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
         btn_save_prof.pack(side="left", padx=(0, 2))
         self.bind_hover(btn_save_prof)
+        ToolTip(btn_save_prof, "Save current mod enablement status under the selected profile name.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_del_prof = tk.Button(profile_row, text="🗑️", command=self.delete_profile, bg=self.card_color,
                                  fg=self.error_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, bd=0, padx=6, pady=2)
         btn_del_prof.pack(side="left")
         self.bind_hover(btn_del_prof)
+        ToolTip(btn_del_prof, "Permanently delete the selected mod profile.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Action buttons underneath card list
         btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
@@ -954,26 +960,32 @@ class FFXModManagerGUI:
         ttk.Label(meta_frame, text="Mod Name:").grid(row=0, column=0, sticky="w", pady=2)
         self.ent_mod_name = ttk.Entry(meta_frame, width=30)
         self.ent_mod_name.grid(row=0, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.ent_mod_name, "Unique display name of the mod. This is locked after import.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Creator:").grid(row=1, column=0, sticky="w", pady=2)
         self.ent_mod_creator = ttk.Entry(meta_frame, width=30)
         self.ent_mod_creator.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.ent_mod_creator, "Author/Creator of the mod.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Version:").grid(row=2, column=0, sticky="w", pady=2)
         self.ent_mod_version = ttk.Entry(meta_frame, width=15)
         self.ent_mod_version.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.ent_mod_version, "Release version of the mod.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Description:").grid(row=3, column=0, sticky="nw", pady=2)
         self.ent_mod_desc = ttk.Entry(meta_frame, width=30)
         self.ent_mod_desc.grid(row=3, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.ent_mod_desc, "Short description summarizing what this mod changes in-game.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Category:").grid(row=4, column=0, sticky="w", pady=2)
         self.cmb_mod_category = ttk.Combobox(meta_frame, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], width=28)
         self.cmb_mod_category.grid(row=4, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.cmb_mod_category, "The classification group this mod belongs to.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Nexus Mod ID:").grid(row=5, column=0, sticky="w", pady=2)
         self.ent_nexus_id = ttk.Entry(meta_frame, width=15)
         self.ent_nexus_id.grid(row=5, column=1, sticky="w", padx=5, pady=2)
+        ToolTip(self.ent_nexus_id, "The official mod ID on Nexus Mods website (used to check for updates).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Mod Link:").grid(row=6, column=0, sticky="w", pady=2)
         link_row = ttk.Frame(meta_frame)
@@ -981,16 +993,19 @@ class FFXModManagerGUI:
         
         self.ent_mod_link = ttk.Entry(link_row, width=22)
         self.ent_mod_link.pack(side="left", padx=(0, 5))
+        ToolTip(self.ent_mod_link, "Web page link to the mod home page.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_visit = tk.Button(link_row, text="🌐 Visit", command=self.visit_mod_link, bg=self.bg_color,
                                fg=self.text_color, relief="flat", activebackground=self.border_color, padx=5)
         btn_visit.pack(side="left")
         self.bind_hover(btn_visit)
+        ToolTip(btn_visit, "Open the mod's URL link in your web browser.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_save_meta = tk.Button(meta_frame, text="Save Details", command=self.save_mod_metadata, bg=self.card_color,
                                   fg=self.text_color, relief="flat", activebackground=self.border_color)
         btn_save_meta.grid(row=7, column=1, sticky="w", padx=5, pady=5)
         self.bind_hover(btn_save_meta)
+        ToolTip(btn_save_meta, "Save modifications made to this mod's metadata fields to its local manifest file.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Tab 2: Files
         self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10)
@@ -1019,17 +1034,20 @@ class FFXModManagerGUI:
         btn_import_f._is_primary = True
         btn_import_f.pack(side="left", padx=(0, 5))
         self.bind_hover(btn_import_f, is_primary=True)
+        ToolTip(btn_import_f, "Import additional individual files into this mod's subfolder.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_import_d = tk.Button(file_ops, text="Import Folder...", command=self.import_folder, bg=self.accent_color,
                                    fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
         btn_import_d._is_primary = True
         btn_import_d.pack(side="left", padx=5)
         self.bind_hover(btn_import_d, is_primary=True)
+        ToolTip(btn_import_d, "Import a folder structure directly into this mod's subfolder.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_open_f = tk.Button(file_ops, text="Open Folder Location", command=self.open_folder, bg=self.card_color,
                              fg=self.text_color, relief="flat", activebackground=self.border_color)
         btn_open_f.pack(side="left", padx=5)
         self.bind_hover(btn_open_f)
+        ToolTip(btn_open_f, "Open the folder containing the selected file in File Explorer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Tab 3: Conflicts
         self.tab_conflicts = ttk.Frame(self.mod_details_notebook, padding=10)
@@ -1102,6 +1120,7 @@ class FFXModManagerGUI:
         
         self.ent_game_path = ttk.Entry(path_row, width=40)
         self.ent_game_path.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=6)
+        ToolTip(self.ent_game_path, "Configure the installation folder containing the game executables FFX.exe and FFX-2.exe.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         if self.game_dir:
             self.ent_game_path.insert(0, self.game_dir)
@@ -1112,6 +1131,7 @@ class FFXModManagerGUI:
                                fg=self.text_color, relief="flat", activebackground=self.border_color, padx=10)
         btn_browse.grid(row=0, column=2, pady=6)
         self.bind_hover(btn_browse)
+        ToolTip(btn_browse, "Browse your computer's folders to select the game directory.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Saves folder path picker (Row 1)
         lbl_saves_path = tk.Label(path_row, text="Saves Directory:", bg=self.card_color, fg=self.text_color)
@@ -1119,6 +1139,7 @@ class FFXModManagerGUI:
         
         self.ent_saves_path = ttk.Entry(path_row, width=40)
         self.ent_saves_path.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=6)
+        ToolTip(self.ent_saves_path, "Configure the Documents folder path where the game keeps its save files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
         default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
@@ -1180,16 +1201,19 @@ class FFXModManagerGUI:
         self.theme_selector.set(self.current_theme_name)
         self.theme_selector.pack(side="left", padx=(0, 6))
         self.theme_selector.bind("<<ComboboxSelected>>", lambda e: self.apply_theme(self.theme_selector.get()))
+        ToolTip(self.theme_selector, "Choose from available appearance color skins.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_create_theme = tk.Button(theme_card, text="🎨 Create Custom Theme", command=self.open_theme_creator, bg=self.bg_color,
                                      fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
         btn_create_theme.pack(anchor="w", pady=(8, 0))
         self.bind_hover(btn_create_theme)
+        ToolTip(btn_create_theme, "Open the theme creation tool to build and save custom colors.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_open_themes = tk.Button(theme_card, text="📂 Open Themes Folder", command=self.open_themes_folder, bg=self.bg_color,
                                     fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
         btn_open_themes.pack(anchor="w", pady=(8, 0))
         self.bind_hover(btn_open_themes)
+        ToolTip(btn_open_themes, "Open the themes folder inside Windows Explorer to manually manage your theme files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Center Panel: Safety & Diagnostics (Card Style)
         safe_card = tk.Frame(bottom_cards_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=12, pady=12)
@@ -1205,16 +1229,19 @@ class FFXModManagerGUI:
         btn_safe_reset._is_danger = True
         btn_safe_reset.pack(anchor="w", pady=(4, 0))
         self.bind_hover(btn_safe_reset)
+        ToolTip(btn_safe_reset, "Clear active mods, reset configs, rebuild default directories, and clean up logs.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_verify_disk = tk.Button(safe_card, text="💾 Verify Permissions", command=self.verify_deployment_safety, bg=self.bg_color,
                                     fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
         btn_verify_disk.pack(anchor="w", pady=(8, 0))
         self.bind_hover(btn_verify_disk)
+        ToolTip(btn_verify_disk, "Check if the mod manager has appropriate folder permissions to stage files safely.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_show_logs = tk.Button(safe_card, text="📜 View Console Log", command=self.show_log_window, bg=self.bg_color,
                                   fg=self.text_color, font=("Segoe UI", 8), relief="flat", activebackground=self.border_color, padx=10, pady=3)
         btn_show_logs.pack(anchor="w", pady=(8, 0))
         self.bind_hover(btn_show_logs)
+        ToolTip(btn_show_logs, "Open the log file history viewer window to see error details and operational messages.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Build Plugins Browser page UI
         self.create_plugins_browser_page()
@@ -3630,6 +3657,7 @@ class FFXModManagerGUI:
         
         self.btn_refresh_plugins = tk.Button(self.tab_plugin_directory, text="🔄 Refresh Directory List", command=self.refresh_plugins_list, bg=self.card_color,
                                              fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        ToolTip(self.btn_refresh_plugins, "Fetch and refresh the list of available plugins from remote repository.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         self.btn_refresh_plugins.pack(anchor="w", pady=(10, 5))
         self.bind_hover(self.btn_refresh_plugins)
         
@@ -3673,6 +3701,7 @@ class FFXModManagerGUI:
         
         self.btn_refresh_installed = tk.Button(self.tab_installed_plugins, text="🔄 Refresh Installed List", command=self.refresh_installed_plugins_list, bg=self.card_color,
                                               fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
+        ToolTip(self.btn_refresh_installed, "Rescan local plugins directory and refresh the list of installed plugins.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         self.btn_refresh_installed.pack(anchor="w", pady=(10, 5))
         self.bind_hover(self.btn_refresh_installed)
 

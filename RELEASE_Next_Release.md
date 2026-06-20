@@ -29,6 +29,16 @@
 *   **Theme Creator Previews**: Replaced the single preview button with **four distinct buttons** representing each semantic style (Accept, Success, Caution, Utility) and bound dynamic hover events to display the custom hover color changes in real-time.
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
 
+### UI Hover Tooltips
+*   **Comprehensive Hover Tooltips**: Added informative, custom hover tooltips to key inputs, filters, buttons, and settings across the entire interface. This includes:
+    *   Search filter input, Category filter combobox, Profile selection dropdown, and Profile action buttons (`Apply`, `Save`, `Delete`).
+    *   Mod metadata fields (`Name`, `Creator`, `Version`, `Description`, `Category`, `Nexus ID`, `Link`), "Visit Link" button, and "Save Metadata" button.
+    *   Files tab operations (`Import File`, `Import Folder`, `Open Folder Location`).
+    *   Settings directory paths (`Game Directory`, `Saves Directory`), theme options (`Theme Selector`, `Create Theme`, `Open Themes Folder`), and Safety & Diagnostics panel (`Safe Reset`, `Verify Permissions`, `View Console Log`).
+    *   Plugin directory refresh and installed plugins refresh buttons.
+*   **Dynamic Theme Integration**: All new tooltips dynamically inherit and follow the active theme's colors.
+
+
 ## Bug Fixes
 *   **Mod Staging Directory Path Resolution (FFX & FFX-2)**: Resolved staging directory path nesting bugs by cleanly separating active tracker `.ffxmod` files from the target deployment directories. Mod tracker files are stored isolated inside `data/mods/ffx_data` and `data/mods/ffx2_data` respectively, while the actual mod assets are written directly to `data/mods` without redundant nesting.
 *   **Mod Creation Blank Directory Fix**: Fixed an issue where creating a mod that includes files within the `ffx_ps2` structure would also generate an empty, unused `ffx_data` directory alongside it. Default game directories are now only pre-created when initializing a blank mod.
