@@ -30,4 +30,4 @@
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
 
 ## Bug Fixes
-*   **FFX-2 Skin/Mod Staging Directory Resolution**: Fixed a path nesting bug where active FFX-2 mod files were incorrectly copied to `data/mods/ffx2_data/ffx2_data/...` instead of `data/mods/ffx2_data/...` due to duplicate folder names.
+*   **Mod Staging Directory Path Resolution (FFX & FFX-2)**: Resolved staging directory path nesting bugs by cleanly separating active tracker `.ffxmod` files from the target deployment directories. Mod tracker files are stored isolated inside `data/mods/ffx_data` and `data/mods/ffx2_data` respectively, while the actual mod assets are written directly to `data/mods` without redundant nesting.

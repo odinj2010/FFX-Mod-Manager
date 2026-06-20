@@ -573,7 +573,7 @@ class FFXModManagerGUI:
                     self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx2_data")
                     self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled_x2")
                 else:
-                    self.mods_dir = os.path.join(self.game_dir, "data", "mods")
+                    self.mods_dir = os.path.join(self.game_dir, "data", "mods", "ffx_data")
                     self.mods_disabled_dir = os.path.join(self.game_dir, "data", "mods_disabled")
             
             # Create directories only for what is actually needed
@@ -4432,10 +4432,7 @@ class FFXModManagerGUI:
             else:
                 return os.path.join(self.game_dir, "fahrenheit", "mods", mid, "efl", "x", "FFX_Data")
         else:
-            if self.active_game_mode == "FFX-2":
-                return os.path.join(self.game_dir, "data", "mods")
-            else:
-                return self.mods_dir
+            return os.path.join(self.game_dir, "data", "mods")
 
     def get_button_colors(self, btn):
         is_primary = getattr(btn, "_is_primary", False)
