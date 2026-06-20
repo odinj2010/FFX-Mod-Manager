@@ -1700,13 +1700,14 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
                     
-        self.ent_mod_name.delete(0, tk.END)
-        self.ent_mod_name.insert(0, info.get("name", mod_id))
-        
         # Temp enable all to insert values
-        for entry in [self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
+        for entry in [self.ent_mod_name, self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
             entry.config(state="normal")
             entry.delete(0, tk.END)
+            
+        name_val = info.get("name", mod_id)
+        self.ent_mod_name.insert(0, name_val)
+        self.ent_mod_name.config(state="readonly")
             
         creator_name = info.get("creator", "")
         self.ent_mod_creator.insert(0, creator_name)
@@ -1715,9 +1716,9 @@ class FFXModManagerGUI:
         else:
             self.ent_mod_creator.config(state="readonly")
             
-        version_val = info.get("version", "1.0")
+        version_val = info.get("version", "0.0")
         self.ent_mod_version.insert(0, version_val)
-        if version_val.strip().lower() in ["", "1.0"]:
+        if version_val.strip().lower() in ["", "0.0"]:
             self.ent_mod_version.config(state="normal")
         else:
             self.ent_mod_version.config(state="readonly")
@@ -1944,13 +1945,14 @@ class FFXModManagerGUI:
                 except Exception:
                     pass
                     
-        self.ent_mod_name.delete(0, tk.END)
-        self.ent_mod_name.insert(0, info.get("name", mod_id))
-        
         # Temp enable all to insert values
-        for entry in [self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
+        for entry in [self.ent_mod_name, self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
             entry.config(state="normal")
             entry.delete(0, tk.END)
+            
+        name_val = info.get("name", mod_id)
+        self.ent_mod_name.insert(0, name_val)
+        self.ent_mod_name.config(state="readonly")
             
         creator_name = info.get("creator", info.get("author", ""))
         self.ent_mod_creator.insert(0, creator_name)
@@ -1959,9 +1961,9 @@ class FFXModManagerGUI:
         else:
             self.ent_mod_creator.config(state="readonly")
             
-        version_val = info.get("version", "1.0")
+        version_val = info.get("version", "0.0")
         self.ent_mod_version.insert(0, version_val)
-        if version_val.strip().lower() in ["", "1.0"]:
+        if version_val.strip().lower() in ["", "0.0"]:
             self.ent_mod_version.config(state="normal")
         else:
             self.ent_mod_version.config(state="readonly")
@@ -2068,9 +2070,14 @@ class FFXModManagerGUI:
         if creator_before.strip().lower() not in ["", "user"] and creator_input != creator_before:
             creator_input = creator_before  # Keep original creator
             
-        version_before = info.get("version", "1.0")
+        name_before = info.get("name", "")
+        name_input = self.ent_mod_name.get().strip() or mod_id
+        if name_before.strip() != "" and name_input != name_before:
+            name_input = name_before
+
+        version_before = info.get("version", "0.0")
         version_input = self.ent_mod_version.get().strip()
-        if version_before.strip().lower() not in ["", "1.0"] and version_input != version_before:
+        if version_before.strip().lower() not in ["", "0.0"] and version_input != version_before:
             version_input = version_before
             
         desc_before = info.get("description", "")
@@ -2088,10 +2095,10 @@ class FFXModManagerGUI:
         if link_before.strip() != "" and link_input != link_before:
             link_input = link_before
             
-        info["name"] = self.ent_mod_name.get().strip() or mod_id
+        info["name"] = name_input
         info["creator"] = creator_input
         info["author"] = creator_input
-        info["version"] = version_input or "1.0"
+        info["version"] = version_input or "0.0"
         info["description"] = desc_input
         info["category"] = self.cmb_mod_category.get().strip() or "General"
         info["nexus_id"] = nexus_id_input

@@ -14,7 +14,7 @@
 *   **Compact Action Button Grid**: Re-arranged mod list actions into a space-efficient 2-row grid featuring single-word labels:
     *   Row 1: `⚡ Enable`, `⏪ Disable`, `🆕 Create`, and `📥 Import`.
     *   Row 2: `🗑️ Delete` and `🔄 Refresh`.
-*   **Mod Metadata Field Locking**: Populated metadata details entry fields (Creator, Version, Link, Description, Nexus ID) are now dynamically locked as `readonly` in the GUI if they contain values, leaving only empty fields and the Mod Name editable to prevent accidental modifications. Values are also enforced securely during metadata save operations.
+*   **Mod Metadata Field Locking**: Populated metadata details entry fields (Creator, Version, Link, Description, Nexus ID) are now dynamically locked as `readonly` in the GUI if they contain values, and the Mod Name is locked unconditionally as `readonly`. The version check placeholder has been updated from `1.0` to `0.0` so that mods with version `1.0` are correctly locked. Values are also enforced securely during metadata save operations.
 
 ### General UI Fixes
 *   **Decoupled Console Log Window**: Completely removed the bottom-pinned console log panels from the main container.
