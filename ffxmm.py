@@ -656,8 +656,8 @@ class FFXModManagerGUI:
         log_scroll.pack(fill="y", side="right")
         self.txt_log.config(yscrollcommand=log_scroll.set)
         
-        btn_row = tk.Frame(self.log_window, bg=self.bg_color, padx=10, pady=(0, 10))
-        btn_row.pack(fill="x")
+        btn_row = tk.Frame(self.log_window, bg=self.bg_color, padx=10)
+        btn_row.pack(fill="x", pady=(0, 10))
         
         btn_clear = tk.Button(btn_row, text="Clear Log", command=self.clear_log, bg=self.card_color,
                               fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=4)
