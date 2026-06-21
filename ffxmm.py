@@ -1585,6 +1585,9 @@ class FFXModManagerGUI:
                                 "creator": data.get("Authors", "Unknown"),
                                 "category": data.get("Category", "General"),
                                 "version": data.get("Version", data.get("version", "1.0")),
+                                "description": data.get("Desc", data.get("Description", "")),
+                                "link": data.get("Link", data.get("URL", "")),
+                                "nexus_id": data.get("NexusID", data.get("NexusId", "")),
                                 "status": "Enabled",
                                 "files": [],
                                 "size": 0
@@ -3503,6 +3506,38 @@ class FFXModManagerGUI:
                         shutil.move(ffx2_folder, dest_folder)
                     except Exception as me:
                         self.log(f"Restructure warning: {me}", "warning")
+                        
+            if "ffx2_data" in os.listdir(root_dir):
+                ffx2_data_folder = os.path.join(root_dir, "ffx2_data")
+                if os.path.isdir(ffx2_data_folder):
+                    self.log("Restructuring legacy 'ffx2_data' folder to 'ffx-2_data'...", "info")
+                    dest_folder = os.path.join(root_dir, "ffx-2_data")
+                    try:
+                        if os.path.exists(dest_folder):
+                            for item in os.listdir(ffx2_data_folder):
+                                shutil.move(os.path.join(ffx2_data_folder, item), os.path.join(dest_folder, item))
+                            os.rmdir(ffx2_data_folder)
+                        else:
+                            shutil.move(ffx2_data_folder, dest_folder)
+                    except Exception as me:
+                        self.log(f"Restructure warning (legacy rename): {me}", "warning")
+
+            if "ffx2_ps2" in os.listdir(root_dir):
+                ffx2_ps2_folder = os.path.join(root_dir, "ffx2_ps2")
+                if os.path.isdir(ffx2_ps2_folder):
+                    self.log("Restructuring legacy 'ffx2_ps2' folder to 'ffx_ps2/ffx2'...", "info")
+                    dest_parent = os.path.join(root_dir, "ffx_ps2")
+                    os.makedirs(dest_parent, exist_ok=True)
+                    dest_folder = os.path.join(dest_parent, "ffx2")
+                    try:
+                        if os.path.exists(dest_folder):
+                            for item in os.listdir(ffx2_ps2_folder):
+                                shutil.move(os.path.join(ffx2_ps2_folder, item), os.path.join(dest_folder, item))
+                            os.rmdir(ffx2_ps2_folder)
+                        else:
+                            shutil.move(ffx2_ps2_folder, dest_folder)
+                    except Exception as me:
+                        self.log(f"Restructure warning (legacy PS2 rename): {me}", "warning")
 
         # Restructure for FFX-2 mode if files don't have standard prefixes
         if self.active_game_mode == "FFX-2":
@@ -4604,9 +4639,15 @@ class FFXModManagerGUI:
         if "ffx-2_data/" in abs_path.lower():
             idx = abs_path.lower().find("ffx-2_data/")
             return abs_path[idx:]
+        if "ffx2_data/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2_data/")
+            return "ffx-2_data/" + abs_path[idx + len("ffx2_data/"):]
         if "ffx_ps2/" in abs_path.lower():
             idx = abs_path.lower().find("ffx_ps2/")
             return abs_path[idx:]
+        if "ffx2_ps2/" in abs_path.lower():
+            idx = abs_path.lower().find("ffx2_ps2/")
+            return "ffx_ps2/ffx2/" + abs_path[idx + len("ffx2_ps2/"):]
         if "ffx_data/" in abs_path.lower():
             idx = abs_path.lower().find("ffx_data/")
             return abs_path[idx:]
