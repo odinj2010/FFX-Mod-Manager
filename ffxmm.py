@@ -1871,7 +1871,7 @@ class FFXModManagerGUI:
         self.ent_mod_name.insert(0, name_val)
         self.ent_mod_name.config(state="readonly")
             
-        creator_name = info.get("creator", "")
+        creator_name = info.get("creator", info.get("author", ""))
         self.ent_mod_creator.insert(0, creator_name)
         if creator_name.strip().lower() in ["", "user"]:
             self.ent_mod_creator.config(state="normal")
@@ -3583,6 +3583,7 @@ class FFXModManagerGUI:
         info = {
             "name": mod_name,
             "author": mod_creator,
+            "creator": mod_creator,
             "version": mod_version,
             "description": mod_desc,
             "category": mod_category,
