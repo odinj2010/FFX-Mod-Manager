@@ -23,6 +23,7 @@
 *   **2-Column Plugin Browser Layout**: Restructured both the "Plugin Directory" and "Installed Plugins" tabs to render cards in a side-by-side, 2-column grid layout, making them much more compact and squarer. Set description text wraps to 350px.
 *   **Plugin Signature Placement**: Shuffled the plugin creator name label from the header row down below the action buttons as a right-aligned signature.
 *   **Dynamic Sidebar Logo Text**: Exposed the sidebar logo label and updated it to dynamically switch between "FFX MODS" and "FFX-2 MODS" based on the selected game mode.
+*   **Thematic Application Renaming**: Renamed the application window title from "FFX Mod Manager" to "Spira Mod Manager", dynamically suffixing the active game mode (e.g., "Spira Mod Manager - FFX Mode"). Also updated the System Log window to "📜 Spira Mod Manager - System Log".
 
 ### Theme System & Button Colorizations
 *   **Customizable Semantic Button Colors**: Added customizable theme properties for semantic button categories: Action/Accept, Caution/Danger, Success/Enable, and Utility/Default.

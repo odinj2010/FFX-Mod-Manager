@@ -136,7 +136,8 @@ class FFXModManagerGUI:
         self.btn_utility_hover = theme.get("btn_utility_hover", self.border_color)
 
         if not is_embedded:
-            self.root.title("FFX Mod Manager")
+            active_mode = self.config.get("active_game_mode", "FFX")
+            self.root.title(f"Spira Mod Manager - {active_mode} Mode")
             self.root.geometry("960x600")
             self.root.minsize(800, 500)
             self.root.configure(bg=self.bg_color)
@@ -673,7 +674,7 @@ class FFXModManagerGUI:
                 pass
                 
         self.log_window = tk.Toplevel(self.root)
-        self.log_window.title("📜 FFX Mod Manager - System Log")
+        self.log_window.title("📜 Spira Mod Manager - System Log")
         self.log_window.geometry("700x400")
         self.log_window.configure(bg=self.bg_color)
         
@@ -1456,6 +1457,8 @@ class FFXModManagerGUI:
             self.log(f"Switched game mode to {new_mode}.", "info")
             if hasattr(self, "lbl_logo") and self.lbl_logo:
                 self.lbl_logo.config(text=f"🎮 {new_mode} MODS")
+            if hasattr(self, "root") and self.root:
+                self.root.title(f"Spira Mod Manager - {new_mode} Mode")
             self.init_paths()
             self.save_config()
             
