@@ -23,7 +23,7 @@ if getattr(sys, 'frozen', False):
 else:
     _base_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_base_dir, "ffxmm_config.json")
-APP_VERSION = "3.0.1"
+APP_VERSION = "3.1.0"
 
 def encode_metadata(data_dict):
     try:
