@@ -4633,7 +4633,14 @@ class FFXModManagerGUI:
 
     def resolve_mod_relative_path(self, abs_path, target_game_mode=None):
         abs_path = abs_path.replace("\\", "/")
+        
+        # If it is a recognized mod preview/cover image, resolve it directly to the mod root
+        filename = os.path.basename(abs_path).lower()
+        if filename in {"preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png", "mod_preview.png", "cover.png"}:
+            return os.path.basename(abs_path)
+            
         parts = abs_path.split("/")
+
         
         # Determine FFX-2 context
         is_ffx2 = (target_game_mode == "FFX-2") if target_game_mode else (self.active_game_mode == "FFX-2")
