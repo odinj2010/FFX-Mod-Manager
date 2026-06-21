@@ -2545,9 +2545,9 @@ class FFXModManagerGUI:
                     master_path = potential_master
 
                 for fpath in paths:
-                    rel = self.resolve_mod_relative_path(fpath)
+                    rel = self.resolve_mod_relative_path(fpath, target_game_mode=target_game_var.get())
                     if not rel and master_path:
-                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)), target_game_mode=target_game_var.get())
                     if not rel:
                         rel = simpledialog.askstring(
                             "Relative Game Path",
@@ -2585,9 +2585,9 @@ class FFXModManagerGUI:
                     master_path = potential_master
 
                 for fpath in all_files:
-                    rel = self.resolve_mod_relative_path(fpath)
+                    rel = self.resolve_mod_relative_path(fpath, target_game_mode=target_game_var.get())
                     if not rel and master_path:
-                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                        rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)), target_game_mode=target_game_var.get())
                     if not rel:
                         rel = simpledialog.askstring(
                             "Relative Game Path",
@@ -4631,10 +4631,19 @@ class FFXModManagerGUI:
             button.config(text="🔄 Reinstall", state="normal", bg=self.border_color)
             self.bind_hover(button, is_primary=False)
 
-    def resolve_mod_relative_path(self, abs_path):
+    def resolve_mod_relative_path(self, abs_path, target_game_mode=None):
         abs_path = abs_path.replace("\\", "/")
         parts = abs_path.split("/")
         
+        # Determine FFX-2 context
+        is_ffx2 = (target_game_mode == "FFX-2") if target_game_mode else (self.active_game_mode == "FFX-2")
+        
+        # Path details override target mode if explicitly specified
+        if "ffx-2_data/" in abs_path.lower() or "ffx2_data/" in abs_path.lower() or "ffx2_ps2/" in abs_path.lower() or "ffx_ps2/ffx2/" in abs_path.lower():
+            is_ffx2 = True
+        elif "ffx_data/" in abs_path.lower() or "ffx_ps2/ffx/" in abs_path.lower():
+            is_ffx2 = False
+            
         # 1. If absolute path contains the root folders explicitly
         if "ffx-2_data/" in abs_path.lower():
             idx = abs_path.lower().find("ffx-2_data/")
@@ -4669,7 +4678,7 @@ class FFXModManagerGUI:
             return "ffx_ps2/" + abs_path[idx:]
         if "gamedata" in abs_path.lower():
             idx = abs_path.lower().find("gamedata")
-            if "ffx2" in abs_path.lower():
+            if is_ffx2:
                 return "ffx-2_data/" + abs_path[idx:]
             else:
                 return "ffx_data/" + abs_path[idx:]
@@ -4679,7 +4688,6 @@ class FFXModManagerGUI:
             if loc in parts:
                 idx = parts.index(loc)
                 ext = os.path.splitext(abs_path)[1].lower()
-                is_ffx2 = "ffx2" in abs_path.lower()
                 
                 if ext in [".bin", ".dat", ".evt"]:
                     prefix = "ffx_ps2/ffx2/master/" if is_ffx2 else "ffx_ps2/ffx/master/"
@@ -4727,10 +4735,10 @@ class FFXModManagerGUI:
             
         for fpath in files:
             # Resolve relative destination path
-            rel = self.resolve_mod_relative_path(fpath)
+            rel = self.resolve_mod_relative_path(fpath, target_game_mode=self.active_game_mode)
             if not rel and master_path:
                 # Attempt resolution by checking if path contains master
-                rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)), target_game_mode=self.active_game_mode)
             
             if not rel:
                 # Ask user for manual relative path
@@ -4857,9 +4865,9 @@ class FFXModManagerGUI:
             
         for fpath in all_files:
             # Resolve relative destination path
-            rel = self.resolve_mod_relative_path(fpath)
+            rel = self.resolve_mod_relative_path(fpath, target_game_mode=self.active_game_mode)
             if not rel and master_path:
-                rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)))
+                rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)), target_game_mode=self.active_game_mode)
                 
             if not rel:
                 # Ask user for manual relative path
