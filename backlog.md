@@ -1,10 +1,10 @@
 # FFX Mod Manager Project Backlog & Brainstorm Memory
 
-This file serves as the long-term memory for tracking feature ideas, polishes, and community requests. Items will remain here until they are either completed or explicitly discarded.
+This file serves as the long-term memory for tracking feature ideas, polishes, and community requests. Items are split between the Main Application and the Plugin Ecosystem, and remain here until they are either completed or explicitly discarded.
 
 ---
 
-## 💡 Future Feature Backlog
+## 🖥️ Main App Backlog (Proposed)
 
 ### 1. Integrated External Tools Quick-Launcher (Proposed)
 * **Goal**: Turn the mod manager into the central hub/toolkit for Spira modding.
@@ -23,9 +23,47 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Details**:
   * Command-line argument handler to download files directly via Nexus API and install them immediately.
 
+### 4. Modern Glassmorphism UI Overhaul (Proposed)
+* **Goal**: Modernize the Tkinter UI to have a sleeker, web-like premium appearance.
+* **Details**: Implement semi-transparent glass card panels, rounded frame overlays, ambient glowing borders, and high-quality custom icons.
 
+### 5. Interactive Character Dashboard Profiles (Proposed)
+* **Goal**: Personalize the manager with FFX/FFX-2 character styles.
+* **Details**: Switch themes based on standard profiles (Tidus, Yuna, Rikku, Auron) and automatically shift the active color schemes, ambient artwork, and background details to match.
 
-### 5. Centralized Settings & Customization for Plugins (Proposed)
+### 6. Live Graphic Mod Asset Previewer (Proposed)
+* **Goal**: View mod graphics directly in the manager before enabling.
+* **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
+
+### 7. Built-in VBF Archive Explorer (Proposed)
+* **Goal**: Native unpacking and editing of main game archives.
+* **Details**: Add a lightweight `.vbf` parser to inspect and patch assets without requiring third-party tools.
+
+### 8. Drag-and-Drop FMOD Music Injector (Proposed)
+* **Goal**: Customize soundtracks easily.
+* **Details**: Convert MP3/WAV files to FMOD bank formats to swap audio files or combine original/arrange tracks.
+
+### 9. Visual Save Game Data Editor (Proposed)
+* **Goal**: Edit player inventory and coordinates natively.
+* **Details**: Embed a visual save modifier into the Saves tab to adjust Gil, stats, sphere grid nodes, and coordinates.
+
+### 10. Mod Presets and Modpack Bundling (Proposed)
+* **Goal**: Share and download custom configurations.
+* **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
+
+### 11. Local Cloud Save Auto-Sync (Proposed)
+* **Goal**: Keep saves backed up to the cloud automatically.
+* **Details**: Hook into local Google Drive/OneDrive/Dropbox folders to sync save backups upon game exit.
+
+### 12. Steam Deck / Proton Compatibility Optimization (Proposed)
+* **Goal**: Seamless Linux controller and path mapping.
+* **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
+
+---
+
+## 🧪 Plugins & Companion Overlays Backlog (Proposed)
+
+### 13. Centralized Settings & Customization for Plugins (Proposed)
 * **Goal**: Give players dynamic, GUI-driven control over plugin properties and behaviors.
 * **Details**:
   * Build a **Global Plugin Settings Card** in the Settings tab of FFXMM.
@@ -33,26 +71,26 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
   * **Overlay Appearance**: Dynamic controls for transparency/opacity, font sizes, snapped screen positioning (Top-Right, Bottom-Left), and click-through lock.
   * **Toggle Status**: Enable/disable individual trackers on/off dynamically.
 
-### 6. Main Manager & Plugin Inter-Process Communication (IPC) (Proposed)
+### 14. Main Manager & Plugin Inter-Process Communication (IPC) (Proposed)
 * **Goal**: Sync status, notifications, and logs between background overlay processes and FFXMM.
 * **Details**:
   * Implement a lightweight named pipe or socket IPC hook inside FFXMM.
   * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in FFXMM.
   * **Unified Logs**: Route warning/error logs from active trackers back to the Mod Manager's central console log window.
 
-### 7. Core Game Memory Hook API (Proposed)
+### 15. Core Game Memory Hook API (Proposed)
 * **Goal**: Consolidate memory scanning and handles inside FFXMM to simplify plugin code.
 * **Details**:
   * Run a master background game-hook thread in FFXMM to manage the process handle and UAC elevation checks.
   * Expose a clean, high-level wrapper API (e.g. `game.read_int()`) for plugins to scan memory without duplicating hex scanning or `ctypes` code.
 
-### 8. Mod-to-Plugin Integrations (Proposed)
+### 16. Mod-to-Plugin Integrations (Proposed)
 * **Goal**: Allow active mods to supply custom content directly to active plugins.
 * **Details**:
   * **Mod-Specific Guides**: Retranslation or story mods can bundle `walkthrough.json` to override the overlay walkthrough dynamically when activated.
   * **Gameplay Overhaul Compatibility**: Re-balance or recipe mods can bundle custom recipe lists to automatically update the Rikku's Mix Calculator plugin database.
 
-### 9. Open Plugin Developer SDK & Extensible Runner (Proposed)
+### 17. Open Plugin Developer SDK & Extensible Runner (Proposed)
 * **Goal**: Enable any mod creator or community member to write and test plugins easily.
 * **Details**:
   * **Current State & Limitations**:
@@ -78,63 +116,27 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
   * **Legacy Compatibility**: Gracefully auto-wrap older single-entry point plugin manifests into a standard single-tab component internally.
   * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
 
-### 10. Modern Glassmorphism UI Overhaul (Proposed)
-* **Goal**: Modernize the Tkinter UI to have a sleeker, web-like premium appearance.
-* **Details**: Implement semi-transparent glass card panels, rounded frame overlays, ambient glowing borders, and high-quality custom icons.
-
-### 11. Interactive Character Dashboard Profiles (Proposed)
-* **Goal**: Personalize the manager with FFX/FFX-2 character styles.
-* **Details**: Switch themes based on standard profiles (Tidus, Yuna, Rikku, Auron) and automatically shift the active color schemes, ambient artwork, and background details to match.
-
-### 12. Live Graphic Mod Asset Previewer (Proposed)
-* **Goal**: View mod graphics directly in the manager before enabling.
-* **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
-
-### 13. Monster Arena Capture Live Overlay (Proposed)
+### 18. Monster Arena Capture Live Overlay (Proposed)
 * **Goal**: Eliminate manual checks at the Calm Lands arena.
 * **Details**: Read live game memory to render a HUD overlay tracking captures (e.g. Calm Lands: 6/10 Coeurls) for active areas.
 
-### 14. Rikku Active Battle Mix Suggester (Proposed)
+### 19. Rikku Active Battle Mix Suggester (Proposed)
 * **Goal**: Suggest the best Mixes dynamically during active turns.
 * **Details**: Read in-battle inventory and target enemy vulnerabilities to overlay optimal Rikku Mix combinations.
 
-### 15. Al Bhed Translator and Collection Companion (Proposed)
+### 20. Al Bhed Translator and Collection Companion (Proposed)
 * **Goal**: Track missing primers and translate vocabulary.
 * **Details**: Read save data to list missing Primers and provide a side-panel dictionary translator tool.
 
-### 16. Blitzball Scouting and Tech Tracker (Proposed)
+### 21. Blitzball Scouting and Tech Tracker (Proposed)
 * **Goal**: Assist team building and tech copy alerts.
 * **Details**: Track player contract timers, tech copy availability, and tournament schedules in an active HUD.
 
-### 17. Interactive Sphere Grid Node Planner (Proposed)
+### 22. Interactive Sphere Grid Node Planner (Proposed)
 * **Goal**: Design and share character path maps.
 * **Details**: Render standard and expert sphere grid planners, allowing users to calculate SLvs and export build files.
 
-### 18. Built-in VBF Archive Explorer (Proposed)
-* **Goal**: Native unpacking and editing of main game archives.
-* **Details**: Add a lightweight `.vbf` parser to inspect and patch assets without requiring third-party tools.
-
-### 19. Drag-and-Drop FMOD Music Injector (Proposed)
-* **Goal**: Customize soundtracks easily.
-* **Details**: Convert MP3/WAV files to FMOD bank formats to swap audio files or combine original/arrange tracks.
-
-### 20. Visual Save Game Data Editor (Proposed)
-* **Goal**: Edit player inventory and coordinates natively.
-* **Details**: Embed a visual save modifier into the Saves tab to adjust Gil, stats, sphere grid nodes, and coordinates.
-
-### 21. Mod Presets and Modpack Bundling (Proposed)
-* **Goal**: Share and download custom configurations.
-* **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
-
-### 22. Local Cloud Save Auto-Sync (Proposed)
-* **Goal**: Keep saves backed up to the cloud automatically.
-* **Details**: Hook into local Google Drive/OneDrive/Dropbox folders to sync save backups upon game exit.
-
-### 23. Steam Deck / Proton Compatibility Optimization (Proposed)
-* **Goal**: Seamless Linux controller and path mapping.
-* **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
-
-### 24. Live Memory Offset Online Database Sync (Proposed)
+### 23. Live Memory Offset Online Database Sync (Proposed)
 * **Goal**: Auto-update game memory offsets if Steam patches the game.
 * **Details**: Pull latest memory offset JSON maps from a remote GitHub repository to prevent plugins from breaking during game updates.
 
