@@ -385,6 +385,16 @@ class FFXModManagerGUI:
             self.theme_selector.set(theme_name)
             
         # Update widgets recursively
+        if hasattr(self, "parent") and self.parent:
+            try:
+                self.parent.configure(bg=self.bg_color)
+            except Exception:
+                pass
+        if hasattr(self, "root") and self.root:
+            try:
+                self.root.configure(bg=self.bg_color)
+            except Exception:
+                pass
         self.update_widget_colors(self.parent)
         
         # Trigger redraw of mod cards to apply new border/background colors and preserve selection
@@ -412,7 +422,9 @@ class FFXModManagerGUI:
             return
             
         try:
-            if w_class == "Button":
+            if w_class in ("Tk", "Toplevel"):
+                widget.configure(bg=self.bg_color)
+            elif w_class == "Button":
                 is_primary = getattr(widget, "_is_primary", False)
                 is_success = getattr(widget, "_is_success", False)
                 is_danger = getattr(widget, "_is_danger", False)
