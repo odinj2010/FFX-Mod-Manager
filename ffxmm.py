@@ -1066,6 +1066,26 @@ class FFXModManagerGUI:
         self.bind_hover(btn_save_meta)
         ToolTip(btn_save_meta, "Save modifications made to this mod's metadata fields to its local manifest file.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
+        # Visual Preview Card (inside tab_info, under metadata)
+        self.preview_card = ttk.LabelFrame(self.tab_info, text=" Visual Preview ", padding=10)
+        self.preview_card.pack(fill="both", expand=True, pady=(5, 0))
+        
+        # Selector row (only visible when multiple images exist)
+        self.preview_select_row = ttk.Frame(self.preview_card, style="Card.TFrame")
+        self.preview_select_row.pack(fill="x", pady=(0, 5))
+        
+        lbl_preview_sel = ttk.Label(self.preview_select_row, text="Asset:")
+        lbl_preview_sel.pack(side="left", padx=(0, 5))
+        
+        self.cmb_preview_file = ttk.Combobox(self.preview_select_row, state="readonly", width=30)
+        self.cmb_preview_file.pack(side="left", fill="x", expand=True)
+        self.cmb_preview_file.bind("<<ComboboxSelected>>", self.on_preview_file_selected)
+        ToolTip(self.cmb_preview_file, "Choose which PNG image to preview from the mod's files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Image label
+        self.lbl_preview_img = tk.Label(self.preview_card, text="No preview available", font=("Segoe UI", 9, "italic"), fg=self.text_dim)
+        self.lbl_preview_img.pack(fill="both", expand=True)
+        
         # Tab 2: Files
         self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
         self.mod_details_notebook.add(self.tab_files, text=" Files ")
@@ -1916,9 +1936,11 @@ class FFXModManagerGUI:
             return
             
         png_files = []
+        # Strictly allow preview cover filenames up to 5 images total
+        allowed_names = {"preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png", "mod_preview.png", "cover.png"}
         for root, dirs, files in os.walk(mod_dir):
             for file in files:
-                if file.lower().endswith(".png"):
+                if file.lower() in allowed_names:
                     full_p = os.path.join(root, file)
                     rel = os.path.relpath(full_p, mod_dir)
                     # Use forward slashes for cross-platform and cleaner presentation
@@ -1926,17 +1948,17 @@ class FFXModManagerGUI:
                     
         if not png_files:
             self.preview_select_row.pack_forget()
-            self.lbl_preview_img.config(text="No preview files (.png) found in mod folder.")
+            self.lbl_preview_img.config(text="No preview files (e.g. preview.png, preview1.png) found.")
             return
             
-        # Prioritize files named preview.png, mod_preview.png, cover.png
-        priority_files = ["preview.png", "mod_preview.png", "cover.png"]
+        # Sort sequentially: base cover/previews first, then numbered variants
+        priority_files = ["preview.png", "mod_preview.png", "cover.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png"]
         
         def score_file(rel_path):
             name = os.path.basename(rel_path).lower()
             if name in priority_files:
                 return priority_files.index(name)
-            return len(priority_files) + len(rel_path)
+            return len(priority_files)
             
         png_files.sort(key=score_file)
         
