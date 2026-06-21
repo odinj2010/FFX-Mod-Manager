@@ -23,7 +23,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Details**:
   * Command-line argument handler to download files directly via Nexus API and install them immediately.
 
-### 4. Modern Glassmorphism UI Overhaul (Proposed)
+### 4. Modern Glassmorphism UI Overhaul (Completed)
 * **Goal**: Modernize the Tkinter UI to have a sleeker, web-like premium appearance.
 * **Details**: Implement semi-transparent glass card panels, rounded frame overlays, ambient glowing borders, and high-quality custom icons.
 
@@ -153,3 +153,4 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **Hover Tooltips**: custom dynamic themed tooltips on active mod cards.
 * [x] **Styled Plugins Tab Grouping**: dynamic sidebar container separation with highlighted borders for plugins.
 * [x] **Button Theme Colorizations**: styled standard/TTK buttons to match semantic custom themes (Action, Success, Caution, Utility) dynamically (Next_Release).
+* [x] **Modern Glassmorphism UI Overhaul**: reorganize page frames as floating cards with dynamic 1px glowing/accent borders, subframe dynamic styling, and theme compatibility (Next_Release).

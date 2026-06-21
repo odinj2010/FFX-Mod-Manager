@@ -39,6 +39,12 @@
     *   Plugin directory refresh and installed plugins refresh buttons.
 *   **Dynamic Theme Integration**: All new tooltips dynamically inherit and follow the active theme's colors.
 
+### Modern Glassmorphism UI Overhaul
+*   **Floating Card Containers**: Refactored the four main page frames to float within the content window as isolated glass card panels using a 1px solid border (`highlightthickness=1`, `bd=0`) mapped to the active theme's borders.
+*   **Recursive Parent Background Inheritance**: Programmed a dynamic parent-walking routine inside the widget styling updater to automatically match backgrounds of inner subframes, textareas, and canvases to their enclosing card's colors.
+*   **TTK Card Styles**: Introduced new custom style hooks `Card.TFrame` and `Card.TPanedwindow` for nested containers and paned sections to seamlessly blend card backdrops across the entire mods, saves, settings, and plugins layouts.
+*   **Active Accent Outlines**: Mapped widget focus states to the active theme's glowing accent colors, giving a premium active glowing outline effect to treeviews, textboxes, and entry fields when selected.
+
 ## Save File Management
 *   **Save File Import Assistant**: Added automatic scanning and extraction support for extensionless game save files (`ffx_###` / `ffx2_###`) inside imported ZIP/RAR archives.
 *   **Interactive Renaming & Conflict Resolution Dialog**: If save files are detected, a custom styled interactive assistant window pops up to show slot availability and let users assign custom destination slot numbers using a spinbox (auto-suggesting the first available slot to avoid overwriting current saves).

@@ -328,17 +328,22 @@ class FFXModManagerGUI:
         # Configure TTK Styles
         self.style.configure(".", background=self.bg_color, foreground=self.text_color)
         self.style.configure("TFrame", background=self.bg_color)
+        self.style.configure("Card.TFrame", background=self.card_color)
         self.style.configure("TLabel", background=self.bg_color, foreground=self.text_color)
         self.style.configure("Header.TLabel", foreground=self.accent_color, background=self.bg_color)
         self.style.configure("SubHeader.TLabel", foreground=self.text_dim, background=self.bg_color)
         self.style.configure("TLabelframe", background=self.bg_color, bordercolor=self.border_color)
         self.style.configure("TLabelframe.Label", background=self.bg_color, foreground=self.accent_color)
         self.style.configure("TPanedwindow", background=self.bg_color)
+        self.style.configure("Card.TPanedwindow", background=self.card_color)
         self.style.configure("TEntry", fieldbackground=self.card_color, foreground=self.text_color, 
                              bordercolor=self.border_color, lightcolor=self.border_color, darkcolor=self.border_color)
         self.style.map("TEntry",
                        fieldbackground=[("readonly", self.bg_color)],
-                       foreground=[("readonly", self.text_dim)])
+                       foreground=[("readonly", self.text_dim)],
+                       bordercolor=[("focus", self.accent_color), ("!focus", self.border_color)],
+                       lightcolor=[("focus", self.accent_color), ("!focus", self.border_color)],
+                       darkcolor=[("focus", self.accent_color), ("!focus", self.border_color)])
         self.style.configure("TCombobox", fieldbackground=self.card_color, background=self.card_color, 
                              foreground=self.text_color, arrowcolor=self.accent_color, bordercolor=self.border_color)
         self.style.map("TCombobox",
@@ -439,7 +444,11 @@ class FFXModManagerGUI:
             elif w_class == "Text":
                 widget.configure(bg="#0d0d0d" if self.bg_color != "#f3f4f6" else "#ffffff", 
                                  fg="#d1d5db" if self.bg_color != "#f3f4f6" else "#111827", 
-                                 insertbackground="white" if self.bg_color != "#f3f4f6" else "black")
+                                 insertbackground="white" if self.bg_color != "#f3f4f6" else "black",
+                                 highlightthickness=1,
+                                 highlightbackground=self.border_color,
+                                 highlightcolor=self.accent_color,
+                                 bd=0)
                                  
             elif w_class == "Frame":
                 is_card = getattr(widget, "_is_card", False)
@@ -447,13 +456,29 @@ class FFXModManagerGUI:
                 is_sidebar_panel = getattr(widget, "_is_sidebar_panel", False)
                 
                 if is_active_card:
-                    widget.configure(bg=self.card_color, highlightbackground=self.accent_color)
+                    widget.configure(bg=self.card_color, highlightbackground=self.accent_color, highlightthickness=1, bd=0)
                 elif is_card:
-                    widget.configure(bg=self.card_color, highlightbackground=self.border_color)
+                    widget.configure(bg=self.card_color, highlightbackground=self.border_color, highlightthickness=1, bd=0)
                 elif is_sidebar_panel:
                     widget.configure(bg=self.card_color)
                 else:
-                    widget.configure(bg=self.bg_color)
+                    parent_bg = self.bg_color
+                    curr = widget.master
+                    while curr:
+                        try:
+                            c_class = curr.winfo_class()
+                            if c_class in ("Frame", "Labelframe"):
+                                if getattr(curr, "_is_card", False) or getattr(curr, "_is_active_card", False) or getattr(curr, "_is_sidebar_panel", False):
+                                    parent_bg = self.card_color
+                                    break
+                            bg = curr.cget("bg")
+                            if bg:
+                                parent_bg = bg
+                                break
+                        except Exception:
+                            pass
+                        curr = curr.master
+                    widget.configure(bg=parent_bg)
                     
             elif w_class == "Labelframe":
                 is_sidebar_plugins = (hasattr(self, "sidebar_plugins_container") and widget == self.sidebar_plugins_container)
@@ -761,10 +786,14 @@ class FFXModManagerGUI:
         self.update_banner_frame.pack(fill="x", side="top", expand=False)
         
         # Standard Pages Frames
-        self.page_mods_frame = tk.Frame(self.content_container, bg=self.bg_color)
-        self.page_saves_frame = tk.Frame(self.content_container, bg=self.bg_color)
-        self.page_settings_frame = tk.Frame(self.content_container, bg=self.bg_color)
-        self.page_plugins_browser_frame = tk.Frame(self.content_container, bg=self.bg_color)
+        self.page_mods_frame = tk.Frame(self.content_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, bd=0)
+        self.page_mods_frame._is_card = True
+        self.page_saves_frame = tk.Frame(self.content_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, bd=0)
+        self.page_saves_frame._is_card = True
+        self.page_settings_frame = tk.Frame(self.content_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, bd=0)
+        self.page_settings_frame._is_card = True
+        self.page_plugins_browser_frame = tk.Frame(self.content_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, bd=0)
+        self.page_plugins_browser_frame._is_card = True
         
         # Register standard pages
         self.pages["mods"] = {
@@ -795,11 +824,12 @@ class FFXModManagerGUI:
         # ----------------------------------------------------
         # PAGE 1: MODS PANEL LAYOUT
         # ----------------------------------------------------
-        paned = ttk.Panedwindow(self.page_mods_frame, orient="horizontal")
+        self.page_mods_frame.config(padx=15, pady=15)
+        paned = ttk.Panedwindow(self.page_mods_frame, orient="horizontal", style="Card.TPanedwindow")
         paned.pack(fill="both", expand=True)
         
         # Left Panel - Mod list container
-        left_frame = ttk.Frame(paned)
+        left_frame = ttk.Frame(paned, style="Card.TFrame")
         paned.add(left_frame, weight=1)
         
         lbl_mod = tk.Label(left_frame, text="Available Mods", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
@@ -807,7 +837,7 @@ class FFXModManagerGUI:
         lbl_mod.pack(anchor="w", pady=(0, 5))
         
         # Search Bar
-        search_frame = ttk.Frame(left_frame)
+        search_frame = ttk.Frame(left_frame, style="Card.TFrame")
         search_frame.pack(fill="x", pady=(0, 10))
         
         lbl_search = tk.Label(search_frame, text="🔍", font=("Segoe UI", 10), bg=self.bg_color, fg=self.text_dim)
@@ -826,7 +856,7 @@ class FFXModManagerGUI:
         self.mod_search_var.trace_add("write", lambda *args: self.refresh_list())
 
         # Profile management row
-        profile_row = ttk.Frame(left_frame)
+        profile_row = ttk.Frame(left_frame, style="Card.TFrame")
         profile_row.pack(fill="x", pady=(0, 10))
         
         lbl_prof = ttk.Label(profile_row, text="Profile:")
@@ -856,11 +886,11 @@ class FFXModManagerGUI:
         ToolTip(btn_del_prof, "Permanently delete the selected mod profile.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Action buttons underneath card list
-        btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0))
+        btn_p_frame = ttk.Frame(left_frame, padding=(0, 8, 0, 0), style="Card.TFrame")
         btn_p_frame.pack(fill="x", side="bottom")
         
         # Row 1: Enable, Disable, Create, Import
-        row1 = ttk.Frame(btn_p_frame)
+        row1 = ttk.Frame(btn_p_frame, style="Card.TFrame")
         row1.pack(fill="x", pady=2)
         
         btn_enable = tk.Button(row1, text="⚡ Enable", command=self.enable_mod, bg=self.success_color,
@@ -891,7 +921,7 @@ class FFXModManagerGUI:
         ToolTip(btn_import, "Import and unpack a compressed zip/rar archive mod. Automatically restructures/normalizes folder paths.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Row 2: Delete, Refresh
-        row2 = ttk.Frame(btn_p_frame)
+        row2 = ttk.Frame(btn_p_frame, style="Card.TFrame")
         row2.pack(fill="x", pady=2)
         
         btn_del = tk.Button(row2, text="🗑️ Delete", command=self.delete_mod, bg=self.error_color,
@@ -902,7 +932,7 @@ class FFXModManagerGUI:
         ToolTip(btn_del, "Permanently delete this mod's repository folder and all contained assets from your computer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Load Order control frame (only packed when in Fahrenheit mode)
-        self.load_order_frame = ttk.Frame(btn_p_frame)
+        self.load_order_frame = ttk.Frame(btn_p_frame, style="Card.TFrame")
         
         btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
                                 fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
@@ -923,13 +953,13 @@ class FFXModManagerGUI:
         ToolTip(btn_refresh, "Force a disk rescan of enabled and disabled folders to refresh the mods list state.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
 
         # Scrollable Mod Cards Frame
-        cards_pane = ttk.Frame(left_frame)
+        cards_pane = ttk.Frame(left_frame, style="Card.TFrame")
         cards_pane.pack(fill="both", expand=True, side="top")
         
         self.cards_canvas = tk.Canvas(cards_pane, bg=self.bg_color, highlightthickness=0, borderwidth=0)
         self.cards_scrollbar = ttk.Scrollbar(cards_pane, orient="vertical", command=self.cards_canvas.yview)
         
-        self.mod_cards_container = ttk.Frame(self.cards_canvas)
+        self.mod_cards_container = ttk.Frame(self.cards_canvas, style="Card.TFrame")
         self.cards_canvas.configure(yscrollcommand=self.cards_scrollbar.set)
         
         self.cards_scrollbar.pack(side="right", fill="y")
@@ -955,7 +985,7 @@ class FFXModManagerGUI:
         self.cards_canvas.bind("<Leave>", unbind_cards_mouse)
         
         # Right Panel - Mod Details
-        right_frame = ttk.Frame(paned, padding=(15, 0, 0, 0))
+        right_frame = ttk.Frame(paned, padding=(15, 0, 0, 0), style="Card.TFrame")
         paned.add(right_frame, weight=1)
         
         self.lbl_mod_title = tk.Label(right_frame, text="Selected Mod: <None>", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
@@ -967,7 +997,7 @@ class FFXModManagerGUI:
         self.mod_details_notebook.pack(fill="both", expand=True)
         
         # Tab 1: Information
-        self.tab_info = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.tab_info = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
         self.mod_details_notebook.add(self.tab_info, text=" Information ")
         
         # Metadata Card (now inside tab_info)
@@ -1005,7 +1035,7 @@ class FFXModManagerGUI:
         ToolTip(self.ent_nexus_id, "The official mod ID on Nexus Mods website (used to check for updates).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Mod Link:").grid(row=6, column=0, sticky="w", pady=2)
-        link_row = ttk.Frame(meta_frame)
+        link_row = ttk.Frame(meta_frame, style="Card.TFrame")
         link_row.grid(row=6, column=1, sticky="w", padx=5, pady=2)
         
         self.ent_mod_link = ttk.Entry(link_row, width=22)
@@ -1025,10 +1055,10 @@ class FFXModManagerGUI:
         ToolTip(btn_save_meta, "Save modifications made to this mod's metadata fields to its local manifest file.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Tab 2: Files
-        self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
         self.mod_details_notebook.add(self.tab_files, text=" Files ")
         
-        files_frame = ttk.Frame(self.tab_files)
+        files_frame = ttk.Frame(self.tab_files, style="Card.TFrame")
         files_frame.pack(fill="both", expand=True)
         
         self.tree_files = ttk.Treeview(files_frame, columns=("relpath", "size"), show="headings")
@@ -1043,7 +1073,7 @@ class FFXModManagerGUI:
         self.tree_files.config(yscrollcommand=scroll_f.set)
         
         # File Operations (inside tab_files)
-        file_ops = ttk.Frame(self.tab_files, padding=(0, 5, 0, 0))
+        file_ops = ttk.Frame(self.tab_files, padding=(0, 5, 0, 0), style="Card.TFrame")
         file_ops.pack(fill="x")
         
         btn_import_f = tk.Button(file_ops, text="Import File(s)...", command=self.import_files, bg=self.accent_color,
@@ -1067,7 +1097,7 @@ class FFXModManagerGUI:
         ToolTip(btn_open_f, "Open the folder containing the selected file in File Explorer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Tab 3: Conflicts
-        self.tab_conflicts = ttk.Frame(self.mod_details_notebook, padding=10)
+        self.tab_conflicts = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
         self.mod_details_notebook.add(self.tab_conflicts, text=" Conflicts ")
         
         self.lbl_conflict_summary = tk.Label(self.tab_conflicts, text="No conflicts detected.", font=("Segoe UI", 10), fg=self.success_color, bg=self.bg_color, wraplength=400, justify="left")
@@ -3575,11 +3605,11 @@ class FFXModManagerGUI:
         lbl_title._is_title = True
         lbl_title.pack(anchor="w", pady=(0, 15))
         
-        paned = ttk.Panedwindow(frame, orient="horizontal")
+        paned = ttk.Panedwindow(frame, orient="horizontal", style="Card.TPanedwindow")
         paned.pack(fill="both", expand=True)
         
         # Left Panel - Live Game Saves
-        left_panel = ttk.Frame(paned)
+        left_panel = ttk.Frame(paned, style="Card.TFrame")
         paned.add(left_panel, weight=1)
         
         lbl_live_title = tk.Label(left_panel, text="Live Game Saves (Documents)", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
@@ -3602,7 +3632,7 @@ class FFXModManagerGUI:
         self.tree_live_saves.config(yscrollcommand=scroll_l.set)
         
         # Save Actions (Middle Control buttons block)
-        ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0))
+        ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0), style="Card.TFrame")
         ctrl_frame.pack(fill="x", side="bottom")
         
         btn_backup = tk.Button(ctrl_frame, text="📥 Backup", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
@@ -3626,7 +3656,7 @@ class FFXModManagerGUI:
         ToolTip(btn_delete_b, "Permanently delete the selected backup snapshot file from disk.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Right Panel - Backups
-        right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0))
+        right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0), style="Card.TFrame")
         paned.add(right_panel, weight=1)
         
         lbl_backup_title = tk.Label(right_panel, text="FFXMM Backup Logs Repository", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
@@ -3869,21 +3899,21 @@ class FFXModManagerGUI:
         self.plugins_notebook.pack(fill="both", expand=True)
         
         # Tab 1: Directory
-        self.tab_plugin_directory = ttk.Frame(self.plugins_notebook)
+        self.tab_plugin_directory = ttk.Frame(self.plugins_notebook, style="Card.TFrame")
         self.plugins_notebook.add(self.tab_plugin_directory, text="🔌 Plugin Directory")
         
         # Tab 2: Installed
-        self.tab_installed_plugins = ttk.Frame(self.plugins_notebook)
+        self.tab_installed_plugins = ttk.Frame(self.plugins_notebook, style="Card.TFrame")
         self.plugins_notebook.add(self.tab_installed_plugins, text="📦 Installed Plugins")
         
         # Build Directory Tab UI
-        self.plugins_list_container = ttk.Frame(self.tab_plugin_directory)
+        self.plugins_list_container = ttk.Frame(self.tab_plugin_directory, style="Card.TFrame")
         self.plugins_list_container.pack(fill="both", expand=True, padx=5, pady=5)
         
         self.plugins_canvas = tk.Canvas(self.plugins_list_container, bg=self.bg_color, highlightthickness=0, borderwidth=0)
         self.plugins_scrollbar = ttk.Scrollbar(self.plugins_list_container, orient="vertical", command=self.plugins_canvas.yview)
         
-        self.plugins_grid = ttk.Frame(self.plugins_canvas)
+        self.plugins_grid = ttk.Frame(self.plugins_canvas, style="Card.TFrame")
         self.plugins_canvas.configure(yscrollcommand=self.plugins_scrollbar.set)
         
         self.plugins_scrollbar.pack(side="right", fill="y")
@@ -3921,13 +3951,13 @@ class FFXModManagerGUI:
         self.refresh_installed_plugins_list()
 
     def create_installed_plugins_ui(self):
-        self.installed_list_container = ttk.Frame(self.tab_installed_plugins)
+        self.installed_list_container = ttk.Frame(self.tab_installed_plugins, style="Card.TFrame")
         self.installed_list_container.pack(fill="both", expand=True, padx=5, pady=5)
         
         self.installed_canvas = tk.Canvas(self.installed_list_container, bg=self.bg_color, highlightthickness=0, borderwidth=0)
         self.installed_scrollbar = ttk.Scrollbar(self.installed_list_container, orient="vertical", command=self.installed_canvas.yview)
         
-        self.installed_grid = ttk.Frame(self.installed_canvas)
+        self.installed_grid = ttk.Frame(self.installed_canvas, style="Card.TFrame")
         self.installed_canvas.configure(yscrollcommand=self.installed_scrollbar.set)
         
         self.installed_scrollbar.pack(side="right", fill="y")
