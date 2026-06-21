@@ -1,6 +1,6 @@
-# FFX Mod Manager Plugin Development Guide
+# Spira Mod Manager Plugin Development Guide
 
-Welcome! The FFX Mod Manager features an open, generic plugin loading system. Anyone can build custom modules—such as save editors, database lookups, speedrun splits, notes viewers, or live in-game HUD trackers—by dropping a folder into the `plugins/` directory.
+Welcome! The Spira Mod Manager features an open, generic plugin loading system. Anyone can build custom modules—such as save editors, database lookups, speedrun splits, notes viewers, or live in-game HUD trackers—by dropping a folder into the `plugins/` directory.
 
 This guide is structured to help **both non-coders** and **advanced programmers** build plugins.
 
@@ -12,7 +12,7 @@ If you have **no coding experience**, you can still create a custom tab in the M
 Follow these 4 simple steps:
 
 ### Step A: Create the Folders
-1. Navigate to the FFX Mod Manager folder.
+1. Navigate to the Spira Mod Manager folder.
 2. Open the `plugins` folder.
 3. Create a new folder inside it named `my_notes_tab`.
 
@@ -114,7 +114,7 @@ class NotesTab:
 ```
 
 ### Step D: Try it Out!
-Launch **`FFX Mod Manager.exe`** (or restart it if it is already open). You will see your new custom tab **📝 My Notes & Guides** show up in the left-sidebar! Try switching appearance themes in Settings—the notes page and text will update colors dynamically!
+Launch **`SpiraModManager.exe`** (or restart it if it is already open). You will see your new custom tab **📝 My Notes & Guides** show up in the left-sidebar! Try switching appearance themes in Settings—the notes page and text will update colors dynamically!
 
 ---
 
@@ -261,7 +261,7 @@ The Mod Manager dynamically loads all plugins into a single Python process. If m
 *   **Rule**: Always use relative imports (e.g., `from . import helper` or `from .utils import my_func`) for sub-files within your plugin directory. Do not use top-level absolute imports (like `import utils`).
 
 ### B. Standard Library Constraints for `gui.py`
-The compiled `FFX Mod Manager.exe` runs in a frozen PyInstaller environment that only bundles the Python Standard Library and Tkinter.
+The compiled `SpiraModManager.exe` runs in a frozen PyInstaller environment that only bundles the Python Standard Library and Tkinter.
 *   **Constraint**: Your `gui.py` script **cannot** import external libraries (like `requests`, `psutil`, or `pymem`). Keep `gui.py` lightweight, focusing only on the user interface using Python's standard library.
 
 ### C. Build a Standalone `tracker.exe`

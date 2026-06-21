@@ -177,7 +177,7 @@ def show_toast(title, message):
     $toastXml.toast.visual.binding.text[1].InnerText = "{message}"
     $xml.LoadXml($toastXml.OuterXml)
     $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
-    [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("FFX Mod Manager").Show($toast)
+    [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Spira Mod Manager").Show($toast)
     """
     try:
         subprocess.Popen(

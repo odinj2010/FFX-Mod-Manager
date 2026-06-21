@@ -1,4 +1,4 @@
-# 🎮 FFX Mod Manager
+# 🎮 Spira Mod Manager
 
 A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD Remaster** (Steam). Built with a modern dark interface, it handles installation, conflict resolution, load order, saves backups, and restores automatically while saving disk space.
 
@@ -8,12 +8,12 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
 
-### [👉 Click here to download the Newest Stable Release (v3.0.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.0.1/ffxmm.zip)
+### [👉 Click here to download the Newest Stable Release (v3.1.0) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.1.0/ffxmm.zip)
 
 ### 🚀 Easy Installation Steps
 1. **Download** the zip archive using the link above.
-2. **Extract** the files (The entire ffxmm folder, it has the `ffxmm.exe`, `themes/` folder and `plugins/` folder inside it) **anywhere on your computer** (you do not have to place it inside the main game directory; you can simply select your game directory on first launch).
-3. **Run** `ffxmm.exe` to launch the manager!
+2. **Extract** the files (The entire ffxmm folder, it has the `SpiraModManager.exe`, `themes/` folder and `plugins/` folder inside it) **anywhere on your computer** (you do not have to place it inside the main game directory; you can simply select your game directory on first launch).
+3. **Run** `SpiraModManager.exe` to launch the manager!
 
 ---
 

@@ -1,4 +1,4 @@
-# FFX Mod Manager Changelog - Next_Release
+# Spira Mod Manager Changelog - Next_Release
 
 ## UI Layout and Configuration Updates
 

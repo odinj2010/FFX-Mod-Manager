@@ -1,4 +1,4 @@
-# FFX Mod Manager Project Backlog & Brainstorm Memory
+# Spira Mod Manager Project Backlog & Brainstorm Memory
 
 This file serves as the long-term memory for tracking feature ideas, polishes, and community requests. Items are split between the Main Application and the Plugin Ecosystem, and remain here until they are either completed or explicitly discarded.
 

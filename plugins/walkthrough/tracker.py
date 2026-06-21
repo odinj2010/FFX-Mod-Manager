@@ -62,8 +62,8 @@ class WalkthroughOverlayHUD:
             # Show user-friendly popup warning about elevation/permissions
             user32.MessageBoxW(
                 0,
-                "Failed to open FFX game process handle.\n\nIf Final Fantasy X is running as Administrator (e.g. via Steam with high privileges), you must run FFX Mod Manager as Administrator as well for overlays to work.",
-                "FFX Mod Manager - Walkthrough Plugin Error",
+                "Failed to open FFX game process handle.\n\nIf Final Fantasy X is running as Administrator (e.g. via Steam with high privileges), you must run Spira Mod Manager as Administrator as well for overlays to work.",
+                "Spira Mod Manager - Walkthrough Plugin Error",
                 0x10 # MB_ICONERROR
             )
             sys.exit(1)

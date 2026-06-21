@@ -54,8 +54,8 @@ class RikkuMixOverlayHUD:
             # Show user-friendly popup warning about elevation/permissions
             user32.MessageBoxW(
                 0,
-                "Failed to open FFX game process handle.\n\nIf Final Fantasy X is running as Administrator, you must run FFX Mod Manager as Administrator as well for overlays to work.",
-                "FFX Mod Manager - Rikku's Mix Plugin Error",
+                "Failed to open FFX game process handle.\n\nIf Final Fantasy X is running as Administrator, you must run Spira Mod Manager as Administrator as well for overlays to work.",
+                "Spira Mod Manager - Rikku's Mix Plugin Error",
                 0x10 # MB_ICONERROR
             )
             sys.exit(1)

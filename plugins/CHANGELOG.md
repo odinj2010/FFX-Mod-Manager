@@ -1,6 +1,6 @@
-# FFX Mod Manager - Plugins Changelog
+# Spira Mod Manager - Plugins Changelog
 
-This changelog tracks updates, bug fixes, and feature improvements for the official FFX Mod Manager plugins (Achievements & Walkthrough overlays).
+This changelog tracks updates, bug fixes, and feature improvements for the official Spira Mod Manager plugins (Achievements & Walkthrough overlays).
 
 ## [v1.4] - 2026-06-20
 

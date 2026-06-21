@@ -5202,7 +5202,7 @@ class FFXModManagerGUI:
         disp_new = new_ver if new_ver.upper().startswith("V") else f"v{new_ver}"
         disp_local = APP_VERSION if APP_VERSION.upper().startswith("V") else f"v{APP_VERSION}"
         
-        lbl_msg = tk.Label(banner, text=f"🚀 A new version of FFX Mod Manager is available: {disp_new} (Current: {disp_local})", 
+        lbl_msg = tk.Label(banner, text=f"🚀 A new version of Spira Mod Manager is available: {disp_new} (Current: {disp_local})", 
                            bg=banner.cget("bg"), fg="#ffffff" if self.bg_color != "#f3f4f6" else "#1e3a8a", font=("Segoe UI", 9, "bold"))
         lbl_msg.pack(side="left")
         
