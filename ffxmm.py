@@ -1085,6 +1085,7 @@ class FFXModManagerGUI:
         # Image label
         self.lbl_preview_img = tk.Label(self.preview_card, text="No preview available", font=("Segoe UI", 9, "italic"), fg=self.text_dim)
         self.lbl_preview_img.pack(fill="both", expand=True)
+        self.lbl_preview_img.bind("<Configure>", self.on_preview_resize)
         
         # Tab 2: Files
         self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
@@ -1974,25 +1975,64 @@ class FFXModManagerGUI:
     def display_preview_image(self, base_dir, rel_path):
         img_path = os.path.join(base_dir, rel_path)
         if not os.path.exists(img_path):
-            self.lbl_preview_img.config(text="Image file not found.")
+            self.original_preview_image = None
+            self.active_preview_image = None
+            self.lbl_preview_img.config(image="", text="Image file not found.")
             return
             
         try:
-            # Native Tkinter PhotoImage loader
+            # Native Tkinter PhotoImage loader (original scale)
             photo = tk.PhotoImage(file=img_path)
+            self.original_preview_image = photo
+            self.current_preview_factor = None
+            
+            # Fetch current label dimensions (fallback if not mapped yet)
+            lbl_w = self.lbl_preview_img.winfo_width()
+            lbl_h = self.lbl_preview_img.winfo_height()
+            if lbl_w < 50:
+                lbl_w = 350
+            if lbl_h < 50:
+                lbl_h = 300
+                
             width = photo.width()
             height = photo.height()
             
-            # Simple downsampling factor if image is too large for details pane
-            # Target size is 350x300 pixels
-            factor = max(1, width // 350, height // 300)
-            if factor > 1:
-                photo = photo.subsample(factor)
-                
-            self.active_preview_image = photo
-            self.lbl_preview_img.config(image=photo, text="")
+            factor = max(1, width // lbl_w, height // lbl_h)
+            self.current_preview_factor = factor
+            
+            scaled_photo = photo.subsample(factor) if factor > 1 else photo
+            self.active_preview_image = scaled_photo
+            self.lbl_preview_img.config(image=scaled_photo, text="")
         except Exception as e:
-            self.lbl_preview_img.config(text=f"Failed to render image: {e}")
+            self.original_preview_image = None
+            self.active_preview_image = None
+            self.lbl_preview_img.config(image="", text=f"Failed to render image: {e}")
+            
+    def on_preview_resize(self, event):
+        if not hasattr(self, "original_preview_image") or not self.original_preview_image:
+            return
+            
+        lbl_w = event.width
+        lbl_h = event.height
+        
+        # Avoid calculations on microscopic dimensions
+        if lbl_w < 50 or lbl_h < 50:
+            return
+            
+        orig_w = self.original_preview_image.width()
+        orig_h = self.original_preview_image.height()
+        
+        factor = max(1, orig_w // lbl_w, orig_h // lbl_h)
+        if getattr(self, "current_preview_factor", None) == factor:
+            return
+            
+        self.current_preview_factor = factor
+        try:
+            scaled_photo = self.original_preview_image.subsample(factor)
+            self.active_preview_image = scaled_photo
+            self.lbl_preview_img.config(image=scaled_photo)
+        except Exception:
+            pass
             
     def on_preview_file_selected(self, event=None):
         if not hasattr(self, "selected_mod_id") or not self.selected_mod_id:
