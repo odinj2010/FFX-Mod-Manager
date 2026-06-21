@@ -1925,11 +1925,8 @@ class FFXModManagerGUI:
         self.active_preview_image = None
         self.lbl_preview_img.config(image="", text="No preview available")
         
-        # Scan mod files inside both mod repository and active files directory for PNGs
-        mod_status = self.get_mod_status(mod_id)
+        # Always scan the mod files inside the local mod repository directory
         mod_dir = os.path.join(self.mods_disabled_dir, mod_id)
-        if mod_status == "Enabled":
-            mod_dir = self.get_active_files_dir(mod_id)
             
         if not os.path.exists(mod_dir):
             self.preview_select_row.pack_forget()
@@ -2001,10 +1998,8 @@ class FFXModManagerGUI:
         if not hasattr(self, "selected_mod_id") or not self.selected_mod_id:
             return
             
-        mod_status = self.get_mod_status(self.selected_mod_id)
+        # Always load from the local mod repository directory
         mod_dir = os.path.join(self.mods_disabled_dir, self.selected_mod_id)
-        if mod_status == "Enabled":
-            mod_dir = self.get_active_files_dir(self.selected_mod_id)
             
         selected_rel = self.cmb_preview_file.get()
         if selected_rel:
