@@ -22,6 +22,7 @@
 *   **Saves Tab Button Compaction**: Shortened Saves action buttons to single-word labels (`📥 Backup`, `⏪ Restore`, `🗑️ Delete`, `🔄 Refresh`) to align with the compact and square layout theme.
 *   **2-Column Plugin Browser Layout**: Restructured both the "Plugin Directory" and "Installed Plugins" tabs to render cards in a side-by-side, 2-column grid layout, making them much more compact and squarer. Set description text wraps to 350px.
 *   **Plugin Signature Placement**: Shuffled the plugin creator name label from the header row down below the action buttons as a right-aligned signature.
+*   **Dynamic Sidebar Logo Text**: Exposed the sidebar logo label and updated it to dynamically switch between "FFX MODS" and "FFX-2 MODS" based on the selected game mode.
 
 ### Theme System & Button Colorizations
 *   **Customizable Semantic Button Colors**: Added customizable theme properties for semantic button categories: Action/Accept, Caution/Danger, Success/Enable, and Utility/Default.

@@ -751,9 +751,9 @@ class FFXModManagerGUI:
         self.sidebar.pack(side="left", fill="y")
         
         # Logo/Header inside Sidebar
-        lbl_logo = tk.Label(self.sidebar, text="🎮 FFX MODS", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color, pady=10)
-        lbl_logo._is_title = True
-        lbl_logo.pack(fill="x")
+        self.lbl_logo = tk.Label(self.sidebar, text=f"🎮 {self.active_game_mode} MODS", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color, pady=10)
+        self.lbl_logo._is_title = True
+        self.lbl_logo.pack(fill="x")
         
         # Game Mode Switcher
         switcher_frame = tk.Frame(self.sidebar, bg=self.card_color)
@@ -1454,6 +1454,8 @@ class FFXModManagerGUI:
         if new_mode != self.active_game_mode:
             self.active_game_mode = new_mode
             self.log(f"Switched game mode to {new_mode}.", "info")
+            if hasattr(self, "lbl_logo") and self.lbl_logo:
+                self.lbl_logo.config(text=f"🎮 {new_mode} MODS")
             self.init_paths()
             self.save_config()
             
