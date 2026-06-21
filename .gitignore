@@ -25,7 +25,7 @@ Thumbs.db
 *.tar.gz
 
 # Local user configs (don't overwrite users' directory settings!)
-ffxmm_config.json
+spiramm_config.json
 ffx_mod_manager_config.json
 ffx_modding_toolbox_config.json
 ffx_phyre_tool_config.json

@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 a = Analysis(
-    ['ffxmm.py'],
+    ['spiramm.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -34,6 +34,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='ffxmm_version.txt',
-    icon='FFXMM.ico',
+    version='spiramm_version.txt',
+    icon='SpiraMM.ico',
 )

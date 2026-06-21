@@ -85,7 +85,7 @@ To compile the Python script into a single, optimized `.exe` distribution:
    ```bash
    python compile_mod_manager.py
    ```
-The compiled executable will be located in the `dist/ffxmm.exe` directory.
+The compiled executable will be located in the `dist/SpiraModManager.exe` directory.
 
 ### Custom Plugin Index
 The **Plugin Browser** fetches from `plugins.json` in the remote repository. The format is structured as follows:

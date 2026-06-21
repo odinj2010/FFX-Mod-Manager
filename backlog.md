@@ -66,22 +66,22 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 ### 13. Centralized Settings & Customization for Plugins (Proposed)
 * **Goal**: Give players dynamic, GUI-driven control over plugin properties and behaviors.
 * **Details**:
-  * Build a **Global Plugin Settings Card** in the Settings tab of FFXMM.
+  * Build a **Global Plugin Settings Card** in the Settings tab of SpiraMM.
   * **Hotkey Rebinding**: Allow users to customize toggle keys (e.g. rebinding `F8` or `F9`) directly in the manager.
   * **Overlay Appearance**: Dynamic controls for transparency/opacity, font sizes, snapped screen positioning (Top-Right, Bottom-Left), and click-through lock.
   * **Toggle Status**: Enable/disable individual trackers on/off dynamically.
 
 ### 14. Main Manager & Plugin Inter-Process Communication (IPC) (Proposed)
-* **Goal**: Sync status, notifications, and logs between background overlay processes and FFXMM.
+* **Goal**: Sync status, notifications, and logs between background overlay processes and SpiraMM.
 * **Details**:
-  * Implement a lightweight named pipe or socket IPC hook inside FFXMM.
-  * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in FFXMM.
+  * Implement a lightweight named pipe or socket IPC hook inside SpiraMM.
+  * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in SpiraMM.
   * **Unified Logs**: Route warning/error logs from active trackers back to the Mod Manager's central console log window.
 
 ### 15. Core Game Memory Hook API (Proposed)
-* **Goal**: Consolidate memory scanning and handles inside FFXMM to simplify plugin code.
+* **Goal**: Consolidate memory scanning and handles inside SpiraMM to simplify plugin code.
 * **Details**:
-  * Run a master background game-hook thread in FFXMM to manage the process handle and UAC elevation checks.
+  * Run a master background game-hook thread in SpiraMM to manage the process handle and UAC elevation checks.
   * Expose a clean, high-level wrapper API (e.g. `game.read_int()`) for plugins to scan memory without duplicating hex scanning or `ctypes` code.
 
 ### 16. Mod-to-Plugin Integrations (Proposed)
@@ -98,20 +98,20 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
     * If a developer wants to make a plugin that doesn't need a UI tab (like a Discord Rich Presence status updater, an automatic save backup script, or a hotkey overlay that runs completely in the background), they are currently forced to write a dummy Tkinter UI class just to make the manager happy.
   * **Dynamic Python Runner**: Execute raw `.py` scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled Python interpreter, bypassing PyInstaller compilation requirements.
   * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
-  * **Flexible Component-Based Architecture**: Make the plugin loader incredibly flexible by defining a `"type"` property inside `plugin.json` (or an array of components). This tells FFXMM exactly how to handle and execute the plugin:
+  * **Flexible Component-Based Architecture**: Make the plugin loader incredibly flexible by defining a `"type"` property inside `plugin.json` (or an array of components). This tells SpiraMM exactly how to handle and execute the plugin:
     1. **Tab Plugins (Standard)**:
        * Manifest: `{"name": "Rikku's Mix Calculator", "type": "tab", "entry_point": "gui.RikkuMixTab"}`
-       * Behavior: FFXMM renders a dedicated sidebar button and loads the UI component.
+       * Behavior: SpiraMM renders a dedicated sidebar button and loads the UI component.
     2. **Background Service Plugins (No GUI)**:
        * Manifest: `{"name": "Discord Rich Presence", "type": "background", "entry_point": "presence.py"}`
-       * Behavior: FFXMM doesn't create a sidebar tab. Instead, it spins up `presence.py` as an asynchronous background thread or process the moment the manager launches and shuts it down when FFXMM closes.
+       * Behavior: SpiraMM doesn't create a sidebar tab. Instead, it spins up `presence.py` as an asynchronous background thread or process the moment the manager launches and shuts it down when SpiraMM closes.
     3. **Command/Utility Plugins (One-click tools)**:
        * Manifest: `{"name": "Save Game Decryptor", "type": "utility", "entry_point": "decrypt.py", "button_text": "🔓 Decrypt Selected Save"}`
-       * Behavior: FFXMM adds the action button automatically to a shared "Toolkit" panel. Clicking it simply runs `decrypt.py` with active game context.
+       * Behavior: SpiraMM adds the action button automatically to a shared "Toolkit" panel. Clicking it simply runs `decrypt.py` with active game context.
     4. **Event Listener Plugins (Reactive scripts)**:
        * Manifest: `{"name": "Game Launch Optimizer", "type": "listener", "entry_point": "optimize.py", "events": ["on_game_launch", "on_game_exit"]}`
-       * Behavior: FFXMM imports the script and triggers its callback functions when the specified events occur.
-  * **Language Portability**: If the entry point is an executable (e.g. `entry_point: "my_tool.exe"`), FFXMM can spawn it as a subprocess, allowing plugins to be written in C++, C#, Go, Rust, or Python.
+       * Behavior: SpiraMM imports the script and triggers its callback functions when the specified events occur.
+  * **Language Portability**: If the entry point is an executable (e.g. `entry_point: "my_tool.exe"`), SpiraMM can spawn it as a subprocess, allowing plugins to be written in C++, C#, Go, Rust, or Python.
   * **Zero Boilerplate**: If a developer just wants to run a background Python script, their entire plugin is just `plugin.json` and a single script file—no Tkinter code, no GUI wrapping, and no compilers required.
   * **Legacy Compatibility**: Gracefully auto-wrap older single-entry point plugin manifests into a standard single-tab component internally.
   * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.

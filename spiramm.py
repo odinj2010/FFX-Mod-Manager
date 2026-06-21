@@ -22,7 +22,7 @@ if getattr(sys, 'frozen', False):
     _base_dir = os.path.dirname(sys.executable)
 else:
     _base_dir = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(_base_dir, "ffxmm_config.json")
+CONFIG_FILE = os.path.join(_base_dir, "spiramm_config.json")
 APP_VERSION = "3.1.0"
 
 def encode_metadata(data_dict):
@@ -3839,7 +3839,7 @@ class FFXModManagerGUI:
         btn_backup = tk.Button(ctrl_frame, text="📥 Backup", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
         btn_backup.pack(side="left", padx=5)
         self.bind_hover(btn_backup, is_primary=True)
-        ToolTip(btn_backup, "Copy the selected live save file into the local FFXMM backups storage with a custom description label.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        ToolTip(btn_backup, "Copy the selected live save file into the local SpiraMM backups storage with a custom description label.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_restore = tk.Button(ctrl_frame, text="⏪ Restore", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
         btn_restore.pack(side="left", padx=5)
@@ -3860,7 +3860,7 @@ class FFXModManagerGUI:
         right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0), style="Card.TFrame")
         paned.add(right_panel, weight=1)
         
-        lbl_backup_title = tk.Label(right_panel, text="FFXMM Backup Logs Repository", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_backup_title = tk.Label(right_panel, text="SpiraMM Backup Logs Repository", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
         lbl_backup_title._is_title = True
         lbl_backup_title.pack(anchor="w", pady=(0, 5))
         
@@ -5167,7 +5167,7 @@ class FFXModManagerGUI:
         self.log("Running diagnostics on game directories...")
         
         # 1. Check permissions (attempt write a dummy file)
-        dummy_path = os.path.join(self.game_dir, "_ffxmm_perm_test.tmp")
+        dummy_path = os.path.join(self.game_dir, "_spiramm_perm_test.tmp")
         write_ok = False
         try:
             with open(dummy_path, "w") as f:
@@ -5214,7 +5214,7 @@ class FFXModManagerGUI:
         try:
             req = urllib.request.Request(
                 "https://api.github.com/repos/odinj2010/FFX-Mod-Manager/releases/latest",
-                headers={'User-Agent': 'FFXMM-Update-Checker'}
+                headers={'User-Agent': 'SpiraMM-Update-Checker'}
             )
             with urllib.request.urlopen(req, timeout=4.0) as response:
                 data = json.loads(response.read().decode('utf-8'))
@@ -5295,7 +5295,7 @@ class FFXModManagerGUI:
                 
             def open_nexus():
                 import webbrowser
-                # Static Nexus FFXMM mods page link
+                # Static Nexus SpiraMM mods page link
                 webbrowser.open("https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/327")
                 dialog.destroy()
                 
