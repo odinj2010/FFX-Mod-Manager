@@ -12,7 +12,7 @@ If you are a player looking to download the latest version, click the link below
 
 ### 🚀 Easy Installation Steps
 1. **Download** the zip archive using the link above.
-2. **Extract** the files (The entire ffxmm folder, it has the `SpiraModManager.exe`, `themes/` folder and `plugins/` folder inside it) **anywhere on your computer** (you do not have to place it inside the main game directory; you can simply select your game directory on first launch).
+2. **Extract** the files (The entire Spira Mod Manager folder, it has the `SpiraModManager.exe`, `themes/` folder and `plugins/` folder inside it) **anywhere on your computer** (you do not have to place it inside the main game directory; you can simply select your game directory on first launch).
 3. **Run** `SpiraModManager.exe` to launch the manager!
 
 ---
