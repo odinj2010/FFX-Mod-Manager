@@ -1896,6 +1896,97 @@ class FFXModManagerGUI:
             
         # Update Conflict Tab
         self.update_conflict_ui(mod_id)
+        
+        # Update Visual Preview
+        self.update_mod_preview(mod_id)
+
+    def update_mod_preview(self, mod_id):
+        # Reset image reference
+        self.active_preview_image = None
+        self.lbl_preview_img.config(image="", text="No preview available")
+        
+        # Scan mod files inside both mod repository and active files directory for PNGs
+        mod_status = self.get_mod_status(mod_id)
+        mod_dir = os.path.join(self.mods_disabled_dir, mod_id)
+        if mod_status == "Enabled":
+            mod_dir = self.get_active_files_dir(mod_id)
+            
+        if not os.path.exists(mod_dir):
+            self.preview_select_row.pack_forget()
+            return
+            
+        png_files = []
+        for root, dirs, files in os.walk(mod_dir):
+            for file in files:
+                if file.lower().endswith(".png"):
+                    full_p = os.path.join(root, file)
+                    rel = os.path.relpath(full_p, mod_dir)
+                    # Use forward slashes for cross-platform and cleaner presentation
+                    png_files.append(rel.replace("\\", "/"))
+                    
+        if not png_files:
+            self.preview_select_row.pack_forget()
+            self.lbl_preview_img.config(text="No preview files (.png) found in mod folder.")
+            return
+            
+        # Prioritize files named preview.png, mod_preview.png, cover.png
+        priority_files = ["preview.png", "mod_preview.png", "cover.png"]
+        
+        def score_file(rel_path):
+            name = os.path.basename(rel_path).lower()
+            if name in priority_files:
+                return priority_files.index(name)
+            return len(priority_files) + len(rel_path)
+            
+        png_files.sort(key=score_file)
+        
+        # Set combobox values
+        self.cmb_preview_file["values"] = png_files
+        self.cmb_preview_file.set(png_files[0])
+        
+        if len(png_files) > 1:
+            self.preview_select_row.pack(fill="x", pady=(0, 5))
+        else:
+            self.preview_select_row.pack_forget()
+            
+        # Display prioritized image
+        self.display_preview_image(mod_dir, png_files[0])
+        
+    def display_preview_image(self, base_dir, rel_path):
+        img_path = os.path.join(base_dir, rel_path)
+        if not os.path.exists(img_path):
+            self.lbl_preview_img.config(text="Image file not found.")
+            return
+            
+        try:
+            # Native Tkinter PhotoImage loader
+            photo = tk.PhotoImage(file=img_path)
+            width = photo.width()
+            height = photo.height()
+            
+            # Simple downsampling factor if image is too large for details pane
+            # Target size is 350x300 pixels
+            factor = max(1, width // 350, height // 300)
+            if factor > 1:
+                photo = photo.subsample(factor)
+                
+            self.active_preview_image = photo
+            self.lbl_preview_img.config(image=photo, text="")
+        except Exception as e:
+            self.lbl_preview_img.config(text=f"Failed to render image: {e}")
+            
+    def on_preview_file_selected(self, event=None):
+        if not hasattr(self, "selected_mod_id") or not self.selected_mod_id:
+            return
+            
+        mod_status = self.get_mod_status(self.selected_mod_id)
+        mod_dir = os.path.join(self.mods_disabled_dir, self.selected_mod_id)
+        if mod_status == "Enabled":
+            mod_dir = self.get_active_files_dir(self.selected_mod_id)
+            
+        selected_rel = self.cmb_preview_file.get()
+        if selected_rel:
+            self.display_preview_image(mod_dir, selected_rel)
 
     def check_for_conflicts(self, mod_id):
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
