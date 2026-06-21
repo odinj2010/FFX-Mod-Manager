@@ -21,11 +21,15 @@ If you are a player looking to download the latest version, click the link below
 
 * **Fahrenheit Framework Support:** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
 * **Save Games & Backups Manager:** Track and manage game saves from the dedicated **Saves** tab. Back up your active save files with custom snapshot descriptions, delete obsolete slots, and restore snapshots cleanly.
+* **Save File Import Assistant:** Dynamically extracts and routes extensionless save files (`ffx_###` / `ffx2_###`) inside ZIPs during import, offering interactive slot conflict resolution to prevent overwriting existing progress.
 * **Backward Compatibility:** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
 * **Move-on-Enable Architecture:** Saves massive amounts of disk space. Mod packages are kept in a unified, loader-agnostic repository and moved into active game directories only when enabled.
 * **ZIP & RAR Auto-Unwrapping:** Drag-and-drop support for standard `.zip` and `.rar` mod archives. Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
 * **Auto-Conflict Resolution & Backups:** Detects file overwrite collisions. Overwritten active files are backed up automatically into their respective owner's repository folder and restored when the overriding mod is disabled.
-* **Live Theme Creator:** RETHEME the manager's UI on the fly. Create custom palettes and preview them instantly.
+* **Glassmorphism UI Overhaul:** Features modern floating card panels, active focus glow outlines matching your theme, and parent background color walking for a unified, clean interface.
+* **Live Theme Creator:** Customize the manager's UI colors and semantic buttons (Accept, Success, Caution, Utility) on the fly, with interactive real-time 4-button hover previews.
+* **Context-Aware Relative Imports:** Automatically determines targets (FFX vs. FFX-2) during mod folder imports and auto-resolves metadata and cover images without prompting.
+* **Theme-Aware Tooltips:** Dynamic, descriptive hover tips integrated into all options, navigation tabs, settings, and fields that dynamically match the active theme colors.
 * **Dynamic Plugin Browser:** Checks the remote GitHub repository index to download, install, and load external python plugins dynamically.
 
 ---
