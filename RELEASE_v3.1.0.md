@@ -30,7 +30,7 @@
 *   **Theme Creator Dialog Restructure**: Re-arranged the Theme Creator UI into a side-by-side two-column grid ("Base Colors" and "Button Colors"), widening the dialog container to `920x560` to accommodate all 21 color properties cleanly.
 *   **Theme Creator Previews**: Replaced the single preview button with **four distinct buttons** representing each semantic style (Accept, Success, Caution, Utility) and bound dynamic hover events to display the custom hover color changes in real-time.
 *   **Backward Compatibility Fallbacks**: Implemented automatic fallbacks so that any legacy or user-made themes without the new button keys continue to load and look correct.
-*   **New Lore-Inspired Themes**: Added four new color themes: *Pyreflies Whimsy*, *Yevon Temple*, *Aeon Summon*, and *Syndicate Rose*.
+*   **New Lore-Inspired Themes**: Added nine new color themes, bringing the total to 17: *Pyreflies Whimsy*, *Yevon Temple*, *Aeon Summon*, *Syndicate Rose*, *Lulu Gothic*, *Macalania Ice*, *Besaid Sunset*, *Luca Blitzball*, and *Vegnagun Core*.
 
 ### UI Hover Tooltips
 *   **Comprehensive Hover Tooltips**: Added informative, custom hover tooltips to key inputs, filters, buttons, tabs, and settings across the entire interface. This includes:
