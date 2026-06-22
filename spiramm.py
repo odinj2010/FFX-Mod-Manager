@@ -1481,8 +1481,8 @@ class FFXModManagerGUI:
             
             if preferred_theme in self.themes:
                 self.apply_theme(preferred_theme)
-                
-            self.refresh_list()
+            else:
+                self.refresh_list()
             
             if hasattr(self, "refresh_saves_lists"):
                 try:

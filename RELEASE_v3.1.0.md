@@ -64,6 +64,7 @@
 *   **Preview Image Import Auto-Resolution**: Added auto-resolution check for recognized mod preview cover files (e.g. `preview.png`, `cover.png`, etc.) during imports, ensuring they map directly to the root of the mod repository rather than raising an unrecognized game asset path resolution warning.
 *   **Imported Creator Metadata Fix**: Resolved a bug where importing a mod with pre-existing metadata left the creator/author name blank in the GUI details panel. The import builder now writes the `creator` key alongside `author`, and the details viewer safely falls back to checking `author` if `creator` is absent.
 *   **Forced Clean Recompilation**: Updated the compilation scripts (`compile_mod_manager.py`) to pass the `--clean` flag to PyInstaller when compiling the main executable. This resolves local caching issues where recompilations failed to package the latest python changes.
+*   **Double Mod List Refresh Fix**: Fixed an issue where switching game modes triggered redundant calls to `refresh_list()` during the automatic theme change, causing the mod list to reload twice.
 
 ## Application Rebranding and Renaming
 *   **System Rebranding (FFXMM to SpiraMM)**: Renamed files (`ffxmm.py` -> `spiramm.py`, `ffxmm_version.txt` -> `spiramm_version.txt`, and `FFXMM.ico` -> `SpiraMM.ico`).
