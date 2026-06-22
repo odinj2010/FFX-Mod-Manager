@@ -27,7 +27,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Goal**: Personalize the manager with FFX/FFX-2 character styles.
 * **Details**: Switch themes based on standard profiles (Tidus, Yuna, Rikku, Auron) and automatically shift the active color schemes, ambient artwork, and background details to match.
 
-### 5. Live Graphic Mod Asset Previewer (Proposed)
+### 5. Live Graphic Mod Asset Previewer (Completed)
 * **Goal**: View mod graphics directly in the manager before enabling.
 * **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
 
@@ -54,6 +54,12 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 ### 11. Steam Deck / Proton Compatibility Optimization (Proposed)
 * **Goal**: Seamless Linux controller and path mapping.
 * **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
+
+### 11b. Fahrenheit Integration Enhancements (Proposed)
+* **Goal**: Fully support advanced Fahrenheit manifest and loading fields.
+* **Details**: 
+  * Add support for `LoadAfter` and `Dependencies` arrays once the formats are finalized by the Fahrenheit crew.
+  * Integrate custom manifest flags when custom flag options are defined/supported.
 
 ---
 

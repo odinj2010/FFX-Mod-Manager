@@ -5348,8 +5348,9 @@ class FFXModManagerGUI:
             try:
                 game_exe = os.path.join(self.game_dir, target_exe)
                 fh_dir = os.path.join(self.game_dir, "fahrenheit", "bin")
+                relative_target = os.path.join("..", "..", target_exe)
                 p = subprocess.Popen(
-                    [fh_launcher, game_exe],
+                    [fh_launcher, relative_target],
                     cwd=fh_dir
                 )
                 self.log(f"Fahrenheit launcher started for {target_exe} (PID: {p.pid}).", "success")
