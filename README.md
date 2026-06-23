@@ -71,6 +71,26 @@ The manager introduces a unified loader-agnostic layout:
 
 ---
 
+## 🖼️ Mod Visual Previewer Guide
+
+The manager features a live graphical preview card in the mod details panel to display screenshots or covers of your mods.
+
+### Staging Preview Images
+To add visual previews to your mods:
+1. Save your screenshots as standard **`.png`** files.
+2. Name them using any of the following supported filenames:
+   * `preview.png` (primary preview)
+   * `mod_preview.png`
+   * `cover.png`
+   * `preview1.png`, `preview2.png`, `preview3.png`, `preview4.png` (for up to 5 sequentially numbered images)
+3. Place these image files **directly in the root** of your mod's directory (alongside `modinfo.ffxmod`). 
+
+### Dropdown & Resolution
+* **Automatic Import Resolution**: During ZIP or folder imports, the manager recognizes these filenames and stages them at the root automatically without raising path-alignment warnings.
+* **Selection Combobox**: If multiple matching PNG images are found, the preview card renders a dropdown selector allowing users to switch between screenshots in real-time.
+
+---
+
 ## 🛠️ Development & Building
 
 If you are a developer looking to build or contribute to the project:
