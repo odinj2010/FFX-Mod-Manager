@@ -3806,12 +3806,12 @@ class FFXModManagerGUI:
         lbl_title._is_title = True
         lbl_title.pack(anchor="w", pady=(0, 15))
         
-        paned = ttk.Panedwindow(frame, orient="horizontal", style="Card.TPanedwindow")
-        paned.pack(fill="both", expand=True)
+        self.saves_paned_window = ttk.Panedwindow(frame, orient="horizontal", style="Card.TPanedwindow")
+        self.saves_paned_window.pack(fill="both", expand=True)
         
         # Left Panel - Live Game Saves
-        left_panel = ttk.Frame(paned, style="Card.TFrame")
-        paned.add(left_panel, weight=1)
+        left_panel = ttk.Frame(self.saves_paned_window, style="Card.TFrame")
+        self.saves_paned_window.add(left_panel, weight=1)
         
         lbl_live_title = tk.Label(left_panel, text="Live Game Saves (Documents)", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
         lbl_live_title._is_title = True
@@ -3833,32 +3833,32 @@ class FFXModManagerGUI:
         self.tree_live_saves.config(yscrollcommand=scroll_l.set)
         
         # Save Actions (Middle Control buttons block)
-        ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0), style="Card.TFrame")
-        ctrl_frame.pack(fill="x", side="bottom")
+        self.saves_ctrl_frame = ttk.Frame(frame, padding=(10, 10, 10, 0), style="Card.TFrame")
+        self.saves_ctrl_frame.pack(fill="x", side="bottom")
         
-        btn_backup = tk.Button(ctrl_frame, text="📥 Backup", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
+        btn_backup = tk.Button(self.saves_ctrl_frame, text="📥 Backup", command=self.create_save_backup, bg=self.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=6)
         btn_backup.pack(side="left", padx=5)
         self.bind_hover(btn_backup, is_primary=True)
         ToolTip(btn_backup, "Copy the selected live save file into the local SpiraMM backups storage with a custom description label.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_restore = tk.Button(ctrl_frame, text="⏪ Restore", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
+        btn_restore = tk.Button(self.saves_ctrl_frame, text="⏪ Restore", command=self.restore_save_backup, bg=self.success_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#059669", padx=12, pady=6)
         btn_restore.pack(side="left", padx=5)
         self.bind_hover(btn_restore)
         ToolTip(btn_restore, "Overwrite the live game save file with the selected backup snapshot copy.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_refresh_s = tk.Button(ctrl_frame, text="🔄 Refresh", command=self.refresh_saves_lists, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
+        btn_refresh_s = tk.Button(self.saves_ctrl_frame, text="🔄 Refresh", command=self.refresh_saves_lists, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
         btn_refresh_s.pack(side="left", padx=5)
         self.bind_hover(btn_refresh_s)
         ToolTip(btn_refresh_s, "Scan the documents folder and local backup logs to update lists.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_delete_b = tk.Button(ctrl_frame, text="🗑️ Delete", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
+        btn_delete_b = tk.Button(self.saves_ctrl_frame, text="🗑️ Delete", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
         btn_delete_b.pack(side="right")
         self.bind_hover(btn_delete_b)
         ToolTip(btn_delete_b, "Permanently delete the selected backup snapshot file from disk.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Right Panel - Backups
-        right_panel = ttk.Frame(paned, padding=(15, 0, 0, 0), style="Card.TFrame")
-        paned.add(right_panel, weight=1)
+        right_panel = ttk.Frame(self.saves_paned_window, padding=(15, 0, 0, 0), style="Card.TFrame")
+        self.saves_paned_window.add(right_panel, weight=1)
         
         lbl_backup_title = tk.Label(right_panel, text="SpiraMM Backup Logs Repository", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
         lbl_backup_title._is_title = True
@@ -3877,6 +3877,19 @@ class FFXModManagerGUI:
         scroll_b.pack(fill="y", side="right")
         self.tree_backups.config(yscrollcommand=scroll_b.set)
         
+        # Fahrenheit warning notice frame (hidden by default)
+        self.saves_fh_notice_frame = ttk.Frame(frame, style="Card.TFrame", padding=30)
+        
+        lbl_notice_icon = tk.Label(self.saves_fh_notice_frame, text="🔒", font=("Segoe UI", 48), bg=self.card_color, fg=self.accent_color)
+        lbl_notice_icon.pack(pady=(20, 10))
+        
+        lbl_notice_title = tk.Label(self.saves_fh_notice_frame, text="Fahrenheit Save Management Active", font=("Segoe UI", 14, "bold"), bg=self.card_color, fg=self.accent_color)
+        lbl_notice_title.pack(pady=10)
+        lbl_notice_title._is_title = True
+        
+        lbl_notice_desc = tk.Label(self.saves_fh_notice_frame, text="The Fahrenheit Mod Loader manages save sets dynamically using load-order-aware hashes.\nTo prevent save file corruption or load mismatched states, SpiraMM's default save manager is deactivated.\n\nYou can manage your save sets directly in-game or via the Fahrenheit configurations.", font=("Segoe UI", 10), bg=self.card_color, fg=self.text_color, justify="center")
+        lbl_notice_desc.pack(pady=10)
+        
         # Trigger initial list loads
         self.root.after(1000, self.refresh_saves_lists)
 
@@ -3889,8 +3902,22 @@ class FFXModManagerGUI:
             return self.config.get("saves_dir", default_path)
 
     def refresh_saves_lists(self):
-        self.load_live_saves()
-        self.load_saves_backups()
+        if getattr(self, "is_fahrenheit_mode", False):
+            if hasattr(self, "saves_paned_window") and self.saves_paned_window:
+                self.saves_paned_window.pack_forget()
+            if hasattr(self, "saves_ctrl_frame") and self.saves_ctrl_frame:
+                self.saves_ctrl_frame.pack_forget()
+            if hasattr(self, "saves_fh_notice_frame") and self.saves_fh_notice_frame:
+                self.saves_fh_notice_frame.pack(fill="both", expand=True, pady=20)
+        else:
+            if hasattr(self, "saves_fh_notice_frame") and self.saves_fh_notice_frame:
+                self.saves_fh_notice_frame.pack_forget()
+            if hasattr(self, "saves_paned_window") and self.saves_paned_window:
+                self.saves_paned_window.pack(fill="both", expand=True)
+            if hasattr(self, "saves_ctrl_frame") and self.saves_ctrl_frame:
+                self.saves_ctrl_frame.pack(fill="x", side="bottom")
+            self.load_live_saves()
+            self.load_saves_backups()
 
     def load_live_saves(self):
         self.tree_live_saves.delete(*self.tree_live_saves.get_children())
