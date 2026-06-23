@@ -135,12 +135,19 @@ class FFXModManagerGUI:
         self.btn_utility_fg = theme.get("btn_utility_fg", self.text_color)
         self.btn_utility_hover = theme.get("btn_utility_hover", self.border_color)
 
+        # Plugin Developer SDK variables
+        self.background_plugins = []
+        self.listener_plugins = []
+        self.utility_plugins = []
+        self.event_listeners = {}
+
         if not is_embedded:
             active_mode = self.config.get("active_game_mode", "FFX")
             self.root.title(f"Spira Mod Manager - {active_mode} Mode")
             self.root.geometry("960x600")
             self.root.minsize(800, 500)
             self.root.configure(bg=self.bg_color)
+            self.root.protocol("WM_DELETE_WINDOW", self.on_app_closing)
             
             # Apply TTK styles
             self.style = ttk.Style()
@@ -262,6 +269,10 @@ class FFXModManagerGUI:
         # Check for Updates asynchronously in the background
         self.root.after(1000, self.check_for_updates)
         
+        # Start local IPC server if not embedded
+        if not is_embedded:
+            self.start_ipc_server()
+            
         # Start persistent background game monitoring
         self.start_persistent_game_monitoring()
 
@@ -409,6 +420,7 @@ class FFXModManagerGUI:
                         plugin.retheme()
                     except Exception as e:
                         self.log(f"Error re-theming plugin: {e}", "error")
+        self.broadcast_event("on_theme_change", theme_name)
 
     def update_widget_colors(self, widget):
         try:
@@ -731,7 +743,13 @@ class FFXModManagerGUI:
                     self.txt_log.see(tk.END)
                 except Exception:
                     pass
-        self.root.after(0, update)
+        try:
+            self.root.after(0, update)
+        except Exception:
+            try:
+                update()
+            except Exception:
+                pass
 
     def clear_log(self):
         self.log_history = []
@@ -1256,6 +1274,33 @@ class FFXModManagerGUI:
         self.bind_hover(btn_saves_browse)
         ToolTip(btn_saves_browse, "Browse and configure a custom documents path location for game save files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
+        # Plugin IPC Port configuration (Row 2)
+        lbl_ipc_port = tk.Label(path_row, text="Plugin IPC API Port:", bg=self.card_color, fg=self.text_color)
+        lbl_ipc_port.grid(row=2, column=0, sticky="w", padx=(0, 10), pady=6)
+        
+        self.ent_ipc_port = ttk.Entry(path_row, width=40)
+        self.ent_ipc_port.grid(row=2, column=1, sticky="ew", padx=(0, 10), pady=6)
+        self.ent_ipc_port.insert(0, str(self.config.get("ipc_port", 8692)))
+        ToolTip(self.ent_ipc_port, "Configure local socket server port (default 8692) used by companion overlays and plugins.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        def save_ipc_port(event=None):
+            val = self.ent_ipc_port.get().strip()
+            try:
+                port = int(val)
+                if port < 1024 or port > 65535:
+                    raise ValueError("Port out of bounds")
+                old_port = int(self.config.get("ipc_port", 8692))
+                if port != old_port:
+                    self.update_ipc_port(port)
+                    self.log(f"Updated local IPC Port server binding to: {port}", "success")
+            except ValueError:
+                self.log(f"Invalid IPC Port value: '{val}'. Must be an integer between 1024 and 65535.", "error")
+                self.ent_ipc_port.delete(0, tk.END)
+                self.ent_ipc_port.insert(0, str(self.config.get("ipc_port", 8692)))
+                
+        self.ent_ipc_port.bind("<FocusOut>", save_ipc_port)
+        self.ent_ipc_port.bind("<Return>", save_ipc_port)
+        
         # Side-by-Side bottom row for Appearance Theme Settings and Safety & Diagnostics
         bottom_cards_row = tk.Frame(self.settings_cards_container, bg=self.bg_color)
         bottom_cards_row.pack(fill="x", pady=10)
@@ -1323,6 +1368,9 @@ class FFXModManagerGUI:
         btn_show_logs.pack(anchor="w", pady=(8, 0))
         self.bind_hover(btn_show_logs)
         ToolTip(btn_show_logs, "Open the log file history viewer window to see error details and operational messages.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Add Toolkit Actions and Developer SDK card settings
+        self.create_toolkit_and_sdk_settings_cards()
         
         # Build Plugins Browser page UI
         self.create_plugins_browser_page()
@@ -1554,7 +1602,18 @@ class FFXModManagerGUI:
                     pass
             
             for mod_id in active_ids:
-                modinfo_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                modinfo_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.spiramod")
+                legacy_modinfo_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                if not os.path.exists(modinfo_path) and os.path.exists(legacy_modinfo_path):
+                    try:
+                        with open(legacy_modinfo_path, "r", encoding="utf-8") as f:
+                            data = decode_metadata(f.read())
+                        data["game"] = data.get("game", "FFX")
+                        with open(modinfo_path, "w", encoding="utf-8") as f:
+                            f.write(encode_metadata(data))
+                        os.remove(legacy_modinfo_path)
+                    except Exception:
+                        pass
                 if os.path.exists(modinfo_path):
                     try:
                         with open(modinfo_path, "r") as f:
@@ -1574,7 +1633,7 @@ class FFXModManagerGUI:
                     except Exception:
                         pass
                 else:
-                    # Fallback if manifest exists but modinfo.ffxmod doesn't
+                    # Fallback if manifest exists but modinfo.spiramod doesn't
                     manifest_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, f"{mod_id}.manifest.json")
                     if os.path.exists(manifest_path):
                         try:
@@ -1598,8 +1657,25 @@ class FFXModManagerGUI:
             if self.mods_dir:
                 try:
                     for file in os.listdir(self.mods_dir):
-                        if file.endswith((".ffxmod", ".json")) and not file.startswith("modinfo"):
-                            mod_id, _ = os.path.splitext(file)
+                        if file.endswith((".spiramod", ".ffxmod", ".json")) and not file.startswith("modinfo"):
+                            mod_id, ext = os.path.splitext(file)
+                            if ext == ".ffxmod":
+                                legacy_tracker_path = os.path.join(self.mods_dir, file)
+                                new_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+                                try:
+                                    with open(legacy_tracker_path, "r", encoding="utf-8") as f:
+                                        data = decode_metadata(f.read())
+                                    if "ffx-2_data" in self.mods_dir:
+                                        data["game"] = data.get("game", "FFX-2")
+                                    else:
+                                        data["game"] = data.get("game", "FFX")
+                                    with open(new_tracker_path, "w", encoding="utf-8") as f:
+                                        f.write(encode_metadata(data))
+                                    os.remove(legacy_tracker_path)
+                                    file = f"{mod_id}.spiramod"
+                                    ext = ".spiramod"
+                                except Exception:
+                                    pass
                             try:
                                 with open(os.path.join(self.mods_dir, file), "r") as f:
                                     data = decode_metadata(f.read())
@@ -1625,7 +1701,21 @@ class FFXModManagerGUI:
             for d in os.listdir(self.mods_disabled_dir):
                 dpath = os.path.join(self.mods_disabled_dir, d)
                 if os.path.isdir(dpath) and not d.startswith("_"):
-                    info_path = os.path.join(dpath, "modinfo.ffxmod")
+                    info_path = os.path.join(dpath, "modinfo.spiramod")
+                    legacy_info_path = os.path.join(dpath, "modinfo.ffxmod")
+                    if not os.path.exists(info_path) and os.path.exists(legacy_info_path):
+                        try:
+                            with open(legacy_info_path, "r", encoding="utf-8") as f:
+                                data = decode_metadata(f.read())
+                            if "mods_disabled_x2" in self.mods_disabled_dir:
+                                data["game"] = data.get("game", "FFX-2")
+                            else:
+                                data["game"] = data.get("game", "FFX")
+                            with open(info_path, "w", encoding="utf-8") as f:
+                                f.write(encode_metadata(data))
+                            os.remove(legacy_info_path)
+                        except Exception:
+                            pass
                     if not os.path.exists(info_path):
                         info_path = os.path.join(dpath, "modinfo.json")
                         
@@ -1838,9 +1928,10 @@ class FFXModManagerGUI:
         self.lbl_mod_title.config(text=f"Selected Mod: {mod_id}")
         
         # Load mod details from repo modinfo
-        info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
+        info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.spiramod")
+        legacy_info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
         fallback_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path if os.path.exists(fallback_path) else info_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
         
         info = {}
         if os.path.exists(read_path):
@@ -1852,9 +1943,10 @@ class FFXModManagerGUI:
                 
         # If not in repo, try active tracker
         if not info:
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+            legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
             old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-            read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+            read_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
             if os.path.exists(read_tracker):
                 try:
                     with open(read_tracker, "r") as f:
@@ -2120,7 +2212,7 @@ class FFXModManagerGUI:
         managed_files = set()
         try:
             for file in os.listdir(self.mods_dir):
-                if file.endswith((".ffxmod", ".json")) and not file.startswith("modinfo"):
+                if file.endswith((".spiramod", ".ffxmod", ".json")) and not file.startswith("modinfo"):
                     try:
                         with open(os.path.join(self.mods_dir, file), "r") as f:
                             data = decode_metadata(f.read())
@@ -2152,9 +2244,9 @@ class FFXModManagerGUI:
         if not unmanaged_files:
             return
             
-        # Check if we already have an Imported Backup mod info (check both .ffxmod and legacy .json)
-        backup_info_path = os.path.join(self.mods_dir, "Imported_Backup.ffxmod")
-        if os.path.exists(backup_info_path) or os.path.exists(os.path.join(self.mods_dir, "Imported_Backup.json")):
+        # Check if we already have an Imported Backup mod info (check both .spiramod, .ffxmod and legacy .json)
+        backup_info_path = os.path.join(self.mods_dir, "Imported_Backup.spiramod")
+        if os.path.exists(backup_info_path) or os.path.exists(os.path.join(self.mods_dir, "Imported_Backup.ffxmod")) or os.path.exists(os.path.join(self.mods_dir, "Imported_Backup.json")):
             return
             
         ans = messagebox.askyesno(
@@ -2171,15 +2263,16 @@ class FFXModManagerGUI:
         backup_repo = os.path.join(self.mods_disabled_dir, "Imported_Backup")
         os.makedirs(backup_repo, exist_ok=True)
         
-        # Write modinfo.ffxmod to repository
+        # Write modinfo.spiramod to repository
         modinfo = {
             "name": "Imported Backup",
             "creator": "Auto-Imported",
             "version": "1.0",
             "description": "Loose files backed up and managed automatically.",
+            "game": self.active_game_mode,
             "files": unmanaged_files
         }
-        with open(os.path.join(backup_repo, "modinfo.ffxmod"), "w") as f:
+        with open(os.path.join(backup_repo, "modinfo.spiramod"), "w") as f:
             f.write(encode_metadata(modinfo))
             
         # Write tracking file to mods folder
@@ -2206,9 +2299,10 @@ class FFXModManagerGUI:
         self.lbl_mod_title.config(text=f"Selected Mod: {mod_id}")
         
         # Load mod details from repo modinfo
-        info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
+        info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.spiramod")
+        legacy_info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
         fallback_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path if os.path.exists(fallback_path) else info_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
         
         info = {}
         if os.path.exists(read_path):
@@ -2221,11 +2315,24 @@ class FFXModManagerGUI:
         # If not in repo, try active tracker
         if not info:
             if self.is_fahrenheit_mode:
-                read_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                read_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.spiramod")
+                legacy_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                if os.path.exists(read_tracker):
+                    pass
+                elif os.path.exists(legacy_tracker):
+                    read_tracker = legacy_tracker
             else:
-                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+                legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
                 old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-                read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+                if os.path.exists(tracker_path):
+                    read_tracker = tracker_path
+                elif os.path.exists(legacy_tracker_path):
+                    read_tracker = legacy_tracker_path
+                elif os.path.exists(old_tracker_path):
+                    read_tracker = old_tracker_path
+                else:
+                    read_tracker = tracker_path
                 
             if os.path.exists(read_tracker):
                 try:
@@ -2307,10 +2414,11 @@ class FFXModManagerGUI:
             order = self.read_load_order()
             return "Enabled" if mod_id in order else "Disabled"
         else:
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+            legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
             old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-            return "Enabled" if (os.path.exists(tracker_path) or os.path.exists(old_tracker_path)) else "Disabled"
- 
+            return "Enabled" if (os.path.exists(tracker_path) or os.path.exists(legacy_tracker_path) or os.path.exists(old_tracker_path)) else "Disabled"
+
     def clear_metadata_fields(self):
         self.ent_mod_creator.config(state="normal")
         self.ent_mod_name.delete(0, tk.END)
@@ -2338,9 +2446,10 @@ class FFXModManagerGUI:
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
         os.makedirs(mod_repo_path, exist_ok=True)
         
-        info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
+        info_path = os.path.join(mod_repo_path, "modinfo.spiramod")
+        legacy_info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
         fallback_path = os.path.join(mod_repo_path, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path if os.path.exists(fallback_path) else info_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
         
         info = {}
         if os.path.exists(read_path):
@@ -2389,31 +2498,42 @@ class FFXModManagerGUI:
         info["category"] = self.cmb_mod_category.get().strip() or "General"
         info["nexus_id"] = nexus_id_input
         info["link"] = link_input
+        if "game" not in info:
+            if "mods_disabled_x2" in self.mods_disabled_dir:
+                info["game"] = "FFX-2"
+            else:
+                info["game"] = "FFX"
         
         try:
             with open(info_path, "w") as f:
                 f.write(encode_metadata(info))
                 
-            # Clean up old .json file if we migrated it to .ffxmod
-            if os.path.exists(fallback_path) and info_path != fallback_path:
-                try:
-                    os.remove(fallback_path)
-                except Exception:
-                    pass
+            # Clean up old legacy and .json files if we migrated it to .spiramod
+            for opath in [legacy_info_path, fallback_path]:
+                if os.path.exists(opath) and info_path != opath:
+                    try:
+                        os.remove(opath)
+                    except Exception:
+                        pass
                 
-            # If enabled, also sync name to tracking ffxmod / manifest
+            # If enabled, also sync name to tracking spiramod / manifest
             if self.is_fahrenheit_mode:
                 active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
-                tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+                tracker_path = os.path.join(active_mod_dir, "modinfo.spiramod")
+                legacy_tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
                 manifest_path = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
-                if os.path.exists(tracker_path):
+                
+                sync_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else tracker_path
+                if os.path.exists(sync_tracker):
                     try:
-                        with open(tracker_path, "r") as f:
+                        with open(sync_tracker, "r") as f:
                             track = decode_metadata(f.read())
                         track["name"] = info["name"]
                         track["category"] = info["category"]
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
+                        if tracker_path != legacy_tracker_path and os.path.exists(legacy_tracker_path):
+                            os.remove(legacy_tracker_path)
                     except Exception:
                         pass
                 if os.path.exists(manifest_path):
@@ -2431,9 +2551,10 @@ class FFXModManagerGUI:
                     except Exception:
                         pass
             else:
-                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+                legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
                 old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-                read_tracker = tracker_path if os.path.exists(tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
+                read_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
                 
                 if os.path.exists(read_tracker):
                     try:
@@ -2443,9 +2564,10 @@ class FFXModManagerGUI:
                         track["category"] = info["category"]
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
-                        # Clean up old tracker file if migrated
-                        if tracker_path != old_tracker_path and os.path.exists(old_tracker_path):
-                            os.remove(old_tracker_path)
+                        # Clean up old tracker files if migrated
+                        for opath in [legacy_tracker_path, old_tracker_path]:
+                            if tracker_path != opath and os.path.exists(opath):
+                                os.remove(opath)
                     except Exception:
                         pass
                     
@@ -2671,7 +2793,7 @@ class FFXModManagerGUI:
                 rel_files = []
                 for r, d, fs in os.walk(mod_repo_path):
                     for file_item in fs:
-                        if file_item in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                        if file_item in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
                             continue
                         fpath = os.path.join(r, file_item)
                         rel = os.path.relpath(fpath, mod_repo_path)
@@ -2689,12 +2811,13 @@ class FFXModManagerGUI:
                     "version": version,
                     "description": desc,
                     "category": category,
+                    "game": selected_target,
                     "nexus_id": nexus_id,
                     "link": mod_link,
                     "files": rel_files
                 }
                 
-                with open(os.path.join(mod_repo_path, "modinfo.ffxmod"), "w") as f:
+                with open(os.path.join(mod_repo_path, "modinfo.spiramod"), "w") as f:
                     f.write(encode_metadata(info))
 
                 self.log(f"Successfully created empty {selected_target} mod '{clean_name}' under '{mod_id}/'.", "success")
@@ -2759,10 +2882,12 @@ class FFXModManagerGUI:
             for other_mod_id in order:
                 if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
                     continue
-                tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", other_mod_id, "modinfo.ffxmod")
-                if os.path.exists(tracker_path):
+                tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", other_mod_id, "modinfo.spiramod")
+                legacy_tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", other_mod_id, "modinfo.ffxmod")
+                read_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path
+                if os.path.exists(read_tracker):
                     try:
-                        with open(tracker_path, "r", encoding="utf-8") as tf:
+                        with open(read_tracker, "r", encoding="utf-8") as tf:
                             track = decode_metadata(tf.read())
                         track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
                         if rel_norm in track_files:
@@ -2774,8 +2899,13 @@ class FFXModManagerGUI:
             if not self.mods_dir or not os.path.exists(self.mods_dir):
                 return None
             for f in os.listdir(self.mods_dir):
-                if f.endswith((".ffxmod", ".json")) and not f.startswith("modinfo"):
-                    other_mod_id = f[:-7] if f.endswith(".ffxmod") else f[:-5]
+                if f.endswith((".spiramod", ".ffxmod", ".json")) and not f.startswith("modinfo"):
+                    if f.endswith(".spiramod"):
+                        other_mod_id = f[:-9]
+                    elif f.endswith(".ffxmod"):
+                        other_mod_id = f[:-7]
+                    else:
+                        other_mod_id = f[:-5]
                     if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
                         continue
                     tracker_path = os.path.join(self.mods_dir, f)
@@ -2791,12 +2921,16 @@ class FFXModManagerGUI:
 
     def enable_mod_logic(self, mod_id):
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
-        info_path = os.path.join(mod_repo, "modinfo.ffxmod")
+        info_path = os.path.join(mod_repo, "modinfo.spiramod")
+        legacy_info_path = os.path.join(mod_repo, "modinfo.ffxmod")
         if not os.path.exists(info_path):
-            info_path = os.path.join(mod_repo, "modinfo.json")
+            if os.path.exists(legacy_info_path):
+                info_path = legacy_info_path
+            else:
+                info_path = os.path.join(mod_repo, "modinfo.json")
             
         if not os.path.exists(info_path):
-            self.log(f"Error: Mod metadata file 'modinfo.ffxmod' is missing for mod '{mod_id}'.", "error")
+            self.log(f"Error: Mod metadata file 'modinfo.spiramod' is missing for mod '{mod_id}'.", "error")
             return False
             
         try:
@@ -2873,10 +3007,16 @@ class FFXModManagerGUI:
         }
         try:
             if self.is_fahrenheit_mode:
-                # Write tracker file to fahrenheit/mods/{mod_id}/modinfo.ffxmod
-                tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+                # Write tracker file to fahrenheit/mods/{mod_id}/modinfo.spiramod
+                tracker_path = os.path.join(active_mod_dir, "modinfo.spiramod")
                 with open(tracker_path, "w", encoding="utf-8") as f:
                     f.write(encode_metadata(tracker))
+                legacy_tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+                if os.path.exists(legacy_tracker_path):
+                    try:
+                        os.remove(legacy_tracker_path)
+                    except Exception:
+                        pass
                     
                 # Write manifest file to fahrenheit/mods/{mod_id}/{mod_id}.manifest.json
                 manifest_path = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
@@ -2898,16 +3038,17 @@ class FFXModManagerGUI:
                 # Append to loadorder file
                 self.add_to_load_order(mod_id)
             else:
-                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
                 with open(tracker_path, "w", encoding="utf-8") as f:
                     f.write(encode_metadata(tracker))
-                old_tracker = os.path.join(self.mods_dir, f"{mod_id}.json")
-                if os.path.exists(old_tracker):
-                    try:
-                        os.remove(old_tracker)
-                    except Exception:
-                        pass
+                for opath in [os.path.join(self.mods_dir, f"{mod_id}.ffxmod"), os.path.join(self.mods_dir, f"{mod_id}.json")]:
+                    if os.path.exists(opath):
+                        try:
+                            os.remove(opath)
+                        except Exception:
+                            pass
             self.log(f"Successfully enabled mod '{mod_id}' ({success_count} of {len(files)} files activated).", "success")
+            self.broadcast_event("on_mod_toggle", mod_id, True)
             return True
         except Exception as e:
             self.log(f"Failed to write tracking file for mod '{mod_id}': {e}", "error")
@@ -2946,11 +3087,22 @@ class FFXModManagerGUI:
         self.log(f"Disabling mod '{mod_id}'...")
         if self.is_fahrenheit_mode:
             active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
-            read_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+            read_path = os.path.join(active_mod_dir, "modinfo.spiramod")
+            legacy_read_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
+            if os.path.exists(read_path):
+                pass
+            elif os.path.exists(legacy_read_path):
+                read_path = legacy_read_path
         else:
-            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+            tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
+            legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
             old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-            read_path = tracker_path if os.path.exists(tracker_path) else old_tracker_path
+            if os.path.exists(tracker_path):
+                read_path = tracker_path
+            elif os.path.exists(legacy_tracker_path):
+                read_path = legacy_tracker_path
+            else:
+                read_path = old_tracker_path
         active_files_dir = self.get_active_files_dir(mod_id)
             
         if not os.path.exists(read_path):
@@ -3019,11 +3171,11 @@ class FFXModManagerGUI:
                 if os.path.exists(active_mod_dir):
                     shutil.rmtree(active_mod_dir, ignore_errors=True)
             else:
-                if os.path.exists(tracker_path):
-                    os.remove(tracker_path)
-                if os.path.exists(old_tracker_path):
-                    os.remove(old_tracker_path)
+                for opath in [tracker_path, legacy_tracker_path, old_tracker_path]:
+                    if os.path.exists(opath):
+                        os.remove(opath)
             self.log(f"Successfully disabled mod '{mod_id}' (deactivated {remove_count} files).", "success")
+            self.broadcast_event("on_mod_toggle", mod_id, False)
         except Exception as e:
             self.log(f"Failed to delete tracking file: {e}", "error")
 
@@ -3278,7 +3430,7 @@ class FFXModManagerGUI:
         non_save_files = []
         for r, d, fs in os.walk(temp_dir):
             for f in fs:
-                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
                     continue
                 full_path = os.path.join(r, f)
                 if full_path not in save_files:
@@ -3295,7 +3447,7 @@ class FFXModManagerGUI:
 
         # Check for pre-existing metadata to enforce Credits Lock
         meta_data = None
-        for inf in ["modinfo.ffxmod", "modinfo.json"]:
+        for inf in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json"]:
             mpath = os.path.join(root_dir, inf)
             if os.path.exists(mpath):
                 try:
@@ -3544,7 +3696,7 @@ class FFXModManagerGUI:
             # Check if any files are at root or in directories other than ffx-2_data / UnX_Res / ffx_ps2
             loose_files = False
             for f in os.listdir(root_dir):
-                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
                     continue
                 if f != "ffx-2_data" and f != "UnX_Res" and f != "ffx_ps2":
                     loose_files = True
@@ -3555,7 +3707,7 @@ class FFXModManagerGUI:
                 wrap_dir = os.path.join(root_dir, "ffx-2_data")
                 os.makedirs(wrap_dir, exist_ok=True)
                 for f in os.listdir(root_dir):
-                    if f in ["modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
+                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
                         continue
                     src_item = os.path.join(root_dir, f)
                     dest_item = os.path.join(wrap_dir, f)
@@ -3568,7 +3720,7 @@ class FFXModManagerGUI:
         mod_files = []
         for r, d, fs in os.walk(root_dir):
             for f in fs:
-                if f in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
                     continue
                 fpath = os.path.join(r, f)
                 rel = os.path.relpath(fpath, root_dir)
@@ -3587,13 +3739,14 @@ class FFXModManagerGUI:
             "version": mod_version,
             "description": mod_desc,
             "category": mod_category,
+            "game": self.active_game_mode,
             "nexus_id": mod_nexus_id,
             "link": mod_link,
             "files": mod_files
         }
         
-        # Remove existing metadata files to write fresh ffxmod
-        for inf in ["modinfo.ffxmod", "modinfo.json", "mod.json"]:
+        # Remove existing metadata files to write fresh spiramod
+        for inf in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
             mpath = os.path.join(root_dir, inf)
             if os.path.exists(mpath):
                 try:
@@ -3602,7 +3755,7 @@ class FFXModManagerGUI:
                     pass
                     
         try:
-            with open(os.path.join(root_dir, "modinfo.ffxmod"), "w", encoding="utf-8") as f:
+            with open(os.path.join(root_dir, "modinfo.spiramod"), "w", encoding="utf-8") as f:
                 f.write(encode_metadata(info))
         except Exception as e:
             self.log(f"Failed to write metadata: {e}", "error")
@@ -4648,13 +4801,29 @@ class FFXModManagerGUI:
                     pass
             self.pages.pop(pk, None)
             
+        # Terminate launcher background service processes
+        for proc in getattr(self, "background_plugins", []):
+            try:
+                proc.terminate()
+                proc.wait(timeout=1)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        self.background_plugins = []
+        self.listener_plugins = []
+        self.utility_plugins = []
+        self.loaded_plugin_metas = []
+
         # Purge any imported plugin modules from python's system cache
         for pk in list(sys.modules.keys()):
-            if pk.startswith("plugin_"):
+            if pk.startswith("plugin_") or pk.startswith("listener_"):
                 sys.modules.pop(pk, None)
             
         self.load_plugins()
         self.apply_theme(self.current_theme_name)
+        self.create_plugin_settings_card()
         if button:
             button.config(text="🔄 Reinstall", state="normal", bg=self.border_color)
             self.bind_hover(button, is_primary=False)
@@ -4740,9 +4909,10 @@ class FFXModManagerGUI:
             return
             
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
-        info_path = os.path.join(mod_repo, "modinfo.ffxmod")
+        info_path = os.path.join(mod_repo, "modinfo.spiramod")
+        legacy_info_path = os.path.join(mod_repo, "modinfo.ffxmod")
         fallback_path = os.path.join(mod_repo, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path if os.path.exists(fallback_path) else info_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
         
         if not os.path.exists(read_path):
             messagebox.showerror("Error", "Mod metadata file missing.")
@@ -4808,9 +4978,9 @@ class FFXModManagerGUI:
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
                     if self.is_fahrenheit_mode:
-                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.spiramod")
                     else:
-                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
                     active_files_dir = self.get_active_files_dir(mod_id)
                         
                     for rel in files_list:
@@ -4851,9 +5021,10 @@ class FFXModManagerGUI:
             return
             
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
-        info_path = os.path.join(mod_repo, "modinfo.ffxmod")
+        info_path = os.path.join(mod_repo, "modinfo.spiramod")
+        legacy_info_path = os.path.join(mod_repo, "modinfo.ffxmod")
         fallback_path = os.path.join(mod_repo, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path if os.path.exists(fallback_path) else info_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
         
         if not os.path.exists(read_path):
             messagebox.showerror("Error", "Mod metadata file missing.")
@@ -4937,9 +5108,9 @@ class FFXModManagerGUI:
                 if self.get_mod_status(mod_id) == "Enabled":
                     total_size = 0
                     if self.is_fahrenheit_mode:
-                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
+                        tracker_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.spiramod")
                     else:
-                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
+                        tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
                     active_files_dir = self.get_active_files_dir(mod_id)
                         
                     for rel in files_list:
@@ -5172,8 +5343,13 @@ class FFXModManagerGUI:
         else:
             if self.mods_dir and os.path.exists(self.mods_dir):
                 for f in os.listdir(self.mods_dir):
-                    if f.endswith((".ffxmod", ".json")) and not f.startswith("modinfo"):
-                        active_list.append(f[:-7] if f.endswith(".ffxmod") else f[:-5])
+                    if f.endswith((".spiramod", ".ffxmod", ".json")) and not f.startswith("modinfo"):
+                        if f.endswith(".spiramod"):
+                            active_list.append(f[:-9])
+                        elif f.endswith(".ffxmod"):
+                            active_list.append(f[:-7])
+                        else:
+                            active_list.append(f[:-5])
                         
         for mod_id in active_list:
             try:
@@ -5499,6 +5675,15 @@ class FFXModManagerGUI:
         return running
 
     def on_game_launched(self, pid, exe_name="FFX.exe"):
+        self.broadcast_event("on_game_launch", pid, exe_name)
+        # Broadcast to event listener plugins
+        for listener in getattr(self, "listener_plugins", []):
+            if hasattr(listener, "on_game_launch"):
+                try:
+                    listener.on_game_launch(pid, exe_name)
+                except Exception as e:
+                    self.log(f"Error in listener launch callback: {e}", "error")
+                    
         for plugin in self.plugins:
             # Achievements and Walkthrough are FFX-specific. Avoid launching their trackers on FFX-2.
             is_ffx_only = plugin._metadata.get("name") in ["Achievements", "Walkthrough", "Custom Achievements"]
@@ -5566,6 +5751,14 @@ class FFXModManagerGUI:
                     self.log(f"💡 Tip: Press {hk_str} in-game to toggle the {plugin._metadata['name']} overlay HUD!", "info")
 
     def on_game_closed(self):
+        # Broadcast to event listener plugins
+        for listener in getattr(self, "listener_plugins", []):
+            if hasattr(listener, "on_game_close"):
+                try:
+                    listener.on_game_close()
+                except Exception as e:
+                    self.log(f"Error in listener close callback: {e}", "error")
+                    
         for plugin in self.plugins:
             if hasattr(plugin, "on_game_close"):
                 try:
@@ -5577,16 +5770,636 @@ class FFXModManagerGUI:
             if p:
                 try:
                     p.terminate()
-                    p.wait(timeout=2)
                 except Exception:
+                    pass
+        h_proc = getattr(self, "_active_game_hProcess", None)
+        if h_proc:
+            try:
+                kernel32.CloseHandle(h_proc)
+            except Exception:
+                pass
+            self._active_game_hProcess = None
+        self.broadcast_event("on_game_close")
+
+    def on_app_closing(self):
+        self.ipc_server_running = False
+        self.log("Exiting Spira Mod Manager. Terminating background plugins...", "info")
+        # Terminate game-based trackers
+        self.on_game_closed()
+        
+        # Terminate launcher background service processes
+        for proc in getattr(self, "background_plugins", []):
+            try:
+                proc.terminate()
+                proc.wait(timeout=1)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        self.background_plugins = []
+        self.root.destroy()
+
+    def run_utility_plugin(self, plugin):
+        entry = plugin.get("entry_point")
+        plugin_dir = plugin.get("_dir")
+        if not entry or not plugin_dir:
+            return
+            
+        self.log(f"Executing utility plugin command '{plugin.get('name')}'...", "info")
+        self.execute_plugin_entry_point(plugin, args=[self.game_dir, self.active_game_mode])
+
+    def refresh_toolkit_actions_ui(self):
+        for child in self.toolkit_buttons_container.winfo_children():
+            child.destroy()
+            
+        has_utilities = False
+        for plugin in getattr(self, "utility_plugins", []):
+            has_utilities = True
+            btn_text = plugin.get("button_text", f"Run {plugin.get('name')}")
+            btn_action = tk.Button(
+                self.toolkit_buttons_container,
+                text=btn_text,
+                command=lambda p=plugin: self.run_utility_plugin(p),
+                bg=self.bg_color,
+                fg=self.text_color,
+                font=("Segoe UI", 9),
+                relief="flat",
+                activebackground=self.border_color,
+                padx=10,
+                pady=4
+            )
+            btn_action.pack(side="left", padx=(0, 10), pady=5)
+            self.bind_hover(btn_action)
+            ToolTip(btn_action, f"Launch utility entry point: {plugin.get('entry_point')}", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+            
+        if not has_utilities:
+            lbl_none = tk.Label(self.toolkit_buttons_container, text="No utility toolkit plugins detected.", fg=self.text_dim, bg=self.card_color, font=("Segoe UI", 9, "italic"))
+            lbl_none.pack(anchor="w")
+
+    def create_toolkit_and_sdk_settings_cards(self):
+        # 1. Toolkit Actions card
+        self.toolkit_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.toolkit_card._is_card = True
+        self.toolkit_card.pack(fill="x", pady=(0, 10))
+        
+        lbl_toolkit_title = tk.Label(self.toolkit_card, text="Plugin Toolkit Actions", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_toolkit_title._is_title = True
+        lbl_toolkit_title.pack(anchor="w", pady=(0, 10))
+        
+        self.toolkit_buttons_container = tk.Frame(self.toolkit_card, bg=self.card_color)
+        self.toolkit_buttons_container.pack(fill="x", anchor="w")
+        
+        # Populate utility actions
+        self.refresh_toolkit_actions_ui()
+        
+        # 2. Developer SDK Template Scaffolder card
+        sdk_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        sdk_card._is_card = True
+        sdk_card.pack(fill="x", pady=(0, 10))
+        
+        lbl_sdk_title = tk.Label(sdk_card, text="Plugin Developer SDK", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_sdk_title._is_title = True
+        lbl_sdk_title.pack(anchor="w", pady=(0, 10))
+        
+        lbl_sdk_desc = tk.Label(sdk_card, text="Auto-generate a working starter plugin template inside your plugins folder for immediate customization.", bg=sdk_card.cget("bg"), fg=self.text_color, font=("Segoe UI", 9))
+        lbl_sdk_desc.pack(anchor="w", pady=(0, 10))
+        
+        btn_scaffold = tk.Button(sdk_card, text="🛠️ Generate Starter Plugin Template", command=self.scaffold_starter_plugin, bg=self.accent_color,
+                                 fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
+        btn_scaffold.pack(anchor="w")
+        self.bind_hover(btn_scaffold, is_primary=True)
+        ToolTip(btn_scaffold, "Creates plugins/starter_plugin containing manifests and a sample script.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # 3. Dynamic Plugin Configuration Settings Card
+        self.create_plugin_settings_card()
+
+    def scaffold_starter_plugin(self):
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        dest_dir = os.path.join(base_dir, "plugins", "starter_plugin")
+        
+        if os.path.exists(dest_dir):
+            messagebox.showinfo("Starter Plugin Template", "Starter plugin template folder already exists at plugins/starter_plugin.")
+            return
+            
+        try:
+            os.makedirs(dest_dir, exist_ok=True)
+            
+            # 1. plugin.json
+            manifest = {
+                "name": "Starter Plugin",
+                "version": "1.0.0",
+                "description": "Template plugin demonstrating UI, background, utility, and listener types.",
+                "author": "SpiraMM SDK",
+                "type": "tab",
+                "entry_point": "gui.StarterTab",
+                "icon": "🛠️"
+            }
+            with open(os.path.join(dest_dir, "plugin.json"), "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2)
+                
+            # 2. gui.py
+            gui_content = """import tkinter as tk
+from tkinter import ttk
+
+class StarterTab:
+    def __init__(self, parent_frame, manager):
+        self.parent_frame = parent_frame
+        self.manager = manager
+        
+        # Setup clean styled card UI
+        card = tk.Frame(parent_frame, bg=manager.card_color, highlightthickness=1, highlightbackground=manager.border_color, padx=20, pady=20)
+        card.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        lbl_title = tk.Label(card, text="🛠️ Starter Plugin GUI", font=("Segoe UI", 12, "bold"), fg=manager.accent_color, bg=manager.card_color)
+        lbl_title.pack(anchor="w", pady=(0, 10))
+        
+        lbl_desc = tk.Label(card, text="Welcome to your new SpiraMM plugin! Edit gui.py to customize this interface.", bg=manager.card_color, fg=manager.text_color)
+        lbl_desc.pack(anchor="w", pady=(0, 15))
+        
+        btn_action = tk.Button(card, text="Click Me!", command=self.on_btn_click, bg=manager.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=manager.accent_hover, padx=12, pady=4)
+        btn_action.pack(anchor="w")
+        manager.bind_hover(btn_action, is_primary=True)
+        
+    def on_btn_click(self):
+        self.manager.log("Starter Plugin action button clicked!", "success")
+"""
+            with open(os.path.join(dest_dir, "gui.py"), "w", encoding="utf-8") as f:
+                f.write(gui_content)
+                
+            # 3. Readme / sample background script
+            sample_bg = """import time
+import sys
+
+print("Starter background service started. Args:", sys.argv)
+# Keep alive loop (SpiraMM will kill this process on exit)
+while True:
+    time.sleep(10)
+"""
+            with open(os.path.join(dest_dir, "sample_background.py"), "w", encoding="utf-8") as f:
+                f.write(sample_bg)
+                
+            self.log("Created Starter Plugin template at plugins/starter_plugin successfully!", "success")
+            messagebox.showinfo("Success", "Generated template under 'plugins/starter_plugin/'. Refreshing plugins...")
+            self.reload_plugins_ui()
+        except Exception as e:
+            self.log(f"Failed to generate starter plugin template: {e}", "error")
+            messagebox.showerror("Error", f"Failed to generate template: {e}")
+
+    def execute_plugin_entry_point(self, plugin, args=None):
+        import subprocess
+        entry = plugin.get("entry_point")
+        plugin_dir = plugin.get("_dir")
+        if not entry or not plugin_dir:
+            return None
+            
+        if args is None:
+            args = []
+        else:
+            args = list(args)
+            
+        if entry.endswith(".exe") or entry.endswith(".py"):
+            port_val = str(getattr(self, "ipc_port", self.config.get("ipc_port", 8692)))
+            if "--ipc-port" not in args:
+                args += ["--ipc-port", port_val]
+            
+        # 1. Dotted path (Class standard import)
+        if "." in entry and not entry.endswith(".py") and not entry.endswith(".exe"):
+            try:
+                import importlib.util
+                parts = entry.split(".")
+                module_file = parts[0] + ".py"
+                class_name = parts[1]
+                module_path = os.path.join(plugin_dir, module_file)
+                
+                # Check cache
+                p_id = os.path.basename(plugin_dir)
+                if f"plugin_{p_id}" not in sys.modules:
+                    spec = importlib.util.spec_from_file_location(f"plugin_{p_id}", module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    sys.modules[f"plugin_{p_id}"] = module
+                    sys.path.insert(0, plugin_dir)
                     try:
-                        p.kill()
-                    except Exception:
-                        pass
-                plugin._tracker_process = None
+                        spec.loader.exec_module(module)
+                    finally:
+                        sys.path.pop(0)
+                else:
+                    module = sys.modules[f"plugin_{p_id}"]
+                    
+                cls = getattr(module, class_name, None)
+                return cls
+            except Exception as e:
+                self.log(f"Failed to import class entry point '{entry}': {e}", "error")
+                return None
+                
+        # 2. Executable execution
+        elif entry.endswith(".exe"):
+            exe_path = os.path.join(plugin_dir, entry)
+            if not os.path.exists(exe_path):
+                self.log(f"Executable entry point missing: {exe_path}", "error")
+                return None
+            try:
+                cmd = [exe_path] + args
+                p = subprocess.Popen(
+                    cmd,
+                    cwd=plugin_dir,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                )
+                return p
+            except Exception as e:
+                self.log(f"Failed to run executable entry point: {e}", "error")
+                return None
+                
+        # 3. Python script execution
+        elif entry.endswith(".py"):
+            script_path = os.path.join(plugin_dir, entry)
+            if not os.path.exists(script_path):
+                self.log(f"Python script entry point missing: {script_path}", "error")
+                return None
+            try:
+                python_exe = sys.executable if not getattr(sys, 'frozen', False) else "pythonw"
+                cmd = [python_exe, script_path] + args
+                p = subprocess.Popen(
+                    cmd,
+                    cwd=plugin_dir,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                )
+                return p
+            except Exception as e:
+                try:
+                    cmd = ["python", script_path] + args
+                    p = subprocess.Popen(
+                        cmd,
+                        cwd=plugin_dir,
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                    )
+                    return p
+                except Exception as e2:
+                    self.log(f"Failed to run Python entry point: {e2}", "error")
+                    return None
+        return None
+
+    def install_plugin_dependencies(self, meta):
+        dependencies = meta.get("dependencies", [])
+        if not dependencies:
+            return
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        lib_dir = os.path.join(base_dir, "plugins", "lib")
+        os.makedirs(lib_dir, exist_ok=True)
+        if lib_dir not in sys.path:
+            sys.path.insert(0, lib_dir)
+        import importlib.util
+        missing = []
+        for dep in dependencies:
+            try:
+                dep_name = dep.split(">")[0].split("<")[0].split("=")[0].strip()
+                importlib.import_module(dep_name)
+            except ImportError:
+                missing.append(dep)
+        if missing:
+            self.log(f"Installing missing dependencies for {meta.get('name')}: {missing}", "info")
+            try:
+                python_exe = sys.executable if not getattr(sys, 'frozen', False) else "python"
+                subprocess.check_call(
+                    [python_exe, "-m", "pip", "install", "--target", lib_dir] + missing,
+                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+                )
+                self.log("Dependencies installed successfully.", "success")
+            except Exception as e:
+                self.log(f"Failed to install dependencies {missing}: {e}", "error")
+
+    def register_listener(self, event_name, callback):
+        if not hasattr(self, "event_listeners"):
+            self.event_listeners = {}
+        if event_name not in self.event_listeners:
+            self.event_listeners[event_name] = []
+        self.event_listeners[event_name].append(callback)
+
+    def broadcast_event(self, event_name, *args, **kwargs):
+        if hasattr(self, "event_listeners") and event_name in self.event_listeners:
+            for cb in self.event_listeners[event_name]:
+                try:
+                    cb(*args, **kwargs)
+                except Exception as e:
+                    self.log(f"Error in event listener callback for '{event_name}': {e}", "error")
+        for listener in getattr(self, "listener_plugins", []):
+            func = getattr(listener, event_name, None)
+            if func and callable(func):
+                try:
+                    func(*args, **kwargs)
+                except Exception as e:
+                    self.log(f"Error in listener plugin event callback '{event_name}': {e}", "error")
+        self.broadcast_ipc_event(event_name, *args, **kwargs)
+
+    def broadcast_ipc_event(self, event_name, *args, **kwargs):
+        if not getattr(self, "ipc_clients", None):
+            return
+        msg = {
+            "event": event_name,
+            "args": list(args),
+            "kwargs": kwargs
+        }
+        raw_msg = (json.dumps(msg) + "\n").encode('utf-8')
+        for conn in list(self.ipc_clients):
+            try:
+                conn.sendall(raw_msg)
+            except Exception:
+                try:
+                    self.ipc_clients.remove(conn)
+                except Exception:
+                    pass
+
+    def get_game_process_handle(self):
+        if not getattr(self, "active_game_pid", None) or not kernel32:
+            return None
+        h_proc = getattr(self, "_active_game_hProcess", None)
+        if h_proc:
+            if self.is_process_running(self.active_game_pid):
+                return h_proc
+            else:
+                try:
+                    kernel32.CloseHandle(h_proc)
+                except Exception:
+                    pass
+                self._active_game_hProcess = None
+        PROCESS_VM_READ = 0x0010
+        PROCESS_VM_WRITE = 0x0020
+        PROCESS_VM_OPERATION = 0x0008
+        PROCESS_QUERY_INFORMATION = 0x0400
+        access = PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION
+        h_proc = kernel32.OpenProcess(access, False, self.active_game_pid)
+        if h_proc:
+            self._active_game_hProcess = h_proc
+            return h_proc
+        return None
+
+    def read_memory(self, address, type_str="int", size=4):
+        if not kernel32:
+            return None
+        h_proc = self.get_game_process_handle()
+        if not h_proc:
+            return None
+        import ctypes
+        if type_str == "int":
+            buffer = ctypes.c_int32()
+            bytes_read = ctypes.c_size_t()
+            if kernel32.ReadProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 4, ctypes.byref(bytes_read)):
+                return buffer.value
+        elif type_str == "float":
+            buffer = ctypes.c_float()
+            bytes_read = ctypes.c_size_t()
+            if kernel32.ReadProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 4, ctypes.byref(bytes_read)):
+                return buffer.value
+        elif type_str == "byte":
+            buffer = ctypes.c_byte()
+            bytes_read = ctypes.c_size_t()
+            if kernel32.ReadProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 1, ctypes.byref(bytes_read)):
+                return buffer.value
+        elif type_str == "bytes":
+            buffer = ctypes.create_string_buffer(size)
+            bytes_read = ctypes.c_size_t()
+            if kernel32.ReadProcessMemory(h_proc, ctypes.c_void_p(address), buffer, size, ctypes.byref(bytes_read)):
+                return buffer.raw
+        return None
+
+    def write_memory(self, address, value, type_str="int"):
+        if not kernel32:
+            return False
+        h_proc = self.get_game_process_handle()
+        if not h_proc:
+            return False
+        import ctypes
+        bytes_written = ctypes.c_size_t()
+        if type_str == "int":
+            buffer = ctypes.c_int32(int(value))
+            return bool(kernel32.WriteProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 4, ctypes.byref(bytes_written)))
+        elif type_str == "float":
+            buffer = ctypes.c_float(float(value))
+            return bool(kernel32.WriteProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 4, ctypes.byref(bytes_written)))
+        elif type_str == "byte":
+            buffer = ctypes.c_byte(int(value))
+            return bool(kernel32.WriteProcessMemory(h_proc, ctypes.c_void_p(address), ctypes.byref(buffer), 1, ctypes.byref(bytes_written)))
+        elif type_str == "bytes":
+            buffer = ctypes.create_string_buffer(value)
+            return bool(kernel32.WriteProcessMemory(h_proc, ctypes.c_void_p(address), buffer, len(value), ctypes.byref(bytes_written)))
+        return False
+
+    def start_ipc_server(self):
+        import socket
+        import threading
+        self.ipc_clients = []
+        self.ipc_server_running = True
+        self.ipc_port = int(self.config.get("ipc_port", 8692))
+        os.environ["SPIRAMM_IPC_PORT"] = str(self.ipc_port)
+        def server_loop():
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.ipc_server_socket = server_socket
+            try:
+                server_socket.bind(("127.0.0.1", self.ipc_port))
+                server_socket.listen(5)
+                server_socket.settimeout(1.0)
+            except Exception as e:
+                self.log(f"Failed to bind IPC server on port {self.ipc_port}: {e}", "error")
+                return
+            self.log(f"Local IPC Server listening on port {self.ipc_port}", "success")
+            while self.ipc_server_running:
+                try:
+                    conn, addr = server_socket.accept()
+                    threading.Thread(target=self.handle_ipc_client, args=(conn, addr), daemon=True).start()
+                except socket.timeout:
+                    continue
+                except Exception:
+                    break
+            try:
+                server_socket.close()
+            except Exception:
+                pass
+            self.ipc_server_socket = None
+        threading.Thread(target=server_loop, daemon=True).start()
+
+    def update_ipc_port(self, new_port):
+        self.ipc_server_running = False
+        if hasattr(self, "ipc_server_socket") and self.ipc_server_socket:
+            try:
+                self.ipc_server_socket.close()
+            except Exception:
+                pass
+            self.ipc_server_socket = None
+        if hasattr(self, "ipc_clients"):
+            for conn in list(self.ipc_clients):
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            self.ipc_clients = []
+        import time
+        time.sleep(0.2)
+        self.config["ipc_port"] = new_port
+        self.save_config()
+        os.environ["SPIRAMM_IPC_PORT"] = str(new_port)
+        self.start_ipc_server()
+
+    def handle_ipc_client(self, conn, addr):
+        import socket
+        self.ipc_clients.append(conn)
+        conn.settimeout(5.0)
+        buffer = ""
+        while self.ipc_server_running:
+            try:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                buffer += data.decode('utf-8', errors='ignore')
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        req = json.loads(line)
+                        cmd = req.get("cmd")
+                        resp = {"success": False}
+                        if cmd == "get_status":
+                            resp = {
+                                "success": True,
+                                "active_game": self.active_game_mode,
+                                "game_dir": self.game_dir,
+                                "mods_dir": self.mods_dir,
+                                "active_game_pid": self.active_game_pid
+                            }
+                        elif cmd == "log":
+                            msg = req.get("message", "")
+                            lvl = req.get("level", "info")
+                            self.log(f"[IPC Plugin] {msg}", lvl)
+                            resp = {"success": True}
+                        elif cmd == "read_memory":
+                            addr_val = req.get("address")
+                            type_str = req.get("type", "int")
+                            size = req.get("size", 4)
+                            val = self.read_memory(addr_val, type_str, size)
+                            if val is not None:
+                                if isinstance(val, bytes):
+                                    val = base64.b64encode(val).decode('utf-8')
+                                resp = {"success": True, "value": val}
+                            else:
+                                resp = {"success": False, "error": "Failed to read memory"}
+                        elif cmd == "write_memory":
+                            addr_val = req.get("address")
+                            val = req.get("value")
+                            type_str = req.get("type", "int")
+                            if type_str == "bytes" and isinstance(val, str):
+                                val = base64.b64decode(val)
+                            ok = self.write_memory(addr_val, val, type_str)
+                            resp = {"success": ok}
+                        elif cmd == "broadcast_event":
+                            evt = req.get("event")
+                            args = req.get("args", [])
+                            kwargs = req.get("kwargs", {})
+                            self.broadcast_event(evt, *args, **kwargs)
+                            resp = {"success": True}
+                        conn.sendall((json.dumps(resp) + "\n").encode('utf-8'))
+                    except Exception as e:
+                        try:
+                            conn.sendall((json.dumps({"success": False, "error": str(e)}) + "\n").encode('utf-8'))
+                        except Exception:
+                            pass
+            except socket.timeout:
+                continue
+            except Exception:
+                break
+        try:
+            self.ipc_clients.remove(conn)
+        except Exception:
+            pass
+        conn.close()
+
+    def create_plugin_settings_card(self):
+        if hasattr(self, "plugin_settings_card"):
+            try:
+                self.plugin_settings_card.destroy()
+            except Exception:
+                pass
+        plugins_with_settings = [p for p in getattr(self, "loaded_plugin_metas", []) if "settings_schema" in p]
+        if not plugins_with_settings:
+            return
+        self.plugin_settings_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.plugin_settings_card._is_card = True
+        self.plugin_settings_card.pack(fill="x", pady=(0, 10))
+        lbl_title = tk.Label(self.plugin_settings_card, text="Plugin Configurations", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_title._is_title = True
+        lbl_title.pack(anchor="w", pady=(0, 10))
+        if "plugin_settings" not in self.config:
+            self.config["plugin_settings"] = {}
+        for meta in plugins_with_settings:
+            p_name = meta.get("name", "Unknown Plugin")
+            p_id = meta.get("name").lower().replace(" ", "_")
+            if p_id not in self.config["plugin_settings"]:
+                self.config["plugin_settings"][p_id] = {}
+            frame_p = tk.LabelFrame(self.plugin_settings_card, text=p_name, bg=self.card_color, fg=self.accent_color, font=("Segoe UI", 9, "bold"), padx=10, pady=10, relief="solid", bd=1)
+            frame_p.pack(fill="x", pady=5)
+            schema = meta.get("settings_schema", [])
+            for opt in schema:
+                name = opt.get("name")
+                opt_type = opt.get("type", "string")
+                default = opt.get("default")
+                label_text = opt.get("label", name)
+                current_val = self.config["plugin_settings"][p_id].get(name, default)
+                row_frame = tk.Frame(frame_p, bg=self.card_color)
+                row_frame.pack(fill="x", pady=2)
+                if opt_type == "bool":
+                    var = tk.BooleanVar(value=bool(current_val))
+                    def make_cb(pid=p_id, key=name, v=var):
+                        self.config["plugin_settings"][pid][key] = v.get()
+                        self.save_config()
+                        self.broadcast_event("on_config_changed", f"plugin_settings.{pid}.{key}", v.get())
+                    cb = tk.Checkbutton(row_frame, text=label_text, variable=var, command=make_cb, bg=self.card_color, fg=self.text_color, activebackground=self.card_color, activeforeground=self.text_color, selectcolor=self.card_color)
+                    cb.pack(anchor="w")
+                elif opt_type in ["int", "string"]:
+                    lbl = tk.Label(row_frame, text=label_text, bg=self.card_color, fg=self.text_color)
+                    lbl.pack(side="left", padx=(0, 10))
+                    var = tk.StringVar(value=str(current_val))
+                    entry = ttk.Entry(row_frame, textvariable=var, width=15)
+                    entry.pack(side="left")
+                    def make_trace(pid=p_id, key=name, v=var, t=opt_type):
+                        def trace_cb(*args):
+                            val = v.get()
+                            if t == "int":
+                                try:
+                                    val = int(val)
+                                except ValueError:
+                                    return
+                            self.config["plugin_settings"][pid][key] = val
+                            self.save_config()
+                            self.broadcast_event("on_config_changed", f"plugin_settings.{pid}.{key}", val)
+                        return trace_cb
+                    var.trace_add("write", make_trace())
+                elif opt_type == "select":
+                    lbl = tk.Label(row_frame, text=label_text, bg=self.card_color, fg=self.text_color)
+                    lbl.pack(side="left", padx=(0, 10))
+                    choices = opt.get("choices", [])
+                    var = tk.StringVar(value=str(current_val))
+                    combo = ttk.Combobox(row_frame, textvariable=var, values=choices, width=15, state="readonly")
+                    combo.pack(side="left")
+                    def make_combo_cb(event, pid=p_id, key=name, v=var):
+                        self.config["plugin_settings"][pid][key] = v.get()
+                        self.save_config()
+                        self.broadcast_event("on_config_changed", f"plugin_settings.{pid}.{key}", v.get())
+                    combo.bind("<<ComboboxSelected>>", make_combo_cb)
 
     def load_plugins(self):
         self.plugins = []
+        self.background_plugins = []
+        self.listener_plugins = []
+        self.utility_plugins = []
+        self.loaded_plugin_metas = []
+        
         if getattr(sys, 'frozen', False):
             base_dir = os.path.dirname(sys.executable)
         else:
@@ -5600,7 +6413,6 @@ class FFXModManagerGUI:
             return
             
         import importlib.util
-        
         disabled_plugins = self.config.get("disabled_plugins", [])
         
         try:
@@ -5620,51 +6432,77 @@ class FFXModManagerGUI:
                             if not name or not entry_point:
                                 continue
                                 
-                            parts = entry_point.split(".")
-                            if len(parts) != 2:
-                                self.log(f"Invalid entry point in {d}: {entry_point}", "error")
-                                continue
-                                
-                            module_file = parts[0] + ".py"
-                            class_name = parts[1]
-                            
-                            module_path = os.path.join(dpath, module_file)
-                            if not os.path.exists(module_path):
-                                self.log(f"Module file missing: {module_path}", "error")
-                                continue
-                                
-                            # Dynamically import the module
-                            spec = importlib.util.spec_from_file_location(f"plugin_{d}", module_path)
-                            module = importlib.util.module_from_spec(spec)
-                            sys.modules[f"plugin_{d}"] = module
-                            sys.path.insert(0, dpath)
-                            try:
-                                spec.loader.exec_module(module)
-                            finally:
-                                sys.path.pop(0)
-                            
-                            plugin_class = getattr(module, class_name, None)
-                            if not plugin_class:
-                                self.log(f"Class '{class_name}' not found in module '{module_file}'", "error")
-                                continue
-                                
-                            tab_frame = ttk.Frame(self.content_container)
-                            plugin_inst = plugin_class(tab_frame, self)
                             meta["_dir"] = dpath
-                            plugin_inst._metadata = meta
-                            plugin_inst._tracker_process = None
+                            self.loaded_plugin_metas.append(meta)
+                            self.install_plugin_dependencies(meta)
+                            p_type = meta.get("type", "tab").lower()
                             
-                            page_id = f"plugin_{d}"
-                            self.pages[page_id] = {
-                                "name": name,
-                                "frame": tab_frame,
-                                "instance": plugin_inst,
-                                "icon": meta.get("icon", "🔌")
-                            }
-                            
-                            self.add_sidebar_nav_button(page_id, name, meta.get("icon", "🔌"), side="plugins")
-                            self.plugins.append(plugin_inst)
-                            self.log(f"Successfully loaded plugin: {name} (v{meta.get('version', '1.0')})", "success")
+                            # Handle different plugin types
+                            if p_type == "tab":
+                                plugin_class = self.execute_plugin_entry_point(meta)
+                                if not plugin_class:
+                                    continue
+                                tab_frame = ttk.Frame(self.content_container)
+                                plugin_inst = plugin_class(tab_frame, self)
+                                plugin_inst._metadata = meta
+                                plugin_inst._tracker_process = None
+                                
+                                page_id = f"plugin_{d}"
+                                self.pages[page_id] = {
+                                    "name": name,
+                                    "frame": tab_frame,
+                                    "instance": plugin_inst,
+                                    "icon": meta.get("icon", "🔌")
+                                }
+                                
+                                self.add_sidebar_nav_button(page_id, name, meta.get("icon", "🔌"), side="plugins")
+                                self.plugins.append(plugin_inst)
+                                self.log(f"Successfully loaded UI Tab Plugin: {name} (v{meta.get('version', '1.0')})", "success")
+                                
+                            elif p_type == "background":
+                                # Start the process immediately on start
+                                self.log(f"Starting background service plugin: {name}...", "info")
+                                p = self.execute_plugin_entry_point(meta, args=["startup", self.game_dir])
+                                if p:
+                                    # If it returned a process Popen object, keep track of it
+                                    self.background_plugins.append(p)
+                                    self.log(f"Background service plugin '{name}' launched successfully.", "success")
+                                else:
+                                    plugin_class = self.execute_plugin_entry_point(meta)
+                                    if plugin_class:
+                                        plugin_inst = plugin_class(None, self)
+                                        plugin_inst._metadata = meta
+                                        self.plugins.append(plugin_inst)
+                                        self.log(f"Loaded background service class plugin: {name}", "success")
+                                        
+                            elif p_type == "utility":
+                                self.utility_plugins.append(meta)
+                                self.log(f"Registered Toolkit Action Plugin: {name}", "success")
+                                
+                            elif p_type == "listener":
+                                plugin_class = self.execute_plugin_entry_point(meta)
+                                if plugin_class:
+                                    plugin_inst = plugin_class(None, self)
+                                    plugin_inst._metadata = meta
+                                    self.listener_plugins.append(plugin_inst)
+                                    self.log(f"Registered Event Listener Plugin: {name}", "success")
+                                else:
+                                    # Fallback to direct import if it doesn't return a class but is a python script we can import
+                                    import importlib.util
+                                    p_id = f"listener_{d}"
+                                    script_file = entry_point if entry_point.endswith(".py") else entry_point + ".py"
+                                    module_path = os.path.join(dpath, script_file)
+                                    if os.path.exists(module_path):
+                                        spec = importlib.util.spec_from_file_location(p_id, module_path)
+                                        module = importlib.util.module_from_spec(spec)
+                                        sys.modules[p_id] = module
+                                        sys.path.insert(0, dpath)
+                                        try:
+                                            spec.loader.exec_module(module)
+                                            self.listener_plugins.append(module)
+                                            self.log(f"Registered Event Listener Script: {name}", "success")
+                                        finally:
+                                            sys.path.pop(0)
                             
                         except Exception as e:
                             self.log(f"Failed to load plugin from '{d}': {e}", "error")

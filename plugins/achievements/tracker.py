@@ -9,6 +9,9 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
+import socket
+import base64
+import queue
 
 # Windows API Constants
 PROCESS_VM_READ = 0x0010
@@ -43,14 +46,12 @@ class POINT(ctypes.Structure):
         ("y", ctypes.c_long)
     ]
 
-# Setup Win32 handles
 kernel32 = ctypes.windll.kernel32
 user32 = ctypes.windll.user32
 
 try:
     from gui import ACHIEVEMENTS
 except Exception:
-    # Fallback definitions if gui is unimportable
     ACHIEVEMENTS = [
         {
             "id": "lightning_master",
@@ -237,45 +238,183 @@ def get_game_client_rect_screen(hwnd):
     h = rect.bottom - rect.top
     return pt.x, pt.y, w, h
 
+def discover_ipc_port(plugin_dir):
+    for i in range(len(sys.argv) - 1):
+        if sys.argv[i] == "--ipc-port":
+            try:
+                return int(sys.argv[i+1])
+            except ValueError:
+                pass
+    env_port = os.environ.get("SPIRAMM_IPC_PORT")
+    if env_port:
+        try:
+            return int(env_port)
+        except ValueError:
+            pass
+    curr = os.path.abspath(plugin_dir)
+    for _ in range(5):
+        config_path = os.path.join(curr, "spiramm_config.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    if "ipc_port" in cfg:
+                        return int(cfg["ipc_port"])
+            except Exception:
+                pass
+        parent = os.path.dirname(curr)
+        if parent == curr:
+            break
+        curr = parent
+    return 8692
+
+class IPCClient:
+    def __init__(self, port, event_handler_cb=None):
+        self.port = port
+        self.event_handler_cb = event_handler_cb
+        self.sock = None
+        self.running = False
+        self.pending_responses = {}
+        self.msg_counter = 0
+        self.lock = threading.Lock()
+        
+    def connect(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect(("127.0.0.1", self.port))
+            self.running = True
+            self.listener_thread = threading.Thread(target=self._recv_loop, daemon=True)
+            self.listener_thread.start()
+            return True
+        except Exception as e:
+            print(f"IPC Client failed to connect to port {self.port}: {e}", flush=True)
+            return False
+
+    def close(self):
+        self.running = False
+        if self.sock:
+            try:
+                self.sock.close()
+            except Exception:
+                pass
+
+    def _recv_loop(self):
+        buffer = ""
+        while self.running:
+            try:
+                data = self.sock.recv(4096)
+                if not data:
+                    break
+                buffer += data.decode('utf-8', errors='ignore')
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        msg = json.loads(line)
+                        if "event" in msg:
+                            if self.event_handler_cb:
+                                self.event_handler_cb(msg)
+                        else:
+                            with self.lock:
+                                for q in self.pending_responses.values():
+                                    q.put(msg)
+                    except Exception as e:
+                        print(f"Error parsing message in IPC client loop: {e}", flush=True)
+            except Exception:
+                break
+        self.running = False
+
+    def send_cmd(self, cmd_dict, timeout=2.0):
+        if not self.running or not self.sock:
+            return None
+        with self.lock:
+            self.msg_counter += 1
+            msg_id = self.msg_counter
+            q = queue.Queue(maxsize=1)
+            self.pending_responses[msg_id] = q
+        try:
+            raw_msg = (json.dumps(cmd_dict) + "\n").encode('utf-8')
+            self.sock.sendall(raw_msg)
+            resp = q.get(timeout=timeout)
+            return resp
+        except queue.Empty:
+            print(f"IPC command timed out: {cmd_dict}", flush=True)
+            return None
+        except Exception as e:
+            print(f"IPC command failed: {e}", flush=True)
+            return None
+        finally:
+            with self.lock:
+                self.pending_responses.pop(msg_id, None)
+
+    def read_remote_memory(self, address, type_str="int", size=4):
+        resp = self.send_cmd({"cmd": "read_memory", "address": address, "type": type_str, "size": size})
+        if resp and resp.get("success"):
+            val = resp.get("value")
+            if type_str == "bytes" and isinstance(val, str):
+                return base64.b64decode(val.encode('utf-8'))
+            return val
+        return None
 
 class AchievementsOverlayApp:
     def __init__(self, pid, game_dir, json_path):
         self.pid = pid
         self.game_dir = game_dir
         self.json_path = json_path
+        self.game_active = True
         
         if getattr(sys, 'frozen', False):
             self.plugin_dir = os.path.dirname(sys.executable)
         else:
             self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
             
-        self.config_path = os.path.join(self.plugin_dir, "overlay_config.json")
+        # Discover IPC Port & connect
+        self.ipc_port = discover_ipc_port(self.plugin_dir)
+        self.ipc_client = IPCClient(self.ipc_port, self.on_ipc_event)
         
-        # Load defaults from plugin.json
-        manifest_path = os.path.join(self.plugin_dir, "plugin.json")
-        default_hk = "F8"
-        if os.path.exists(manifest_path):
-            try:
-                with open(manifest_path, "r", encoding="utf-8") as f:
-                    default_hk = json.load(f).get("default_hotkey", "F8")
-            except Exception:
-                pass
-                
         # Default configuration
         self.hud_position = "Right-Half"
         self.hud_opacity = 0.85
         self.hud_scale = 1.0
-        self.hotkey_vk = self.get_vk_code(default_hk)
-        self.last_config_check = 0.0
-        self.config_mtime = 0.0
+        self.hotkey_vk = self.get_vk_code("F8")
         
         self.load_config()
         
-        self.hProcess = kernel32.OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, False, pid)
-        if not self.hProcess:
-            print("Failed to open process handle.", flush=True)
+        # Connect to manager IPC server
+        if not self.ipc_client.connect():
+            print("Failed to connect to SpiraMM local IPC Server. Exiting.", flush=True)
             sys.exit(1)
             
+        # Startup Signature scan - open process handle temporarily
+        hProcess = kernel32.OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, False, pid)
+        if not hProcess:
+            print("Failed to open process handle for startup signature scan.", flush=True)
+            sys.exit(1)
+            
+        save_dir = get_save_dir()
+        latest_file = get_latest_save_file(save_dir)
+        signature, original_data = read_save_signature(latest_file)
+        if not signature:
+            signature = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+            
+        self.save_block_address = None
+        print("Scanning RAM for active save data block...", flush=True)
+        for attempt in range(20):
+            self.save_block_address = scan_process_memory(hProcess, signature)
+            if self.save_block_address:
+                break
+            time.sleep(2)
+            
+        kernel32.CloseHandle(hProcess)
+        
+        if not self.save_block_address:
+            print("Failed to locate save data block in RAM. Background thread exiting.", flush=True)
+            sys.exit(1)
+            
+        print(f"Save data block located in RAM at: {hex(self.save_block_address)}", flush=True)
+        
         self.overlay_window = None
         self.overlay_visible = False
         self.f8_was_pressed = False
@@ -292,54 +431,77 @@ class AchievementsOverlayApp:
         
     def get_vk_code(self, hotkey_str):
         mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
-        return mapping.get(hotkey_str, 0x77)  # F8 default
+        return mapping.get(hotkey_str, 0x77)
 
     def load_config(self):
-        if os.path.exists(self.config_path):
+        curr = os.path.abspath(self.plugin_dir)
+        config_path = None
+        for _ in range(5):
+            p = os.path.join(curr, "spiramm_config.json")
+            if os.path.exists(p):
+                config_path = p
+                break
+            parent = os.path.dirname(curr)
+            if parent == curr:
+                break
+            curr = parent
+            
+        if config_path:
             try:
-                self.config_mtime = os.path.getmtime(self.config_path)
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
-                self.hud_position = cfg.get("position", "Right-Half")
-                self.hud_opacity = float(cfg.get("opacity", 0.85))
-                self.hud_scale = float(cfg.get("scale", 1.0))
-                self.hotkey_vk = int(cfg.get("hotkey_vk", self.hotkey_vk))
-            except Exception:
-                pass
+                p_cfg = cfg.get("plugin_settings", {}).get("achievements", {})
+                self.hud_position = p_cfg.get("position", "Right-Half")
+                self.hud_opacity = float(p_cfg.get("opacity", 0.85))
+                self.hud_scale = float(p_cfg.get("scale", 1.0))
+                self.hotkey_vk = self.get_vk_code(p_cfg.get("hotkey", "F8"))
+            except Exception as e:
+                print(f"Error loading central config in tracker: {e}", flush=True)
 
-    def check_and_reload_config(self):
-        self.last_config_check = time.time()
-        if os.path.exists(self.config_path):
-            try:
-                current_mtime = os.path.getmtime(self.config_path)
-                if current_mtime != self.config_mtime:
-                    self.load_config()
-                    if hasattr(self, "overlay_window") and self.overlay_window:
-                        self.overlay_window.wm_attributes("-alpha", self.hud_opacity)
-                        self.sync_position(None)
-                        self.reload_and_draw_achievements()
-            except Exception:
-                pass
+    def on_ipc_event(self, msg):
+        event = msg.get("event")
+        args = msg.get("args", [])
+        if event == "on_config_changed":
+            path = args[0] if len(args) > 0 else ""
+            val = args[1] if len(args) > 1 else None
+            if path.startswith("plugin_settings.achievements."):
+                key = path.replace("plugin_settings.achievements.", "")
+                if key == "position":
+                    self.hud_position = val
+                    self.root.after(0, lambda: self.sync_position(None))
+                elif key == "hotkey":
+                    self.hotkey_vk = self.get_vk_code(val)
+                elif key == "opacity":
+                    try:
+                        self.hud_opacity = float(val)
+                        if self.overlay_window:
+                            self.root.after(0, lambda: self.overlay_window.wm_attributes("-alpha", self.hud_opacity))
+                    except ValueError:
+                        pass
+                elif key == "scale":
+                    try:
+                        self.hud_scale = float(val)
+                        self.root.after(0, lambda: self.reload_and_draw_achievements())
+                        self.root.after(0, lambda: self.sync_position(None))
+                    except ValueError:
+                        pass
+        elif event in ["on_theme_change", "on_theme_changed"]:
+            self.root.after(0, lambda: self.reload_and_draw_achievements())
+        elif event == "on_game_close":
+            self.game_active = False
 
     def is_game_running(self):
-        exit_code = ctypes.c_ulong()
-        if kernel32.GetExitCodeProcess(self.hProcess, ctypes.byref(exit_code)):
-            return exit_code.value == 259  # STILL_ACTIVE
-        return False
+        return self.game_active and self.ipc_client.running
 
     def check_hotkey_and_game(self):
         if not self.is_game_running():
-            print("Game exited. Closing tracker overlay.", flush=True)
+            print("Game exited or IPC disconnected. Closing tracker overlay.", flush=True)
             try:
                 self.root.destroy()
             except Exception:
                 pass
             sys.exit(0)
             
-        # Check config updates periodically
-        if time.time() - self.last_config_check > 2.0:
-            self.check_and_reload_config()
-
         game_hwnd = find_game_hwnd(self.pid)
         foreground_hwnd = user32.GetForegroundWindow()
         is_game_focused = (game_hwnd is not None) and (foreground_hwnd == game_hwnd)
@@ -378,7 +540,7 @@ class AchievementsOverlayApp:
         self.overlay_window = tk.Toplevel(self.root)
         self.overlay_window.overrideredirect(True)
         self.overlay_window.wm_attributes("-topmost", True)
-        self.overlay_window.wm_attributes("-disabled", True)  # Make click-through
+        self.overlay_window.wm_attributes("-disabled", True)
         self.overlay_window.wm_attributes("-alpha", self.hud_opacity)
         self.overlay_window.configure(bg="#121212")
         
@@ -406,7 +568,7 @@ class AchievementsOverlayApp:
                     overlay_h = int(h * 0.3)
                     overlay_x = x + 10
                     overlay_y = y + 10
-                else:  # Bottom-Half
+                else:
                     overlay_w = w - 20
                     overlay_h = int(h * 0.3)
                     overlay_x = x + 10
@@ -503,30 +665,6 @@ class AchievementsOverlayApp:
             lbl_c_status.pack(anchor="w", pady=(0, 1))
 
     def ram_scanner_loop(self):
-        save_dir = get_save_dir()
-        latest_file = get_latest_save_file(save_dir)
-        signature, original_data = read_save_signature(latest_file)
-        if not signature:
-            signature = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-            
-        save_block_address = None
-        print("Scanning RAM for active save data block...", flush=True)
-        
-        for attempt in range(20):
-            save_block_address = scan_process_memory(self.hProcess, signature)
-            if save_block_address:
-                break
-            print("Signature not found yet. Retrying in 2 seconds...", flush=True)
-            time.sleep(2)
-            if not self.is_game_running():
-                return
-                
-        if not save_block_address:
-            print("Failed to locate save data block in RAM. Background thread exiting.", flush=True)
-            return
-            
-        print(f"Save data block located in RAM at: {hex(save_block_address)}", flush=True)
-        
         def unlock(ach_id, name, desc):
             if not self.achievements_data.get(ach_id, {}).get("unlocked", False):
                 self.achievements_data[ach_id] = {
@@ -540,70 +678,60 @@ class AchievementsOverlayApp:
                 print(f"UNLOCKED: {name} - {desc}", flush=True)
                 self.needs_refresh = True
 
-        buffer = ctypes.create_string_buffer(0x6800)
-        bytes_read = ctypes.c_size_t()
-        
         while self.is_game_running():
             self.achievements_data = load_achievements_status(self.json_path)
+            save_block_base = self.save_block_address - 0x5964
             
-            # Save data block starts at offset 0x40 in the save file, and signature is at 0x59a4.
-            # Thus, the base save data block starts at save_block_address - 0x5964.
-            save_block_base = save_block_address - 0x5964
-            
-            if kernel32.ReadProcessMemory(self.hProcess, ctypes.c_void_p(save_block_base), buffer, 0x6800, ctypes.byref(bytes_read)):
-                ram_data = buffer.raw[:bytes_read.value]
-                
-                if len(ram_data) >= 0x4100:
-                    gil = int.from_bytes(ram_data[0x4FC:0x4FC+4], byteorder='little')
-                    if gil >= 1000000:
-                        unlock("gil_millionaire", "🪙 Spiran Millionaire", "Amass 1,000,000 Gil at once.")
-                        
-                    al_bhed_mask = int.from_bytes(ram_data[0x50C:0x50C+4], byteorder='little')
-                    if (al_bhed_mask & 0x03FFFFFF) == 0x03FFFFFF:
-                        unlock("al_bhed_scholar", "📜 Al Bhed Scholar", "Collect all Al Bhed Primers 1 to 26 in a single playthrough.")
-                        
-                    lightning_max = int.from_bytes(ram_data[0x5BA:0x5BA+2], byteorder='little')
-                    if lightning_max >= 500:
-                        unlock("lightning_master", "⚡ Lightning Master", "Dodge 500 consecutive lightning bolts in the Thunder Plains.")
-                        
-                    story_prog = ram_data[0x4E0]
-                    if story_prog >= 240:
-                        s_levels_total = 0
-                        # Character offsets are adjusted by adding 0x5964 to align with their padded RAM block position
-                        for offset in [0x1D8 + 0x5964, 0x270 + 0x5964, 0x308 + 0x5964, 0x3A0 + 0x5964, 0x438 + 0x5964, 0x4D0 + 0x5964]:
-                            if offset < len(ram_data):
-                                s_levels_total += ram_data[offset]
-                        if s_levels_total == 0:
-                            unlock("nsg_sin", "🚫 Zero Upgrades", "Defeat Sin's Core without ever activating any nodes on the Sphere Grid.")
+            # Read RAM data remotely using socket query
+            ram_data = self.ipc_client.read_remote_memory(save_block_base, type_str="bytes", size=0x6800)
+            if ram_data and len(ram_data) >= 0x4100:
+                gil = int.from_bytes(ram_data[0x4FC:0x4FC+4], byteorder='little')
+                if gil >= 1000000:
+                    unlock("gil_millionaire", "🪙 Spiran Millionaire", "Amass 1,000,000 Gil at once.")
+                    
+                al_bhed_mask = int.from_bytes(ram_data[0x50C:0x50C+4], byteorder='little')
+                if (al_bhed_mask & 0x03FFFFFF) == 0x03FFFFFF:
+                    unlock("al_bhed_scholar", "📜 Al Bhed Scholar", "Collect all Al Bhed Primers 1 to 26 in a single playthrough.")
+                    
+                lightning_max = int.from_bytes(ram_data[0x5BA:0x5BA+2], byteorder='little')
+                if lightning_max >= 500:
+                    unlock("lightning_master", "⚡ Lightning Master", "Dodge 500 consecutive lightning bolts in the Thunder Plains.")
+                    
+                story_prog = ram_data[0x4E0]
+                if story_prog >= 240:
+                    s_levels_total = 0
+                    for offset in [0x1D8 + 0x5964, 0x270 + 0x5964, 0x308 + 0x5964, 0x3A0 + 0x5964, 0x438 + 0x5964, 0x4D0 + 0x5964]:
+                        if offset < len(ram_data):
+                            s_levels_total += ram_data[offset]
+                    if s_levels_total == 0:
+                        unlock("nsg_sin", "🚫 Zero Upgrades", "Defeat Sin's Core without ever activating any nodes on the Sphere Grid.")
 
-                    if story_prog >= 220:
-                        unlock("no_summons_yunalesca", "💀 Death Defied", "Defeat Yunalesca without summoning a single Aeon.")
-                        
-                    for offset in [0x1B8 + 0x5964, 0x250 + 0x5964, 0x2E8 + 0x5964, 0x380 + 0x5964, 0x418 + 0x5964, 0x4B0 + 0x5964]:
-                        if offset + 4 <= len(ram_data):
-                            hp = int.from_bytes(ram_data[offset:offset+4], byteorder='little')
-                            if hp == 7777:
-                                unlock("lucky_sevens", "🎰 Lucky Sevens", "Deal exactly 7,777 damage in a single attack with any character.")
-                                break
-                                
-                    # 7. Potion Collector (Have 5 or more Potions)
-                    potion_count = 0
-                    items_start_offset = 0x4020
-                    for i in range(112):
-                        slot_offset = items_start_offset + i * 2
-                        if slot_offset + 1 < len(ram_data):
-                            qty = ram_data[slot_offset]
-                            item_id = ram_data[slot_offset + 1]
-                            # Count Potion (0x00), Hi-Potion (0x01), X-Potion (0x02), Mega-Potion (0x03)
-                            if item_id in [0x00, 0x01, 0x02, 0x03] and qty > 0:
-                                potion_count += qty
-                    if potion_count >= 5:
-                        unlock("potion_collector", "🧪 Potion Collector", "Have 5 or more Potions in your inventory.")
+                if story_prog >= 220:
+                    unlock("no_summons_yunalesca", "💀 Death Defied", "Defeat Yunalesca without summoning a single Aeon.")
+                    
+                for offset in [0x1B8 + 0x5964, 0x250 + 0x5964, 0x2E8 + 0x5964, 0x380 + 0x5964, 0x418 + 0x5964, 0x4B0 + 0x5964]:
+                    if offset + 4 <= len(ram_data):
+                        hp = int.from_bytes(ram_data[offset:offset+4], byteorder='little')
+                        if hp == 7777:
+                            unlock("lucky_sevens", "🎰 Lucky Sevens", "Deal exactly 7,777 damage in a single attack with any character.")
+                            break
+                            
+                potion_count = 0
+                items_start_offset = 0x4020
+                for i in range(112):
+                    slot_offset = items_start_offset + i * 2
+                    if slot_offset + 1 < len(ram_data):
+                        qty = ram_data[slot_offset]
+                        item_id = ram_data[slot_offset + 1]
+                        if item_id in [0x00, 0x01, 0x02, 0x03] and qty > 0:
+                            potion_count += qty
+                if potion_count >= 5:
+                    unlock("potion_collector", "🧪 Potion Collector", "Have 5 or more Potions in your inventory.")
             else:
-                break
+                pass
                 
             time.sleep(1.0)
-
+        self.ipc_client.close()
 
 def main():
     if len(sys.argv) < 3:

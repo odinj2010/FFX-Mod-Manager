@@ -65,7 +65,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 
 ## 🧪 Plugins & Companion Overlays Backlog (Proposed)
 
-### 12. Centralized Settings & Customization for Plugins (Proposed)
+### 12. Centralized Settings & Customization for Plugins (Completed)
 * **Goal**: Give players dynamic, GUI-driven control over plugin properties and behaviors.
 * **Details**:
   * Build a **Global Plugin Settings Card** in the Settings tab of SpiraMM.
@@ -73,14 +73,14 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
   * **Overlay Appearance**: Dynamic controls for transparency/opacity, font sizes, snapped screen positioning (Top-Right, Bottom-Left), and click-through lock.
   * **Toggle Status**: Enable/disable individual trackers on/off dynamically.
 
-### 13. Main Manager & Plugin Inter-Process Communication (IPC) (Proposed)
+### 13. Main Manager & Plugin Inter-Process Communication (IPC) (Completed)
 * **Goal**: Sync status, notifications, and logs between background overlay processes and SpiraMM.
 * **Details**:
   * Implement a lightweight named pipe or socket IPC hook inside SpiraMM.
   * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in SpiraMM.
   * **Unified Logs**: Route warning/error logs from active trackers back to the Mod Manager's central console log window.
 
-### 14. Core Game Memory Hook API (Proposed)
+### 14. Core Game Memory Hook API (Completed)
 * **Goal**: Consolidate memory scanning and handles inside SpiraMM to simplify plugin code.
 * **Details**:
   * Run a master background game-hook thread in SpiraMM to manage the process handle and UAC elevation checks.
@@ -92,7 +92,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
   * **Mod-Specific Guides**: Retranslation or story mods can bundle `walkthrough.json` to override the overlay walkthrough dynamically when activated.
   * **Gameplay Overhaul Compatibility**: Re-balance or recipe mods can bundle custom recipe lists to automatically update the Rikku's Mix Calculator plugin database.
 
-### 16. Open Plugin Developer SDK & Extensible Runner (Proposed)
+### 16. Open Plugin Developer SDK & Extensible Runner (Completed)
 * **Goal**: Enable any mod creator or community member to write and test plugins easily.
 * **Details**:
   * **Current State & Limitations**:
@@ -155,4 +155,5 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **Hover Tooltips**: custom dynamic themed tooltips on active mod cards.
 * [x] **Styled Plugins Tab Grouping**: dynamic sidebar container separation with highlighted borders for plugins.
 * [x] **Button Theme Colorizations**: styled standard/TTK buttons to match semantic custom themes (Action, Success, Caution, Utility) dynamically (Next_Release).
-* [x] **Modern Glassmorphism UI Overhaul**: reorganize page frames as floating cards with dynamic 1px glowing/accent borders, subframe dynamic styling, and theme compatibility (Next_Release).
+* [x] **Open Plugin Developer SDK & Extensible Runner**: support raw scripts, executables, dotted path imports, background/utility/listener categories, and a starter template generator. (Next_Release)
+* [x] **Advanced Plugin Developer SDK (Phase 2)**: Dynamic schema settings UI, local socket JSON-RPC server (localhost:8692), direct memory read/write API, automated pip dependency installer, and fine-grained pub/sub events with hot-reloading. (Next_Release)

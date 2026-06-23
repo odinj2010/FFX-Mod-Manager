@@ -31,3 +31,7 @@ ffx_modding_toolbox_config.json
 ffx_phyre_tool_config.json
 ffx_phyre_tool_recent_files.json
 sync_to_github.py
+
+# Custom Agent configuration and manager backups
+.agents/
+backups/

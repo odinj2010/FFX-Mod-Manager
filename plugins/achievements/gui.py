@@ -83,7 +83,6 @@ class AchievementsTab:
         self.search_var.trace_add("write", lambda *args: self.refresh_view())
         
         self.plugin_dir = os.path.dirname(os.path.abspath(__file__))
-        self.config_file = os.path.join(self.plugin_dir, "overlay_config.json")
         
         # Load defaults from plugin.json
         manifest_file = os.path.join(self.plugin_dir, "plugin.json")
@@ -119,31 +118,32 @@ class AchievementsTab:
         return {}
 
     def load_overlay_config(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.hud_position.set(cfg.get("position", "Right-Half"))
-                self.hud_hotkey.set(cfg.get("hotkey_str", "F8"))
-                self.hud_opacity.set(float(cfg.get("opacity", 0.85)))
-                self.hud_scale.set(float(cfg.get("scale", 1.0)))
-            except Exception:
-                pass
+        if "plugin_settings" not in self.manager.config:
+            self.manager.config["plugin_settings"] = {}
+        if "achievements" not in self.manager.config["plugin_settings"]:
+            self.manager.config["plugin_settings"]["achievements"] = {}
+        p_cfg = self.manager.config["plugin_settings"]["achievements"]
+        self.hud_position.set(p_cfg.get("position", "Right-Half"))
+        self.hud_hotkey.set(p_cfg.get("hotkey", "F8"))
+        self.hud_opacity.set(float(p_cfg.get("opacity", 0.85)))
+        self.hud_scale.set(float(p_cfg.get("scale", 1.0)))
 
     def save_overlay_config(self):
-        cfg = {
-            "position": self.hud_position.get(),
-            "hotkey_str": self.hud_hotkey.get(),
-            "opacity": round(self.hud_opacity.get(), 2),
-            "scale": round(self.hud_scale.get(), 2),
-            "hotkey_vk": self.get_vk_code(self.hud_hotkey.get())
-        }
-        try:
-            with open(self.config_file, "w", encoding="utf-8") as f:
-                json.dump(cfg, f, indent=2)
-            self.manager.log("Achievements HUD settings saved successfully.", "success")
-        except Exception as e:
-            self.manager.log(f"Failed to save HUD config: {e}", "error")
+        if "plugin_settings" not in self.manager.config:
+            self.manager.config["plugin_settings"] = {}
+        if "achievements" not in self.manager.config["plugin_settings"]:
+            self.manager.config["plugin_settings"]["achievements"] = {}
+        p_cfg = self.manager.config["plugin_settings"]["achievements"]
+        p_cfg["position"] = self.hud_position.get()
+        p_cfg["hotkey"] = self.hud_hotkey.get()
+        p_cfg["opacity"] = str(round(self.hud_opacity.get(), 2))
+        p_cfg["scale"] = str(round(self.hud_scale.get(), 2))
+        self.manager.save_config()
+        self.manager.broadcast_event("on_config_changed", "plugin_settings.achievements.position", p_cfg["position"])
+        self.manager.broadcast_event("on_config_changed", "plugin_settings.achievements.hotkey", p_cfg["hotkey"])
+        self.manager.broadcast_event("on_config_changed", "plugin_settings.achievements.opacity", p_cfg["opacity"])
+        self.manager.broadcast_event("on_config_changed", "plugin_settings.achievements.scale", p_cfg["scale"])
+        self.manager.log("Achievements HUD settings updated centrally.", "success")
 
     def get_vk_code(self, hotkey_str):
         mapping = {f"F{i}": 0x6F + i for i in range(1, 13)}
