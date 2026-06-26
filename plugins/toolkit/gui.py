@@ -75,11 +75,11 @@ class ToolkitTab:
             },
             "audio": {
                 "name": "FFX Audio Tool",
-                "folder": "FFX-Audio-Tool",
+                "folder": "FFX_Audio_Tool",
                 "script": "FFX_Audio_Tool.py",
                 "exe": "FFX_Audio_Tool.exe",
                 "desc": "Convert, replace, and edit game voice lines, sound effects, and music.",
-                "download_url": "https://github.com/odinj2010/FFX-Audio-Tool/releases/latest/download/FFX-Audio-Tool.zip"
+                "download_url": "https://github.com/odinj2010/FFX_Audio_Tool/releases/latest/download/FFX_Audio_Tool.zip"
             },
             "ai": {
                 "name": "FFX AI Tool",
