@@ -59,11 +59,11 @@ class ToolkitTab:
             },
             "shop": {
                 "name": "FFX Shop Tool",
-                "folder": "FFX-Shop-Tool",
+                "folder": "FFX_Shop_Tool",
                 "script": "FFX_Shop_Tool.py",
                 "exe": "FFX_Shop_Tool.exe",
                 "desc": "Modify shop inventories, prices, items, and unlock triggers.",
-                "download_url": "https://github.com/odinj2010/FFX-Shop-Tool/releases/latest/download/FFX-Shop-Tool.zip"
+                "download_url": "https://github.com/odinj2010/FFX_Shop_Tool/releases/latest/download/FFX_Shop_Tool.zip"
             },
             "phyre": {
                 "name": "FFX Phyre Tool",
