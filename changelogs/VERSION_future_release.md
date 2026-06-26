@@ -24,3 +24,8 @@ This file contains staging changelogs for the upcoming releases of Spira Mod Man
 
 ## Bug Fixes
 *   *(Placeholder for engine/manager fixes)*
+
+## Build Tools & Scripts
+*   **Native Batch Compilation Run Script (run.bat)**: Created a selection-driven `run.bat` batch script in the root directory that allows compiling individual targets (Spira Mod Manager, or Plugin Trackers) or all targets using native PyInstaller command execution and plugin auto-discovery.
+*   **Removed Python Compile Script**: Deleted `compile_mod_manager.py` as its build and packaging tasks are fully replaced by the dependency-free native batch logic in `run.bat`.
+

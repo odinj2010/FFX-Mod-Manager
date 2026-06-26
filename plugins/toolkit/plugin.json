@@ -1,0 +1,8 @@
+{
+  "name": "Developer Toolkit",
+  "icon": "🛠️",
+  "version": "1.0",
+  "creator": "NfgOdin",
+  "entry_point": "gui.ToolkitTab",
+  "description": "Quick-launcher, path configurations, and download helpers for FFX modding utilities and custom tools."
+}

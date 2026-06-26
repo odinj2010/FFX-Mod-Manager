@@ -2,6 +2,19 @@
 
 This changelog tracks updates, bug fixes, and feature improvements for the official Spira Mod Manager plugins (Achievements & Walkthrough overlays).
 
+## [v1.5] - 2026-06-25
+
+### Developer Toolkit (New Plugin)
+* **Initial Release (v1.0)**: Introduced the Developer Toolkit tab plugin.
+  * **Unified Layout**: Double-column panel organizing "Community Utilities" (VBF Browser, FFXED, MemorySumChecker, Farplane) and "My Custom Tools" side-by-side.
+  - **Dynamic Path Auto-Detection**: Checks local configurations, downloaded self-contained binaries, and sibling development directories to resolve tool paths dynamically.
+  - **Self-Contained ZIP Releases**: Downloads compiled executable `.zip` packages from GitHub Releases and extracts them into `plugins/toolkit/bin/[tool]/` without requiring Python requirements.
+  - **Recursive Executable Finder**: Recursively scans extracted directories to locate target `.exe` launchers.
+  - **FFX Phyre Tool Release Correction**: Updated Phyre Tool's download URL pattern to use correct underscore naming (`FFX_Phyre_Tool.zip`).
+  - **Dynamic Tool Updater Engine**: Compares locally installed versions with the latest tags returned from the GitHub Releases API. If a newer release is published on GitHub, the manager warns the user and displays an **Update** button next to the launch option.
+  - **Theme-Aware Status Colors**: Styled "Ready" with theme's success color and missing states with error color.
+  - **Full Mousewheel Support**: Enabled scrolling list panes with the mouse wheel on hover.
+
 ## [v1.4] - 2026-06-20
 
 ### Rikku's Mix (New Plugin)
