@@ -43,19 +43,19 @@ class ToolkitTab:
         self.custom_tools = {
             "text": {
                 "name": "FFX Text Tool",
-                "folder": "FFX-Text-Tool",
+                "folder": "FFX_Text_Tool",
                 "script": "FFX_Text_Tool.py",
                 "exe": "FFX_Text_Tool.exe",
                 "desc": "Browse, search, edit, and re-import text strings from the game script.",
-                "download_url": "https://github.com/odinj2010/FFX-Text-Tool/releases/latest/download/FFX_Text_Tool.zip"
+                "download_url": "https://github.com/odinj2010/FFX_Text_Tool/releases/latest/download/FFX_Text_Tool.zip"
             },
             "sphere": {
                 "name": "FFX Sphere Grid Tool",
-                "folder": "FFX-Sphere-Grid-Tool",
+                "folder": "FFX_Sphere_Grid_Tool",
                 "script": "FFX_Sphere_Grid_Tool.py",
                 "exe": "FFX_Sphere_Grid_Tool.exe",
                 "desc": "Edit sphere grid node properties, item paths, and character starting positions.",
-                "download_url": "https://github.com/odinj2010/FFX-Sphere-Grid-Tool/releases/latest/download/FFX-Sphere-Grid-Tool.zip"
+                "download_url": "https://github.com/odinj2010/FFX_Sphere_Grid_Tool/releases/latest/download/FFX_Sphere_Grid_Tool.zip"
             },
             "shop": {
                 "name": "FFX Shop Tool",
