@@ -83,11 +83,11 @@ class ToolkitTab:
             },
             "ai": {
                 "name": "FFX AI Tool",
-                "folder": "FFX-AI-Tool",
+                "folder": "FFX_AI_Tool",
                 "script": "FFX_AI_Tool.py",
                 "exe": "FFX_AI_Tool.exe",
                 "desc": "Edit enemy AI scripts, combat routines, and behaviors.",
-                "download_url": "https://github.com/odinj2010/FFX-AI-Tool/releases/latest/download/FFX-AI-Tool.zip"
+                "download_url": "https://github.com/odinj2010/FFX_AI_Tool/releases/latest/download/FFX_AI_Tool.zip"
             }
         }
         
@@ -297,6 +297,11 @@ class ToolkitTab:
             if tid in self.tool_paths:
                 continue
             tool_folder = os.path.join(parent_dir, tool["folder"])
+            # Fallback for folder naming conventions (e.g. FFX_AI_Tool vs FFX-AI-Tool)
+            if not os.path.exists(tool_folder):
+                alt_folder = tool["folder"].replace("_", "-") if "_" in tool["folder"] else tool["folder"].replace("-", "_")
+                tool_folder = os.path.join(parent_dir, alt_folder)
+                
             if os.path.exists(tool_folder):
                 exe_path = os.path.join(tool_folder, "dist", tool["exe"])
                 if os.path.exists(exe_path):

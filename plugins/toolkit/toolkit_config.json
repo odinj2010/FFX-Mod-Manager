@@ -1,0 +1,18 @@
+{
+  "paths": {
+    "text": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Text-Tool\\FFX_Text_Tool.py",
+    "sphere": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Sphere-Grid-Tool\\FFX_Sphere_Grid_Tool.py",
+    "shop": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Shop-Tool\\FFX_Shop_Tool.py",
+    "phyre": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Phyre-Tool\\dist\\FFX_Phyre_Tool.exe",
+    "audio": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-Audio-Tool\\FFX_Audio_Tool.py",
+    "ai": "C:\\Users\\jonat\\Desktop\\Modding\\Final Fantasy X&X2 Modding\\Custom FFX Tools\\FFX-AI-Tool\\FFX_AI_Tool.py"
+  },
+  "versions": {
+    "text": "1.0.0.0",
+    "sphere": "1.0.0.0",
+    "shop": "1.0.0.0",
+    "phyre": "2.2.0.0",
+    "audio": "1.0.0.0",
+    "ai": "1.0.0.0"
+  }
+}
