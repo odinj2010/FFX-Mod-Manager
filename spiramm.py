@@ -2147,9 +2147,10 @@ class FFXModManagerGUI:
 
     def check_for_conflicts(self, mod_id):
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
-        info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
+        info_path = os.path.join(mod_repo_path, "modinfo.spiramod")
+        legacy_info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
         fallback_path = os.path.join(mod_repo_path, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else fallback_path
+        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path
         
         if not os.path.exists(read_path):
             return {}
@@ -4837,6 +4838,19 @@ class FFXModManagerGUI:
             return os.path.basename(abs_path)
             
         parts = abs_path.split("/")
+
+        # UnX texture mod path resolution
+        if "unx_res/" in abs_path.lower():
+            idx = abs_path.lower().find("unx_res/")
+            return "UnX_Res/" + abs_path[idx + len("unx_res/"):]
+        if "inject/textures/" in abs_path.lower():
+            idx = abs_path.lower().find("inject/textures/")
+            return "UnX_Res/" + abs_path[idx:]
+        if "textures/" in abs_path.lower():
+            idx = abs_path.lower().find("textures/")
+            return "UnX_Res/inject/" + abs_path[idx:]
+        if abs_path.lower().endswith(".dds"):
+            return "UnX_Res/inject/textures/" + os.path.basename(abs_path)
 
         
         # Determine FFX-2 context
