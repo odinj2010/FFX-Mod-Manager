@@ -7015,6 +7015,13 @@ while True:
             except Exception:
                 pass
 
+        # Refresh Toolkit Actions UI if settings page exists
+        if hasattr(self, "toolkit_buttons_container"):
+            try:
+                self.refresh_toolkit_actions_ui()
+            except Exception:
+                pass
+
 
 class ThemeCreatorDialog:
     def __init__(self, manager):
