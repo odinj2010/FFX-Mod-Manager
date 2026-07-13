@@ -3871,8 +3871,7 @@ class FFXModManagerGUI:
 
     def show_import_dropdown(self):
         menu = tk.Menu(self.root, tearoff=0, bg=self.bg_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
-        menu.add_command(label="📥 Single Mod Archive...", command=self.import_zip_mod)
-        menu.add_command(label="📥 Multiple Archives (Bulk)...", command=self.import_bulk_zips)
+        menu.add_command(label="📥 Import Multiple (Bulk)...", command=self.import_bulk_zips)
         
         try:
             x = self.btn_import_arrow.winfo_rootx()
