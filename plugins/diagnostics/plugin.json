@@ -1,0 +1,9 @@
+{
+  "name": "Game & Manager Diagnostics",
+  "version": "1.0",
+  "creator": "SpiraMM Team",
+  "type": "utility",
+  "entry_point": "run_diagnostics.py",
+  "button_text": "🔍 Run Diagnostics",
+  "description": "Performs diagnostic checks on your game installation and streams real-time status logs back to SpiraMM via the IPC socket API."
+}

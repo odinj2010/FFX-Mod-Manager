@@ -22,6 +22,7 @@ This major release introduces the **Extensible Plugin Runner & SDK** for develop
 *   **Dynamic Credits Lock & Directory Renaming**: Allows changing mod names and author info for bulk-imported mods. Renaming the display name automatically renames the physical folder on disk and updates active trackers.
 *   **Unified `.spiramod` Format & Migration**: Legacy `.ffxmod` files are now automatically upgraded to the unified `.spiramod` metadata format, adding game specificity properties.
 *   **UnX Texture Path Auto-Resolution**: Automatically maps folder contexts containing `"unx_res/"`, `"inject/textures/"`, and `"textures/"`, as well as loose `.dds` texture files, into their correct targets under `UnX_Res/inject/textures/` without prompting the user.
+*   **Showcase Diagnostics Utility**: Included a built-in diagnostics utility under `plugins/diagnostics/` to demonstrate loopback IPC JSON-RPC socket communication directly inside the manager.
 
 ### 🐛 Bug Fixes
 *   **Conflict Tab Format Support**: Updated the conflict checker to properly read `.spiramod` metadata files, resolving issues where mod conflicts were missing.
