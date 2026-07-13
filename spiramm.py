@@ -977,6 +977,21 @@ class FFXModManagerGUI:
         btn_refresh.pack(side="right", fill="x", expand=True, padx=(2, 0))
         self.bind_hover(btn_refresh)
         ToolTip(btn_refresh, "Force a disk rescan of enabled and disabled folders to refresh the mods list state.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Load Order control frame (only packed when in Fahrenheit mode)
+        self.load_order_frame = ttk.Frame(btn_p_frame, style="Card.TFrame")
+        
+        btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
+                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_up.pack(side="left", fill="x", expand=True, padx=(0, 2), pady=2)
+        self.bind_hover(btn_move_up)
+        ToolTip(btn_move_up, "Move selected mod up in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        btn_move_down = tk.Button(self.load_order_frame, text="🔽 Move Down", command=self.move_mod_down, bg=self.card_color,
+                                  fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        btn_move_down.pack(side="right", fill="x", expand=True, padx=(2, 0), pady=2)
+        self.bind_hover(btn_move_down)
+        ToolTip(btn_move_down, "Move selected mod down in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
 
         # Scrollable Mod Cards Frame
         cards_pane = ttk.Frame(left_frame, style="Card.TFrame")
