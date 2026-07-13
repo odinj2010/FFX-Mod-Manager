@@ -943,13 +943,23 @@ class FFXModManagerGUI:
         btn_new.pack(side="left", fill="x", expand=True, padx=2)
         self.bind_hover(btn_new, is_primary=True)
         ToolTip(btn_new, "Initialize a new empty local mod structure folder with an auto-generated manifest.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        # Split Import Button Frame
+        import_frame = ttk.Frame(row1, style="Card.TFrame")
+        import_frame.pack(side="left", fill="x", expand=True, padx=(2, 0))
         
-        btn_import = tk.Button(row1, text="📥 Import", command=self.import_zip_mod, bg=self.accent_color,
+        btn_import = tk.Button(import_frame, text="📥 Import", command=self.import_zip_mod, bg=self.accent_color,
                                fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover)
         btn_import._is_primary = True
-        btn_import.pack(side="left", fill="x", expand=True, padx=(2, 0))
+        btn_import.pack(side="left", fill="both", expand=True)
         self.bind_hover(btn_import, is_primary=True)
         ToolTip(btn_import, "Import and unpack a compressed zip/rar archive mod. Automatically restructures/normalizes folder paths.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        self.btn_import_arrow = tk.Button(import_frame, text="▾", command=self.show_import_dropdown, bg=self.accent_color,
+                                          fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, width=2)
+        self.btn_import_arrow._is_primary = True
+        self.btn_import_arrow.pack(side="right", fill="y", padx=(1, 0))
+        self.bind_hover(self.btn_import_arrow, is_primary=True)
+        ToolTip(self.btn_import_arrow, "Show additional import options (such as Bulk Import).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Row 2: Delete, Refresh
         row2 = ttk.Frame(btn_p_frame, style="Card.TFrame")
@@ -961,21 +971,6 @@ class FFXModManagerGUI:
         btn_del.pack(side="left", fill="x", expand=True, padx=(0, 2))
         self.bind_hover(btn_del)
         ToolTip(btn_del, "Permanently delete this mod's repository folder and all contained assets from your computer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
-        
-        # Load Order control frame (only packed when in Fahrenheit mode)
-        self.load_order_frame = ttk.Frame(btn_p_frame, style="Card.TFrame")
-        
-        btn_move_up = tk.Button(self.load_order_frame, text="🔼 Move Up", command=self.move_mod_up, bg=self.card_color,
-                                fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_move_up.pack(side="left", fill="x", expand=True, padx=(0, 2), pady=2)
-        self.bind_hover(btn_move_up)
-        ToolTip(btn_move_up, "Move selected mod up in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
-        
-        btn_move_down = tk.Button(self.load_order_frame, text="🔽 Move Down", command=self.move_mod_down, bg=self.card_color,
-                                  fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
-        btn_move_down.pack(side="right", fill="x", expand=True, padx=(2, 0), pady=2)
-        self.bind_hover(btn_move_down)
-        ToolTip(btn_move_down, "Move selected mod down in priority. Mods loaded later in loadorder override earlier conflicting files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_refresh = tk.Button(row2, text="🔄 Refresh", command=self.refresh_list, bg=self.card_color,
                                 fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
@@ -1959,27 +1954,32 @@ class FFXModManagerGUI:
             entry.config(state="normal")
             entry.delete(0, tk.END)
             
+        credits_locked = info.get("credits_locked", True)
+            
         name_val = info.get("name", mod_id)
         self.ent_mod_name.insert(0, name_val)
-        self.ent_mod_name.config(state="readonly")
+        if not credits_locked:
+            self.ent_mod_name.config(state="normal")
+        else:
+            self.ent_mod_name.config(state="readonly")
             
         creator_name = info.get("creator", info.get("author", ""))
         self.ent_mod_creator.insert(0, creator_name)
-        if creator_name.strip().lower() in ["", "user"]:
+        if not credits_locked or creator_name.strip().lower() in ["", "user", "unknown"]:
             self.ent_mod_creator.config(state="normal")
         else:
             self.ent_mod_creator.config(state="readonly")
             
         version_val = info.get("version", "0.0")
         self.ent_mod_version.insert(0, version_val)
-        if version_val.strip().lower() in ["", "0.0"]:
+        if not credits_locked or version_val.strip().lower() in ["", "0.0", "1.0"]:
             self.ent_mod_version.config(state="normal")
         else:
             self.ent_mod_version.config(state="readonly")
             
         desc_val = info.get("description", "")
         self.ent_mod_desc.insert(0, desc_val)
-        if desc_val.strip() == "":
+        if not credits_locked or desc_val.strip() == "":
             self.ent_mod_desc.config(state="normal")
         else:
             self.ent_mod_desc.config(state="readonly")
@@ -1988,14 +1988,14 @@ class FFXModManagerGUI:
         
         nexus_id_val = info.get("nexus_id", "")
         self.ent_nexus_id.insert(0, nexus_id_val)
-        if nexus_id_val.strip() == "":
+        if not credits_locked or nexus_id_val.strip() == "":
             self.ent_nexus_id.config(state="normal")
         else:
             self.ent_nexus_id.config(state="readonly")
             
         link_val = info.get("link", info.get("url", ""))
         self.ent_mod_link.insert(0, link_val)
-        if link_val.strip() == "":
+        if not credits_locked or link_val.strip() == "":
             self.ent_mod_link.config(state="normal")
         else:
             self.ent_mod_link.config(state="readonly")
@@ -2461,49 +2461,76 @@ class FFXModManagerGUI:
                 pass
                 
         # Double check if Creator field is locked in GUI but they tried to bypass it
+        is_locked = info.get("credits_locked", True)
+        
         creator_before = info.get("creator", info.get("author", ""))
         creator_input = self.ent_mod_creator.get().strip()
-        if creator_before.strip().lower() not in ["", "user"] and creator_input != creator_before:
+        if is_locked and creator_before.strip().lower() not in ["", "user", "unknown"] and creator_input != creator_before:
             creator_input = creator_before  # Keep original creator
             
         name_before = info.get("name", "")
         name_input = self.ent_mod_name.get().strip() or mod_id
-        if name_before.strip() != "" and name_input != name_before:
+        if is_locked and name_before.strip() != "" and name_input != name_before:
             name_input = name_before
 
         version_before = info.get("version", "0.0")
         version_input = self.ent_mod_version.get().strip()
-        if version_before.strip().lower() not in ["", "0.0"] and version_input != version_before:
+        if is_locked and version_before.strip().lower() not in ["", "0.0", "1.0"] and version_input != version_before:
             version_input = version_before
             
         desc_before = info.get("description", "")
         desc_input = self.ent_mod_desc.get().strip()
-        if desc_before.strip() != "" and desc_input != desc_before:
+        if is_locked and desc_before.strip() != "" and desc_input != desc_before:
             desc_input = desc_before
             
         nexus_id_before = info.get("nexus_id", "")
         nexus_id_input = self.ent_nexus_id.get().strip()
-        if nexus_id_before.strip() != "" and nexus_id_input != nexus_id_before:
+        if is_locked and nexus_id_before.strip() != "" and nexus_id_input != nexus_id_before:
             nexus_id_input = nexus_id_before
             
         link_before = info.get("link", info.get("url", ""))
         link_input = self.ent_mod_link.get().strip()
-        if link_before.strip() != "" and link_input != link_before:
+        if is_locked and link_before.strip() != "" and link_input != link_before:
             link_input = link_before
             
         info["name"] = name_input
         info["creator"] = creator_input
         info["author"] = creator_input
-        info["version"] = version_input or "0.0"
+        info["version"] = version_input or "1.0"
         info["description"] = desc_input
         info["category"] = self.cmb_mod_category.get().strip() or "General"
         info["nexus_id"] = nexus_id_input
         info["link"] = link_input
+        
+        # Lock credits if this was previously unlocked and we are saving now
+        if not is_locked:
+            info["credits_locked"] = True
+            
         if "game" not in info:
             if "mods_disabled_x2" in self.mods_disabled_dir:
                 info["game"] = "FFX-2"
             else:
                 info["game"] = "FFX"
+                
+        # Check if the folder ID (directory name) needs to be renamed
+        new_mod_id = mod_id
+        sanitized_new = re.sub(r'[^a-zA-Z0-9_-]', '_', name_input).lower()
+        if sanitized_new != mod_id:
+            new_repo_path = os.path.join(self.mods_disabled_dir, sanitized_new)
+            if not os.path.exists(new_repo_path):
+                try:
+                    # Rename the physical folder
+                    shutil.move(mod_repo_path, new_repo_path)
+                    mod_repo_path = new_repo_path
+                    info_path = os.path.join(mod_repo_path, "modinfo.spiramod")
+                    legacy_info_path = os.path.join(mod_repo_path, "modinfo.ffxmod")
+                    fallback_path = os.path.join(mod_repo_path, "modinfo.json")
+                    new_mod_id = sanitized_new
+                    self.log(f"Renamed mod folder from '{mod_id}' to '{sanitized_new}'", "info")
+                except Exception as e:
+                    self.log(f"Failed to rename mod folder: {e}", "warning")
+            else:
+                self.log(f"Cannot rename folder to '{sanitized_new}' because it already exists.", "warning")
         
         try:
             with open(info_path, "w") as f:
@@ -2520,10 +2547,28 @@ class FFXModManagerGUI:
             # If enabled, also sync name to tracking spiramod / manifest
             if self.is_fahrenheit_mode:
                 active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
+                new_active_mod_dir = os.path.join(self.game_dir, "fahrenheit", "mods", new_mod_id)
+                
+                # Rename active mod folder if it exists
+                if new_mod_id != mod_id and os.path.exists(active_mod_dir):
+                    try:
+                        shutil.move(active_mod_dir, new_active_mod_dir)
+                        active_mod_dir = new_active_mod_dir
+                    except Exception:
+                        pass
+                
                 tracker_path = os.path.join(active_mod_dir, "modinfo.spiramod")
                 legacy_tracker_path = os.path.join(active_mod_dir, "modinfo.ffxmod")
-                manifest_path = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
+                manifest_path = os.path.join(active_mod_dir, f"{new_mod_id}.manifest.json")
                 
+                # If old manifest exists, rename it
+                old_manifest = os.path.join(active_mod_dir, f"{mod_id}.manifest.json")
+                if new_mod_id != mod_id and os.path.exists(old_manifest):
+                    try:
+                        shutil.move(old_manifest, manifest_path)
+                    except Exception:
+                        pass
+                        
                 sync_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else tracker_path
                 if os.path.exists(sync_tracker):
                     try:
@@ -2531,6 +2576,8 @@ class FFXModManagerGUI:
                             track = decode_metadata(f.read())
                         track["name"] = info["name"]
                         track["category"] = info["category"]
+                        if not is_locked:
+                            track["credits_locked"] = True
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
                         if tracker_path != legacy_tracker_path and os.path.exists(legacy_tracker_path):
@@ -2552,9 +2599,21 @@ class FFXModManagerGUI:
                     except Exception:
                         pass
             else:
-                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
-                legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-                old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
+                tracker_path = os.path.join(self.mods_dir, f"{new_mod_id}.spiramod")
+                legacy_tracker_path = os.path.join(self.mods_dir, f"{new_mod_id}.ffxmod")
+                old_tracker_path = os.path.join(self.mods_dir, f"{new_mod_id}.json")
+                
+                # Rename the active trackers if the mod name changed
+                if new_mod_id != mod_id:
+                    for ext in [".spiramod", ".ffxmod", ".json"]:
+                        old_p = os.path.join(self.mods_dir, f"{mod_id}{ext}")
+                        new_p = os.path.join(self.mods_dir, f"{new_mod_id}{ext}")
+                        if os.path.exists(old_p):
+                            try:
+                                shutil.move(old_p, new_p)
+                            except Exception:
+                                pass
+                                
                 read_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else old_tracker_path if os.path.exists(old_tracker_path) else tracker_path
                 
                 if os.path.exists(read_tracker):
@@ -2563,6 +2622,8 @@ class FFXModManagerGUI:
                             track = decode_metadata(f.read())
                         track["name"] = info["name"]
                         track["category"] = info["category"]
+                        if not is_locked:
+                            track["credits_locked"] = True
                         with open(tracker_path, "w") as f:
                             f.write(encode_metadata(track))
                         # Clean up old tracker files if migrated
@@ -2571,10 +2632,10 @@ class FFXModManagerGUI:
                                 os.remove(opath)
                     except Exception:
                         pass
-                    
-            self.log(f"Saved metadata for mod '{mod_id}' successfully.", "success")
+                        
+            self.log(f"Saved metadata for mod '{new_mod_id}' successfully.", "success")
             self.scan_mods()
-            self.select_mod(mod_id)
+            self.select_mod(new_mod_id)
         except Exception as e:
             self.log(f"Failed to save metadata: {e}", "error")
 
@@ -3792,6 +3853,411 @@ class FFXModManagerGUI:
                 pass
                 
         self.scan_mods()
+
+    def show_import_dropdown(self):
+        menu = tk.Menu(self.root, tearoff=0, bg=self.bg_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+        menu.add_command(label="📥 Single Mod Archive...", command=self.import_zip_mod)
+        menu.add_command(label="📥 Multiple Archives (Bulk)...", command=self.import_bulk_zips)
+        
+        try:
+            x = self.btn_import_arrow.winfo_rootx()
+            y = self.btn_import_arrow.winfo_rooty() + self.btn_import_arrow.winfo_height()
+            menu.post(x, y)
+        except Exception:
+            pass
+
+    def import_bulk_zips(self):
+        from tkinter import filedialog
+        import zipfile
+        import shutil
+        import re
+        
+        zip_paths = filedialog.askopenfilenames(
+            title="Select Mod Archives for Bulk Import",
+            filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")]
+        )
+        if not zip_paths:
+            return
+            
+        total_archives = len(zip_paths)
+        self.log(f"Starting bulk import of {total_archives} archives...")
+        
+        # Build UI Progress Modal
+        progress_win = tk.Toplevel(self.root)
+        progress_win.title("Bulk Importing Mods...")
+        progress_win.geometry("450x180")
+        progress_win.configure(bg=self.bg_color)
+        progress_win.transient(self.root)
+        progress_win.grab_set()
+        
+        lbl_msg = tk.Label(progress_win, text="Preparing extraction...", font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color)
+        lbl_msg.pack(pady=(15, 5), padx=20, anchor="w")
+        
+        progress = ttk.Progressbar(progress_win, orient="horizontal", mode="determinate", length=400)
+        progress.pack(pady=5, padx=20, fill="x")
+        
+        lbl_percent = tk.Label(progress_win, text="0%", font=("Segoe UI", 9, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_percent.pack(pady=5, padx=20, anchor="e")
+        self.root.update()
+
+        imported_count = 0
+        error_count = 0
+        
+        for idx_archive, zip_path in enumerate(zip_paths):
+            archive_name = os.path.basename(zip_path)
+            self.log(f"[{idx_archive+1}/{total_archives}] Processing archive: {archive_name}...")
+            
+            lbl_msg.config(text=f"[{idx_archive+1}/{total_archives}] Extracting: {archive_name}")
+            pct = int((idx_archive) / total_archives * 100)
+            lbl_percent.config(text=f"{pct}%")
+            progress["value"] = pct
+            self.root.update()
+            
+            # Create a unique temporary import directory for each mod
+            temp_dir = os.path.join(self.mods_disabled_dir, f"_temp_import_bulk_{idx_archive}")
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            ext = os.path.splitext(zip_path)[1].lower()
+            extracted = False
+            
+            if ext == ".zip":
+                try:
+                    with zipfile.ZipFile(zip_path, "r") as z:
+                        z.extractall(temp_dir)
+                        extracted = True
+                except Exception as e:
+                    self.log(f"Failed to extract zip archive '{archive_name}': {e}", "error")
+                    error_count += 1
+                    if os.path.exists(temp_dir):
+                        try:
+                            shutil.rmtree(temp_dir)
+                        except Exception:
+                            pass
+                    continue
+            elif ext == ".rar":
+                # Rar decompression checks
+                seven_zip_paths = [
+                    r"C:\Program Files\7-Zip\7z.exe",
+                    r"C:\Program Files (x86)\7-Zip\7z.exe"
+                ]
+                for sz_path in seven_zip_paths:
+                    if os.path.exists(sz_path):
+                        try:
+                            import subprocess
+                            res = subprocess.run([sz_path, "x", zip_path, f"-o{temp_dir}", "-y"], capture_output=True)
+                            if res.returncode == 0:
+                                extracted = True
+                                break
+                        except Exception:
+                            pass
+                            
+                if not extracted:
+                    winrar_paths = [
+                        r"C:\Program Files\WinRAR\UnRAR.exe",
+                        r"C:\Program Files\WinRAR\WinRAR.exe"
+                    ]
+                    for wr_path in winrar_paths:
+                        if os.path.exists(wr_path):
+                            try:
+                                import subprocess
+                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
+                                if res.returncode == 0:
+                                    extracted = True
+                                    break
+                            except Exception:
+                                pass
+                                
+                if not extracted:
+                    try:
+                        import subprocess
+                        res = subprocess.run(["tar", "-xf", zip_path, "-C", temp_dir], capture_output=True)
+                        if res.returncode == 0:
+                            extracted = True
+                    except Exception:
+                        pass
+                        
+                if not extracted:
+                    self.log(f"Error: Failed to extract RAR archive '{archive_name}'. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
+                    error_count += 1
+                    if os.path.exists(temp_dir):
+                        try:
+                            shutil.rmtree(temp_dir)
+                        except Exception:
+                            pass
+                    continue
+            else:
+                self.log(f"Error: Unsupported archive format '{ext}' for '{archive_name}'. Only .zip and .rar are supported.", "error")
+                error_count += 1
+                if os.path.exists(temp_dir):
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except Exception:
+                        pass
+                continue
+                
+            # Analyze contents
+            root_dir = temp_dir
+            subdirs = [x for x in os.listdir(temp_dir) if not x.startswith(".") and x != "__MACOSX"]
+            if len(subdirs) == 1 and os.path.isdir(os.path.join(temp_dir, subdirs[0])):
+                root_dir = os.path.join(temp_dir, subdirs[0])
+                
+            # Check for save files (we ignore saves in bulk import or process if present)
+            prefix_save = "ffx2_" if self.active_game_mode == "FFX-2" else "ffx_"
+            save_files = []
+            for r, d, fs in os.walk(temp_dir):
+                for f in fs:
+                    if f.lower().startswith(prefix_save.lower()) and not os.path.splitext(f)[1] and not f.endswith(".tmp"):
+                        suffix = f[len(prefix_save):]
+                        slot_str = "".join(c for c in suffix if c.isdigit())
+                        if slot_str and len(slot_str) == 3:
+                            save_files.append(os.path.join(r, f))
+            if save_files:
+                self.show_save_import_dialog(save_files)
+                
+            # Check for pre-existing metadata to enforce Credits Lock
+            meta_data = None
+            for inf in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json"]:
+                mpath = os.path.join(root_dir, inf)
+                if os.path.exists(mpath):
+                    try:
+                        with open(mpath, "r", encoding="utf-8") as f:
+                            meta_data = decode_metadata(f.read())
+                        if meta_data and meta_data.get("name"):
+                            break
+                    except Exception:
+                        pass
+                        
+            # Determine values
+            if meta_data and meta_data.get("name"):
+                mod_name = meta_data.get("name")
+                mod_creator = meta_data.get("author", meta_data.get("creator", "Unknown"))
+                mod_version = meta_data.get("version", "1.0")
+                mod_desc = meta_data.get("description", meta_data.get("desc", ""))
+                mod_category = meta_data.get("category", "General")
+                mod_nexus_id = meta_data.get("nexus_id", "")
+                mod_link = meta_data.get("link", meta_data.get("url", ""))
+                credits_locked = meta_data.get("credits_locked", True)
+            else:
+                # No pre-existing metadata. Clean up zip name to form display name.
+                filename_no_ext = os.path.splitext(archive_name)[0]
+                mod_name = filename_no_ext.replace("_", " ").replace("-", " ")
+                mod_name = re.sub(r'\s+', ' ', mod_name).strip().title()
+                
+                mod_creator = "Unknown"
+                mod_version = "1.0"
+                mod_desc = "Bulk imported mod."
+                mod_category = "General"
+                mod_nexus_id = ""
+                mod_link = ""
+                credits_locked = False
+                
+            # UnX texture auto-specialization
+            has_dds = False
+            all_extracted_files = []
+            for r, d, fs in os.walk(root_dir):
+                for f in fs:
+                    all_extracted_files.append(os.path.join(r, f))
+                    if f.lower().endswith(".dds"):
+                        has_dds = True
+                        
+            if has_dds:
+                needs_restructure = False
+                for fpath in all_extracted_files:
+                    if fpath.lower().endswith(".dds"):
+                        rel = os.path.relpath(fpath, root_dir)
+                        lower_rel = rel.lower().replace("\\", "/")
+                        if not lower_rel.startswith("unx_res/inject/textures/"):
+                            needs_restructure = True
+                            break
+                            
+                if needs_restructure:
+                    self.log(f"[{archive_name}] UnX textures detected. Normalizing textures...", "info")
+                    for fpath in all_extracted_files:
+                        if fpath.lower().endswith(".dds"):
+                            rel = os.path.relpath(fpath, root_dir)
+                            lower_rel = rel.lower().replace("\\", "/")
+                            if not lower_rel.startswith("unx_res/inject/textures/"):
+                                if lower_rel.startswith("inject/textures/"):
+                                    new_rel = "UnX_Res/" + rel
+                                elif lower_rel.startswith("textures/"):
+                                    new_rel = "UnX_Res/inject/" + rel
+                                elif "inject/textures/" in lower_rel:
+                                    idx = lower_rel.find("inject/textures/")
+                                    new_rel = "UnX_Res/" + rel[idx:]
+                                elif "textures/" in lower_rel:
+                                    idx = lower_rel.find("textures/")
+                                    new_rel = "UnX_Res/inject/" + rel[idx:]
+                                else:
+                                    new_rel = "UnX_Res/inject/textures/" + rel
+                                    
+                                dest_path = os.path.join(root_dir, new_rel)
+                                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                                try:
+                                    shutil.move(fpath, dest_path)
+                                except Exception as me:
+                                    self.log(f"Texture move warning: {me}", "warning")
+                                    
+                    for r, d, fs in os.walk(root_dir, topdown=False):
+                        for folder in d:
+                            folder_path = os.path.join(r, folder)
+                            try:
+                                if not os.listdir(folder_path):
+                                    os.rmdir(folder_path)
+                            except Exception:
+                                pass
+                                
+            # Restructure FFX / FFX-2
+            if self.active_game_mode == "FFX":
+                if "ffx" in os.listdir(root_dir):
+                    ffx_folder = os.path.join(root_dir, "ffx")
+                    if os.path.isdir(ffx_folder):
+                        dest_parent = os.path.join(root_dir, "ffx_ps2")
+                        os.makedirs(dest_parent, exist_ok=True)
+                        try:
+                            shutil.move(ffx_folder, os.path.join(dest_parent, "ffx"))
+                        except Exception:
+                            pass
+            elif self.active_game_mode == "FFX-2":
+                if "ffx2" in os.listdir(root_dir):
+                    ffx2_folder = os.path.join(root_dir, "ffx2")
+                    if os.path.isdir(ffx2_folder):
+                        dest_parent = os.path.join(root_dir, "ffx_ps2")
+                        os.makedirs(dest_parent, exist_ok=True)
+                        try:
+                            shutil.move(ffx2_folder, os.path.join(dest_parent, "ffx2"))
+                        except Exception:
+                            pass
+                if "ffx2_data" in os.listdir(root_dir):
+                    ffx2_data_folder = os.path.join(root_dir, "ffx2_data")
+                    if os.path.isdir(ffx2_data_folder):
+                        dest_folder = os.path.join(root_dir, "ffx-2_data")
+                        try:
+                            if os.path.exists(dest_folder):
+                                for item in os.listdir(ffx2_data_folder):
+                                    shutil.move(os.path.join(ffx2_data_folder, item), os.path.join(dest_folder, item))
+                                os.rmdir(ffx2_data_folder)
+                            else:
+                                shutil.move(ffx2_data_folder, dest_folder)
+                        except Exception:
+                            pass
+                if "ffx2_ps2" in os.listdir(root_dir):
+                    ffx2_ps2_folder = os.path.join(root_dir, "ffx2_ps2")
+                    if os.path.isdir(ffx2_ps2_folder):
+                        dest_parent = os.path.join(root_dir, "ffx_ps2")
+                        os.makedirs(dest_parent, exist_ok=True)
+                        dest_folder = os.path.join(dest_parent, "ffx2")
+                        try:
+                            if os.path.exists(dest_folder):
+                                for item in os.listdir(ffx2_ps2_folder):
+                                    shutil.move(os.path.join(ffx2_ps2_folder, item), os.path.join(dest_folder, item))
+                                os.rmdir(ffx2_ps2_folder)
+                            else:
+                                shutil.move(ffx2_ps2_folder, dest_folder)
+                        except Exception:
+                            pass
+                            
+                # Restructure loose files
+                loose_files = False
+                for f in os.listdir(root_dir):
+                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                        continue
+                    if f != "ffx-2_data" and f != "UnX_Res" and f != "ffx_ps2":
+                        loose_files = True
+                        break
+                if loose_files:
+                    wrap_dir = os.path.join(root_dir, "ffx-2_data")
+                    os.makedirs(wrap_dir, exist_ok=True)
+                    for f in os.listdir(root_dir):
+                        if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
+                            continue
+                        try:
+                            shutil.move(os.path.join(root_dir, f), os.path.join(wrap_dir, f))
+                        except Exception:
+                            pass
+
+            # Gather file list
+            mod_files = []
+            for r, d, fs in os.walk(root_dir):
+                for f in fs:
+                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                        continue
+                    fpath = os.path.join(r, f)
+                    rel = os.path.relpath(fpath, root_dir)
+                    rel = rel.replace("\\", "/")
+                    mod_files.append(rel)
+                    
+            if not mod_files:
+                self.log(f"Error: Archive '{archive_name}' contains no mod files.", "error")
+                shutil.rmtree(temp_dir)
+                error_count += 1
+                continue
+                
+            info = {
+                "name": mod_name,
+                "author": mod_creator,
+                "creator": mod_creator,
+                "version": mod_version,
+                "description": mod_desc,
+                "category": mod_category,
+                "game": self.active_game_mode,
+                "nexus_id": mod_nexus_id,
+                "link": mod_link,
+                "files": mod_files,
+                "credits_locked": credits_locked
+            }
+            
+            for inf in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                mpath = os.path.join(root_dir, inf)
+                if os.path.exists(mpath):
+                    try:
+                        os.remove(mpath)
+                    except Exception:
+                        pass
+                        
+            try:
+                with open(os.path.join(root_dir, "modinfo.spiramod"), "w", encoding="utf-8") as f:
+                    f.write(encode_metadata(info))
+            except Exception as e:
+                self.log(f"Failed to write metadata: {e}", "error")
+                shutil.rmtree(temp_dir)
+                error_count += 1
+                continue
+                
+            sanitized_folder = re.sub(r'[^a-zA-Z0-9_-]', '_', mod_name).lower()
+            final_dest = os.path.join(self.mods_disabled_dir, sanitized_folder)
+            
+            if os.path.exists(final_dest):
+                counter = 1
+                while os.path.exists(os.path.join(self.mods_disabled_dir, f"{sanitized_folder}_{counter}")):
+                    counter += 1
+                final_dest = os.path.join(self.mods_disabled_dir, f"{sanitized_folder}_{counter}")
+                
+            try:
+                shutil.move(root_dir, final_dest)
+                self.log(f"Successfully bulk imported '{mod_name}' to repository folder '{os.path.basename(final_dest)}'.", "success")
+                imported_count += 1
+            except Exception as e:
+                self.log(f"Failed to move imported mod to repository: {e}", "error")
+                error_count += 1
+                
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+                    
+        progress_win.destroy()
+        self.scan_mods()
+        
+        msg = f"Bulk import complete!\n\nSuccessfully imported: {imported_count} mod(s)."
+        if error_count > 0:
+            msg += f"\nFailed: {error_count} archive(s)."
+        messagebox.showinfo("Bulk Import Results", msg, parent=self.root)
 
     def show_save_import_dialog(self, save_files):
         saves_dir = self.get_saves_dir()
