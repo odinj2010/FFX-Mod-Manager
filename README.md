@@ -8,7 +8,7 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
 
-### [👉 Click here to download the Newest Stable Release (v3.1.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.1.1/SpiraMM.zip)
+### [👉 Click here to download the Newest Stable Release (v3.2.0) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.2.0/Spira.Mod.Manager.rar)
 
 ### 🚀 Easy Installation Steps
 1. **Download** the zip archive using the link above.
