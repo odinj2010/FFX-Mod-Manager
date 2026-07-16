@@ -1,7 +1,41 @@
 import os
+import re
 import sys
 import json
 import shutil
+import time
+
+# Robust wrappers to prevent transient Windows locking failures
+_orig_move = shutil.move
+_orig_rmtree = shutil.rmtree
+
+def robust_move(src, dst):
+    retries = 3
+    for attempt in range(retries):
+        try:
+            return _orig_move(src, dst)
+        except PermissionError:
+            if attempt < retries - 1:
+                time.sleep(0.15)
+            else:
+                raise
+
+def robust_rmtree(path, ignore_errors=False):
+    retries = 3
+    for attempt in range(retries):
+        try:
+            return _orig_rmtree(path, ignore_errors=ignore_errors)
+        except PermissionError:
+            if ignore_errors:
+                return
+            if attempt < retries - 1:
+                time.sleep(0.15)
+            else:
+                raise
+
+shutil.move = robust_move
+shutil.rmtree = robust_rmtree
+
 import subprocess
 import tkinter as tk
 import base64
@@ -2589,8 +2623,16 @@ class FFXModManagerGUI:
                     try:
                         with open(sync_tracker, "r") as f:
                             track = decode_metadata(f.read())
-                        track["name"] = info["name"]
-                        track["category"] = info["category"]
+                        track.update({
+                            "name": info["name"],
+                            "creator": info["creator"],
+                            "author": info["author"],
+                            "version": info["version"],
+                            "description": info["description"],
+                            "category": info["category"],
+                            "link": info["link"],
+                            "nexus_id": info["nexus_id"]
+                        })
                         if not is_locked:
                             track["credits_locked"] = True
                         with open(tracker_path, "w") as f:
@@ -2635,8 +2677,16 @@ class FFXModManagerGUI:
                     try:
                         with open(read_tracker, "r") as f:
                             track = decode_metadata(f.read())
-                        track["name"] = info["name"]
-                        track["category"] = info["category"]
+                        track.update({
+                            "name": info["name"],
+                            "creator": info["creator"],
+                            "author": info["author"],
+                            "version": info["version"],
+                            "description": info["description"],
+                            "category": info["category"],
+                            "link": info["link"],
+                            "nexus_id": info["nexus_id"]
+                        })
                         if not is_locked:
                             track["credits_locked"] = True
                         with open(tracker_path, "w") as f:

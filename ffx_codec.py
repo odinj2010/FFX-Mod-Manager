@@ -72,17 +72,22 @@ class FFXCodec:
             
         # Get string bounds (stop at 0x00 terminator, handling multi-byte arguments)
         end = offset
-        last_takes_args = False
-        last_was_04 = False
-        while end < len(table) and (table[end] != 0x00 or last_takes_args or last_was_04):
-            last_was_04 = (table[end] == 0x04)
-            last_takes_args = (not last_takes_args) and (0x2B <= table[end] <= 0x2F)
+        skip_count = 0
+        while end < len(table):
+            byte = table[end]
+            if skip_count > 0:
+                skip_count -= 1
+            elif byte == 0x00:
+                break
+            elif byte < 0x30 and byte not in (0x01, 0x03):
+                skip_count = 1
             end += 1
             
         bytes_subset = table[offset:end]
         out = []
         i = 0
         extra_five_sections = False
+        byte_to_char_get = byte_to_char.get
         
         while i < len(bytes_subset):
             idx = bytes_subset[i]
@@ -91,7 +96,7 @@ class FFXCodec:
             
             if idx >= 0x30:
                 char_idx = idx + extra_offset
-                c = byte_to_char.get(char_idx)
+                c = byte_to_char_get(char_idx)
                 if c:
                     out.append(c)
                 else:
@@ -104,7 +109,7 @@ class FFXCodec:
                 low_byte = bytes_subset[i]
                 actual_idx = section * 0xD0 + low_byte
                 char_idx = actual_idx + extra_offset
-                c = byte_to_char.get(char_idx)
+                c = byte_to_char_get(char_idx)
                 if c:
                     out.append(c)
                 else:
@@ -112,7 +117,7 @@ class FFXCodec:
             else:
                 if extra_offset != 0:
                     char_idx = idx + extra_offset
-                    c = byte_to_char.get(char_idx)
+                    c = byte_to_char_get(char_idx)
                     if c:
                         out.append(c)
                     else:

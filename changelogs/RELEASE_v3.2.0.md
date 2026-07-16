@@ -17,6 +17,7 @@
 *   **Transition to Unified `.spiramod` File Format**: Replaced the legacy `.ffxmod` metadata and active tracker extension with the unified `.spiramod` extension to reflect Spira Mod Manager's identity. 
 *   **Target Game Metadata Property**: Added a `"game"` field inside the mod metadata JSON structure to explicitly denote whether a mod targets `"FFX"` or `"FFX-2"`.
 *   **Backward Compatibility & Seamless Migration**: Designed a clean, fully automatic migration path. When the manager scans existing mod folders, any legacy `modinfo.ffxmod` or `{mod_id}.ffxmod` tracker files are loaded, parsed, upgraded to include the `"game"` metadata property, written as `.spiramod` files, and the old legacy files are cleanly deleted.
+*   **Robust Windows File Operations**: Implemented retry-based wrappers for `shutil.move` and `shutil.rmtree` to handle transient `PermissionError` file-locking issues.
 *   **Bulk Mod Import**: Added support for importing multiple mod archives (`.zip`, `.rar`) at once. The manager auto-names mods based on their filenames, applies defaults, and leaves metadata fields unlocked for custom editing.
 *   **Dynamic Credits Lock & Directory Renaming**: Allowed custom metadata editing for bulk-imported mods with `"credits_locked": false`. Once edited and saved, the metadata locks (`"credits_locked": true`). If the display name is modified during this step, the manager physically renames the mod's folder and updates active trackers on disk.
 *   **UnX Texture Path Auto-Resolution**: Enhanced relative path resolution during manual files/folders import. The manager now automatically maps path contexts containing `"unx_res/"`, `"inject/textures/"`, and `"textures/"`, as well as loose `.dds` texture files, into their corresponding subfolder targets under `UnX_Res/inject/textures/` without prompting the user.
@@ -24,6 +25,8 @@
 
 ## Bug Fixes
 *   **Unified Conflict Detection Format Support**: Corrected the mod conflict checking algorithm (`check_for_conflicts`) to support the unified `.spiramod` metadata format instead of searching exclusively for legacy `.ffxmod` and `.json` files. This restores full functionality to the "Conflicts" tab.
+*   **FFX Codec String Termination Correction**: Fixed a bug in `decode_ffx_bytes` inside `ffx_codec.py` where parameter bytes with a value of `0x00` in text commands (e.g. colors, choices, variables) were incorrectly treated as string null-terminators.
+*   **Decoder Loop Performance**: Cached dictionary resolution methods locally inside the decoder loop for faster character parsing.
 
 ## Build Tools & Scripts
 *   **Native Batch Compilation Run Script (run.bat)**: Created a selection-driven `run.bat` batch script in the root directory that allows compiling individual targets (Spira Mod Manager, or Plugin Trackers) or all targets using native PyInstaller command execution and plugin auto-discovery.

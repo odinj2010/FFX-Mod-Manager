@@ -157,3 +157,6 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **Button Theme Colorizations**: styled standard/TTK buttons to match semantic custom themes (Action, Success, Caution, Utility) dynamically (Next_Release).
 * [x] **Open Plugin Developer SDK & Extensible Runner**: support raw scripts, executables, dotted path imports, background/utility/listener categories, and a starter template generator. (Next_Release)
 * [x] **Advanced Plugin Developer SDK (Phase 2)**: Dynamic schema settings UI, local socket JSON-RPC server (localhost:8692), direct memory read/write API, automated pip dependency installer, and fine-grained pub/sub events with hot-reloading. (Next_Release)
+* [x] **Robust File Operations**: added retries to prevent transient Access Denied/PermissionError exceptions on Windows (Next_Release).
+* [x] **FFX Codec String Terminator Fix**: resolved premature string cutoff when text command parameters (like colors/variables) were 0x00 (Next_Release).
+
