@@ -24,7 +24,7 @@ If you are a player looking to download the latest version, click the link below
 * **Save File Import Assistant:** Dynamically extracts and routes extensionless save files (`ffx_###` / `ffx2_###`) inside ZIPs during import, offering interactive slot conflict resolution to prevent overwriting existing progress.
 * **Backward Compatibility:** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
 * **Move-on-Enable Architecture:** Saves massive amounts of disk space. Mod packages are kept in a unified, loader-agnostic repository and moved into active game directories only when enabled.
-* **ZIP & RAR Auto-Unwrapping:** Drag-and-drop support for standard `.zip` and `.rar` mod archives. Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
+* **ZIP & RAR Auto-Unwrapping(Bulk Importing now available):** Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
 * **Auto-Conflict Resolution & Backups:** Detects file overwrite collisions. Overwritten active files are backed up automatically into their respective owner's repository folder and restored when the overriding mod is disabled.
 * **Glassmorphism UI Overhaul:** Features modern floating card panels, active focus glow outlines matching your theme, and parent background color walking for a unified, clean interface.
 * **Live Theme Creator:** Customize the manager's UI colors and semantic buttons (Accept, Success, Caution, Utility) on the fly, with interactive real-time 4-button hover previews.
