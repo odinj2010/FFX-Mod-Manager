@@ -1,10 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import tkinterdnd2
+
+dnd_path = os.path.join(os.path.dirname(tkinterdnd2.__file__), 'tkdnd')
 
 a = Analysis(
     ['spiramm.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[(dnd_path, 'tkinterdnd2/tkdnd')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

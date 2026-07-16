@@ -44,6 +44,12 @@ import ctypes.wintypes
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from tooltip import ToolTip
 
+try:
+    from tkinterdnd2 import DND_FILES, TkinterDnD
+    HAS_DND2 = True
+except ImportError:
+    HAS_DND2 = False
+
 # Load kernel32 for process memory reading & process scanning
 try:
     kernel32 = ctypes.windll.kernel32
@@ -309,6 +315,9 @@ class FFXModManagerGUI:
             
         # Start persistent background game monitoring
         self.start_persistent_game_monitoring()
+        
+        # Setup native Windows drag-and-drop support
+        self.setup_drag_and_drop()
 
     def load_custom_themes(self):
         if getattr(sys, 'frozen', False):
@@ -2704,6 +2713,38 @@ class FFXModManagerGUI:
         except Exception as e:
             self.log(f"Failed to save metadata: {e}", "error")
 
+    def handle_dropped_files(self, file_paths):
+        # Filter for zip and rar files
+        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar'))]
+        if not archives:
+            messagebox.showinfo("Import Info", "No compatible mod archives (.zip or .rar) were dropped.")
+            return
+            
+        if len(archives) == 1:
+            self.import_zip_mod(zip_path=archives[0])
+        else:
+            self.import_bulk_zips(zip_paths=archives)
+
+    def handle_dnd_drop(self, event):
+        try:
+            files_str = event.data
+            if files_str:
+                files = self.root.tk.splitlist(files_str)
+                self.handle_dropped_files(files)
+        except Exception as e:
+            self.log(f"Drag-and-Drop callback error: {e}", "error")
+
+    def setup_drag_and_drop(self):
+        if HAS_DND2:
+            try:
+                self.root.drop_target_register(DND_FILES)
+                self.root.dnd_bind('<<Drop>>', self.handle_dnd_drop)
+                self.log("Drag-and-Drop (tkinterdnd2) registered successfully.", "success")
+            except Exception as e:
+                self.log(f"Failed to register Drag-and-Drop target: {e}", "warning")
+        else:
+            self.log("Drag-and-Drop is disabled. Install 'tkinterdnd2' (pip install tkinterdnd2) to enable drag & drop support.", "warning")
+
     def create_mod(self):
         # Build Custom Creator Dialog Window
         dialog = tk.Toplevel(self.root)
@@ -3395,13 +3436,14 @@ class FFXModManagerGUI:
             self.update_profile_dropdown()
             self.log(f"Deleted profile '{profile_name}'.", "success")
 
-    def import_zip_mod(self):
+    def import_zip_mod(self, zip_path=None):
         from tkinter import filedialog
         import zipfile
         import shutil
         import re
         
-        zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")])
+        if not zip_path:
+            zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")])
         if not zip_path:
             return
             
@@ -3930,16 +3972,17 @@ class FFXModManagerGUI:
         except Exception:
             pass
 
-    def import_bulk_zips(self):
+    def import_bulk_zips(self, zip_paths=None):
         from tkinter import filedialog
         import zipfile
         import shutil
         import re
         
-        zip_paths = filedialog.askopenfilenames(
-            title="Select Mod Archives for Bulk Import",
-            filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")]
-        )
+        if not zip_paths:
+            zip_paths = filedialog.askopenfilenames(
+                title="Select Mod Archives for Bulk Import",
+                filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")]
+            )
         if not zip_paths:
             return
             
@@ -7321,6 +7364,9 @@ class ThemeCreatorDialog:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    if HAS_DND2:
+        root = TkinterDnD.Tk()
+    else:
+        root = tk.Tk()
     app = FFXModManagerGUI(root)
     root.mainloop()
