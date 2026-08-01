@@ -731,7 +731,7 @@ class FFXModManagerGUI:
             return "⚠️ Mod Loader DLL NOT Detected! (Mods will not load. Please install External File Loader)", self.error_color
 
     def show_log_window(self):
-        if hasattr(self, "log_window") and self.log_window:
+        if hasattr(self, "log_window") and self.log_window and self.log_window.winfo_exists():
             try:
                 self.log_window.lift()
                 self.log_window.focus_force()
@@ -740,7 +740,25 @@ class FFXModManagerGUI:
                 pass
                 
         self.log_window = tk.Toplevel(self.root)
+        
+        def on_log_window_destroy(event):
+            if event.widget == self.log_window:
+                self.log_window = None
+                self.txt_log = None
+        self.log_window.bind("<Destroy>", on_log_window_destroy)
+        
         self.log_window.title("📜 Spira Mod Manager - System Log")
+        
+        # Set window icon if available
+        icon_path = os.path.join(_base_dir, "SpiraMM.ico")
+        if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
+            icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.log_window.iconbitmap(icon_path)
+            except Exception:
+                pass
+                
         self.log_window.geometry("700x400")
         self.log_window.configure(bg=self.bg_color)
         
