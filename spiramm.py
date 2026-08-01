@@ -4,6 +4,7 @@ import sys
 import json
 import shutil
 import time
+import webbrowser
 
 # Robust wrappers to prevent transient Windows locking failures
 _orig_move = shutil.move
@@ -63,7 +64,7 @@ if getattr(sys, 'frozen', False):
 else:
     _base_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_base_dir, "spiramm_config.json")
-APP_VERSION = "3.2.0"
+APP_VERSION = "3.3.0"
 
 def encode_metadata(data_dict):
     try:
@@ -180,6 +181,10 @@ class FFXModManagerGUI:
         self.listener_plugins = []
         self.utility_plugins = []
         self.event_listeners = {}
+        self.mod_updates = {}
+        self.has_manager_update = False
+        self.latest_manager_version = APP_VERSION
+        self.manager_update_url = ""
 
         if not is_embedded:
             active_mode = self.config.get("active_game_mode", "FFX")
@@ -529,6 +534,30 @@ class FFXModManagerGUI:
                                  highlightcolor=self.accent_color,
                                  bd=0)
                                  
+            elif w_class == "Checkbutton":
+                parent_bg = self.bg_color
+                curr = widget.master
+                while curr:
+                    try:
+                        c_class = curr.winfo_class()
+                        if c_class in ("Frame", "Labelframe"):
+                            is_card = getattr(curr, "_is_card", False)
+                            is_active_card = getattr(curr, "_is_active_card", False)
+                            is_sidebar_panel = getattr(curr, "_is_sidebar_panel", False)
+                            if is_active_card or is_card or is_sidebar_panel:
+                                parent_bg = self.card_color
+                                break
+                        bg = curr.cget("bg")
+                        if bg:
+                            parent_bg = bg
+                            break
+                    except Exception:
+                        pass
+                    curr = curr.master
+                widget.configure(bg=parent_bg, fg=self.text_color, 
+                                 activebackground=parent_bg, activeforeground=self.text_color, 
+                                 selectcolor=parent_bg)
+                                 
             elif w_class == "Frame":
                 is_card = getattr(widget, "_is_card", False)
                 is_active_card = getattr(widget, "_is_active_card", False)
@@ -574,33 +603,37 @@ class FFXModManagerGUI:
                         widget.configure(bg=self.bg_color, fg=self.text_color, highlightbackground=self.border_color)
 
             elif w_class == "Label":
-                if getattr(widget, "_is_status_pill", False) or getattr(widget, "_is_diagnostic", False):
-                    # Do not overwrite custom color-coded status pills or diagnostic banners!
-                    pass
+                is_status_pill = getattr(widget, "_is_status_pill", False)
+                is_diagnostic = getattr(widget, "_is_diagnostic", False)
+                
+                # Determine parent container background
+                parent_bg = self.bg_color
+                curr = widget.master
+                while curr:
+                    try:
+                        c_class = curr.winfo_class()
+                        if c_class in ("Frame", "Labelframe"):
+                            is_card = getattr(curr, "_is_card", False)
+                            is_active_card = getattr(curr, "_is_active_card", False)
+                            is_sidebar_panel = getattr(curr, "_is_sidebar_panel", False)
+                            if is_active_card or is_card or is_sidebar_panel:
+                                parent_bg = self.card_color
+                                break
+                        bg = curr.cget("bg")
+                        if bg:
+                            parent_bg = bg
+                            break
+                    except Exception:
+                        pass
+                    curr = curr.master
+                    
+                if is_status_pill or is_diagnostic:
+                    # Do not overwrite custom color-coded status pills or diagnostic banners fg!
+                    # Only update background bg color
+                    widget.configure(bg=parent_bg)
                 else:
                     is_title = getattr(widget, "_is_title", False)
                     is_muted = getattr(widget, "_is_muted", False)
-                    
-                    parent_bg = self.bg_color
-                    curr = widget.master
-                    while curr:
-                        try:
-                            c_class = curr.winfo_class()
-                            if c_class in ("Frame", "Labelframe"):
-                                is_card = getattr(curr, "_is_card", False)
-                                is_active_card = getattr(curr, "_is_active_card", False)
-                                is_sidebar_panel = getattr(curr, "_is_sidebar_panel", False)
-                                if is_active_card or is_card or is_sidebar_panel:
-                                    parent_bg = self.card_color
-                                    break
-                            bg = curr.cget("bg")
-                            if bg:
-                                parent_bg = bg
-                                break
-                        except Exception:
-                            pass
-                        curr = curr.master
-                        
                     if is_title:
                         widget.configure(bg=parent_bg, fg=self.accent_color)
                     elif is_muted:
@@ -623,7 +656,8 @@ class FFXModManagerGUI:
             "mods_dir": "",
             "mods_disabled_dir": "",
             "selected_theme": "Midnight Dark",
-            "active_game_mode": "FFX"
+            "active_game_mode": "FFX",
+            "nexus_api_key": ""
         }
         
         # 1. Try Mod Manager config
@@ -1034,7 +1068,7 @@ class FFXModManagerGUI:
         self.bind_hover(self.btn_import_arrow, is_primary=True)
         ToolTip(self.btn_import_arrow, "Show additional import options (such as Bulk Import).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        # Row 2: Delete, Refresh
+        # Row 2: Delete, Check Updates, Refresh
         row2 = ttk.Frame(btn_p_frame, style="Card.TFrame")
         row2.pack(fill="x", pady=2)
         
@@ -1044,6 +1078,12 @@ class FFXModManagerGUI:
         btn_del.pack(side="left", fill="x", expand=True, padx=(0, 2))
         self.bind_hover(btn_del)
         ToolTip(btn_del, "Permanently delete this mod's repository folder and all contained assets from your computer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        self.btn_check_updates = tk.Button(row2, text="✨ Check Updates", command=self.check_mod_updates_threaded, bg=self.card_color,
+                                           fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
+        self.btn_check_updates.pack(side="left", fill="x", expand=True, padx=2)
+        self.bind_hover(self.btn_check_updates)
+        ToolTip(self.btn_check_updates, "Query Nexus Mods API to check if installed mods have updates available.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         btn_refresh = tk.Button(row2, text="🔄 Refresh", command=self.refresh_list, bg=self.card_color,
                                 fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color)
@@ -1283,6 +1323,9 @@ class FFXModManagerGUI:
         self.lbl_loader_status.pack(fill="x", pady=5)
         self.update_loader_status_ui()
         
+        # 1. Nexus Mods Integration settings (Card Style - At the top)
+        self.create_nexus_integration_settings_card()
+        
         # Unified Directory Settings (Card Style)
         dir_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
         dir_card._is_card = True
@@ -1454,7 +1497,6 @@ class FFXModManagerGUI:
         bottom_cards_row.pack(fill="x", pady=10)
         bottom_cards_row.columnconfigure(0, weight=1)
         bottom_cards_row.columnconfigure(1, weight=1)
-        bottom_cards_row.columnconfigure(2, weight=1)
         
         # Left Panel: Appearance Theme Settings (Card Style)
         theme_card = tk.Frame(bottom_cards_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=12, pady=12)
@@ -1489,10 +1531,10 @@ class FFXModManagerGUI:
         self.bind_hover(btn_open_themes)
         ToolTip(btn_open_themes, "Open the themes folder inside Windows Explorer to manually manage your theme files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        # Center Panel: Safety & Diagnostics (Card Style)
+        # Right Panel: Safety & Diagnostics (Card Style)
         safe_card = tk.Frame(bottom_cards_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=12, pady=12)
         safe_card._is_card = True
-        safe_card.grid(row=0, column=1, sticky="nsew", padx=6)
+        safe_card.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
         
         lbl_safe_title = tk.Label(safe_card, text="Safety & Diagnostics", font=("Segoe UI", 10, "bold"), fg=self.accent_color, bg=self.card_color)
         lbl_safe_title._is_title = True
@@ -1909,7 +1951,8 @@ class FFXModManagerGUI:
         except Exception:
             pass
             
-        # Update self.mod_list with UNFILTERED mods
+        # Update self.mods and self.mod_list with UNFILTERED mods
+        self.mods = mods
         self.mod_list = list(mods.keys())
             
         # 3. Dynamic Category Population
@@ -2012,6 +2055,14 @@ class FFXModManagerGUI:
         lbl_info._is_muted = True
         lbl_info.pack(side="left")
         
+        # Check if update info exists for this mod
+        update_ver = self.mod_updates.get(mod_id)
+        if update_ver:
+            lbl_update = tk.Label(middle_row, text=f"✨ Update: v{update_ver}", font=("Segoe UI", 8, "bold"), fg=self.accent_color, bg=self.card_color, cursor="hand2")
+            lbl_update.pack(side="right")
+            lbl_update.bind("<Button-1>", lambda e, url=info.get("link", ""): webbrowser.open(url) if url else webbrowser.open(f"https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/{info.get('nexus_id')}"))
+            ToolTip(lbl_update, "New version available! Click to download.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
         # Click binding for card selection
         def select_click(event, m_id=mod_id):
             self.select_mod(m_id)
@@ -2023,6 +2074,30 @@ class FFXModManagerGUI:
         lbl_status.bind("<Button-1>", select_click)
         lbl_info.bind("<Button-1>", select_click)
         lbl_cat.bind("<Button-1>", select_click)
+        
+        # Right click binding for context menu
+        def show_context_menu(event, m_id=mod_id, inf=info):
+            self.select_mod(m_id)
+            menu = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+            menu.add_command(label="📝 Edit Metadata", command=lambda: self.ent_nexus_id.focus_set())
+            menu.add_command(label="✨ Check Update", command=lambda: self.check_single_mod_update(m_id, inf))
+            if inf.get("link") or inf.get("nexus_id"):
+                menu.add_command(label="🌐 Visit Nexus Page", command=lambda: webbrowser.open(inf.get("link") if inf.get("link") else f"https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/{inf.get('nexus_id')}"))
+            menu.add_separator()
+            status_act = "⏪ Disable Mod" if inf.get("status") == "Enabled" else "⚡ Enable Mod"
+            status_cmd = self.disable_mod if inf.get("status") == "Enabled" else self.enable_mod
+            menu.add_command(label=status_act, command=status_cmd)
+            menu.add_command(label="🗑️ Delete Mod", command=self.delete_mod)
+            
+            menu.post(event.x_root, event.y_root)
+            
+        card.bind("<Button-3>", show_context_menu)
+        top_row.bind("<Button-3>", show_context_menu)
+        lbl_name.bind("<Button-3>", show_context_menu)
+        lbl_status.bind("<Button-3>", show_context_menu)
+        middle_row.bind("<Button-3>", show_context_menu)
+        lbl_cat.bind("<Button-3>", show_context_menu)
+        lbl_info.bind("<Button-3>", show_context_menu)
         
         # Hover bindings
         def on_enter(event, c=card):
@@ -6132,7 +6207,11 @@ class FFXModManagerGUI:
                 
                 if online_ver > local_ver:
                     self.log(f"New update available: {raw_tag} (Current: v{APP_VERSION})", "info")
+                    self.has_manager_update = True
+                    self.latest_manager_version = raw_tag
+                    self.manager_update_url = html_url
                     self.root.after(0, lambda: self.show_update_banner(raw_tag, html_url))
+                    self.root.after(0, self.refresh_about_card_status)
         except Exception as e:
             # Silent fail so it doesn't interrupt offline use
             pass
@@ -6539,7 +6618,9 @@ class FFXModManagerGUI:
             return
             
         self.log(f"Executing utility plugin command '{plugin.get('name')}'...", "info")
-        self.execute_plugin_entry_point(plugin, args=[self.game_dir, self.active_game_mode])
+        p = self.execute_plugin_entry_point(plugin, args=[self.game_dir, self.active_game_mode])
+        if p and hasattr(p, "terminate"):
+            self.background_plugins.append(p)
         self.show_log_window()
 
     def refresh_toolkit_actions_ui(self):
@@ -6606,7 +6687,7 @@ class FFXModManagerGUI:
         lbl_sdk_desc = tk.Label(sdk_card, text="Auto-generate a working starter plugin template inside your plugins folder for immediate customization.", bg=sdk_card.cget("bg"), fg=self.text_color, font=("Segoe UI", 9), justify="left", wraplength=250)
         lbl_sdk_desc.pack(anchor="w", pady=(0, 10))
         
-        btn_scaffold = tk.Button(sdk_card, text="🛠️ Generate Starter Plugin Template", command=self.scaffold_starter_plugin, bg=self.accent_color,
+        btn_scaffold = tk.Button(sdk_card, text="🔧 Generate Starter Plugin Template", command=self.scaffold_starter_plugin, bg=self.accent_color,
                                  fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=12, pady=4)
         btn_scaffold.pack(anchor="w")
         self.bind_hover(btn_scaffold, is_primary=True)
@@ -6614,6 +6695,9 @@ class FFXModManagerGUI:
         
         # 3. Dynamic Plugin Configuration Settings Card
         self.create_plugin_settings_card()
+        
+        # 4. About Card
+        self.create_about_card()
 
     def scaffold_starter_plugin(self):
         if getattr(sys, 'frozen', False):
@@ -6637,7 +6721,7 @@ class FFXModManagerGUI:
                 "author": "SpiraMM SDK",
                 "type": "tab",
                 "entry_point": "gui.StarterTab",
-                "icon": "🛠️"
+                "icon": "🔧"
             }
             with open(os.path.join(dest_dir, "plugin.json"), "w", encoding="utf-8") as f:
                 json.dump(manifest, f, indent=2)
@@ -6655,7 +6739,7 @@ class StarterTab:
         card = tk.Frame(parent_frame, bg=manager.card_color, highlightthickness=1, highlightbackground=manager.border_color, padx=20, pady=20)
         card.pack(fill="both", expand=True, padx=20, pady=20)
         
-        lbl_title = tk.Label(card, text="🛠️ Starter Plugin GUI", font=("Segoe UI", 12, "bold"), fg=manager.accent_color, bg=manager.card_color)
+        lbl_title = tk.Label(card, text="🔧 Starter Plugin GUI", font=("Segoe UI", 12, "bold"), fg=manager.accent_color, bg=manager.card_color)
         lbl_title.pack(anchor="w", pady=(0, 10))
         
         lbl_desc = tk.Label(card, text="Welcome to your new SpiraMM plugin! Edit gui.py to customize this interface.", bg=manager.card_color, fg=manager.text_color)
@@ -7261,12 +7345,360 @@ while True:
             except Exception:
                 pass
 
-        # Refresh Toolkit Actions UI if settings page exists
         if hasattr(self, "toolkit_buttons_container"):
             try:
                 self.refresh_toolkit_actions_ui()
             except Exception:
                 pass
+
+    def create_nexus_integration_settings_card(self):
+        self.nexus_settings_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.nexus_settings_card._is_card = True
+        self.nexus_settings_card.pack(fill="x", pady=(0, 10))
+        
+        lbl_title = tk.Label(self.nexus_settings_card, text="Nexus Mods Integration", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_title._is_title = True
+        lbl_title.pack(anchor="w", pady=(0, 10))
+        
+        desc_label = tk.Label(self.nexus_settings_card, text="Provide your Nexus Mods Personal API Key to check for updates directly inside the manager. Your key is stored securely and only on your local computer.", justify="left", wraplength=700, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9))
+        desc_label.pack(anchor="w", pady=(0, 10))
+        
+        input_frame = tk.Frame(self.nexus_settings_card, bg=self.card_color)
+        input_frame.pack(fill="x", anchor="w")
+        
+        tk.Label(input_frame, text="Personal API Key:", bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold")).pack(side="left", padx=(0, 10))
+        
+        self.ent_nexus_key = ttk.Entry(input_frame, width=40, show="•")
+        self.ent_nexus_key.insert(0, self.config.get("nexus_api_key", ""))
+        self.ent_nexus_key.pack(side="left", padx=(0, 10))
+        
+        btn_test = tk.Button(input_frame, text="Test Connection", command=self.test_nexus_connection, bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 9), relief="flat", activebackground=self.border_color, padx=10, pady=2)
+        btn_test.pack(side="left")
+        self.bind_hover(btn_test)
+        
+        self.lbl_nexus_status = tk.Label(input_frame, text="", bg=self.card_color, font=("Segoe UI", 9, "bold"))
+        self.lbl_nexus_status.pack(side="left", padx=10)
+        
+        self.ent_nexus_key.bind("<KeyRelease>", lambda e: self.update_nexus_key())
+
+    def update_nexus_key(self):
+        self.config["nexus_api_key"] = self.ent_nexus_key.get().strip()
+        self.save_config()
+
+    def test_nexus_connection(self):
+        key = self.ent_nexus_key.get().strip()
+        if not key:
+            self.lbl_nexus_status.config(text="⚠️ Key is empty", fg=self.error_color)
+            return
+            
+        self.lbl_nexus_status.config(text="Connecting...", fg=self.text_dim)
+        
+        def run_test():
+            import urllib.request
+            import urllib.error
+            import json
+            req = urllib.request.Request(
+                "https://api.nexusmods.com/v1/users/validate.json",
+                headers={
+                    "apikey": key,
+                    "Application-Name": "SpiraModManager",
+                    "Application-Version": APP_VERSION
+                }
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    name = data.get("name", "Unknown")
+                    self.root.after(0, lambda: self.lbl_nexus_status.config(text=f"🟢 Connected ({name})", fg=self.success_color))
+            except Exception as e:
+                self.root.after(0, lambda: self.lbl_nexus_status.config(text="🔴 Connection Failed", fg=self.error_color))
+                
+        import threading
+        threading.Thread(target=run_test, daemon=True).start()
+
+    def check_mod_updates_threaded(self):
+        key = self.config.get("nexus_api_key", "").strip()
+        if not key:
+            messagebox.showinfo("Nexus Mods Key Required", "Please configure your Nexus Mods API Key in the Settings tab to check for updates.")
+            return
+            
+        self.btn_check_updates.config(state="disabled", text="Checking...")
+        
+        import threading
+        threading.Thread(target=self.check_mod_updates, args=(key,), daemon=True).start()
+
+    def check_mod_updates(self, key):
+        import urllib.request
+        import urllib.error
+        import json
+        import time
+        import webbrowser
+        
+        self.log("Starting Nexus Mods update check...", "info")
+        
+        # Gather all mods with a valid nexus_id
+        mods_to_check = []
+        for m_id, info in getattr(self, "mods", {}).items():
+            n_id = info.get("nexus_id", "").strip()
+            if n_id:
+                mods_to_check.append((m_id, n_id, info.get("version", "1.0.0")))
+                
+        if not mods_to_check:
+            self.log("No installed mods have a configured Nexus Mod ID.", "warning")
+            self.root.after(0, lambda: self.btn_check_updates.config(state="normal", text="✨ Check Updates"))
+            self.root.after(0, lambda: messagebox.showinfo("No Mods Matched", "None of your installed mods have a configured Nexus Mod ID. You can add Mod IDs by right-clicking a mod and selecting 'Edit Metadata'."))
+            return
+            
+        updates_found = 0
+        for m_id, n_id, local_version in mods_to_check:
+            self.log(f"Checking update for Nexus Mod ID {n_id} (Local: v{local_version})...", "info")
+            req = urllib.request.Request(
+                f"https://api.nexusmods.com/v1/games/finalfantasyxx2hdremaster/mods/{n_id}.json",
+                headers={
+                    "apikey": key,
+                    "Application-Name": "SpiraModManager",
+                    "Application-Version": APP_VERSION
+                }
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    remote_version = data.get("version", "").strip()
+                    if remote_version and remote_version != local_version:
+                        # Simple check to see if remote is newer
+                        # (split on dots, compare numeric values if possible)
+                        is_newer = False
+                        try:
+                            l_parts = [int(x) for x in local_version.replace("v", "").split(".") if x.isdigit()]
+                            r_parts = [int(x) for x in remote_version.replace("v", "").split(".") if x.isdigit()]
+                            if r_parts > l_parts:
+                                is_newer = True
+                        except Exception:
+                            if remote_version != local_version:
+                                is_newer = True
+                                
+                        if is_newer:
+                            self.mod_updates[m_id] = remote_version
+                            updates_found += 1
+                            self.log(f"Update found for mod '{getattr(self, 'mods', {}).get(m_id, {}).get('name')}'! Latest: v{remote_version}", "success")
+                time.sleep(0.5)  # rate limit pause
+            except Exception as e:
+                self.log(f"Failed to check update for mod ID {n_id}: {e}", "error")
+                
+        self.root.after(0, lambda: self.btn_check_updates.config(state="normal", text="✨ Check Updates"))
+        self.root.after(0, self.refresh_list)
+        
+        msg = f"Update check complete! Found {updates_found} updates."
+        self.root.after(0, lambda: messagebox.showinfo("Update Check Complete", msg))
+
+    def check_single_mod_update(self, mod_id, info):
+        key = self.config.get("nexus_api_key", "").strip()
+        if not key:
+            messagebox.showinfo("Nexus Mods Key Required", "Please configure your Nexus Mods API Key in the Settings tab to check for updates.")
+            return
+            
+        n_id = info.get("nexus_id", "").strip()
+        if not n_id:
+            messagebox.showinfo("No Nexus Mod ID", "This mod does not have a configured Nexus Mod ID. You can add one in the details panel on the right.")
+            return
+            
+        self.log(f"Checking update for mod '{info.get('name')}' (ID: {n_id})...", "info")
+        
+        def run_check():
+            import urllib.request
+            import urllib.error
+            import json
+            req = urllib.request.Request(
+                f"https://api.nexusmods.com/v1/games/finalfantasyxx2hdremaster/mods/{n_id}.json",
+                headers={
+                    "apikey": key,
+                    "Application-Name": "SpiraModManager",
+                    "Application-Version": APP_VERSION
+                }
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+                    remote_version = data.get("version", "").strip()
+                    local_version = info.get("version", "1.0.0")
+                    is_newer = False
+                    try:
+                        l_parts = [int(x) for x in local_version.replace("v", "").split(".") if x.isdigit()]
+                        r_parts = [int(x) for x in remote_version.replace("v", "").split(".") if x.isdigit()]
+                        if r_parts > l_parts:
+                            is_newer = True
+                    except Exception:
+                        if remote_version != local_version:
+                            is_newer = True
+                            
+                    if is_newer:
+                        self.mod_updates[mod_id] = remote_version
+                        self.root.after(0, self.refresh_list)
+                        self.root.after(0, lambda: messagebox.showinfo("Update Available", f"A new version is available for '{info.get('name')}'!\n\nLocal Version: {local_version}\nLatest Version: {remote_version}"))
+                    else:
+                        self.root.after(0, lambda: messagebox.showinfo("Up to Date", f"'{info.get('name')}' is up to date (Version {local_version})."))
+            except Exception as e:
+                self.log(f"Failed to check update for mod ID {n_id}: {e}", "error")
+                self.root.after(0, lambda: messagebox.showerror("Check Failed", f"Failed to connect to Nexus API: {e}"))
+                
+        import threading
+        threading.Thread(target=run_check, daemon=True).start()
+
+    def create_about_card(self):
+        self.about_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.about_card._is_card = True
+        self.about_card.pack(fill="x", pady=(0, 10))
+        
+        lbl_title = tk.Label(self.about_card, text="About Spira Mod Manager", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_title._is_title = True
+        lbl_title.pack(anchor="w", pady=(0, 8))
+        
+        self.lbl_about_desc = tk.Label(self.about_card, text=f"Spira Mod Manager  |  Version {APP_VERSION}\nCreated & Authored by NfgOdin\n\nA modern, premium desktop mod manager, loader, and asset injection platform for Final Fantasy X & X-2 HD Remaster.", 
+                            justify="left", bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9))
+        self.lbl_about_desc.pack(anchor="w", pady=(0, 10))
+        
+        status_row = tk.Frame(self.about_card, bg=self.card_color)
+        status_row.pack(fill="x", pady=(0, 10))
+        
+        self.lbl_about_orb = tk.Label(status_row, text="🟢", font=("Segoe UI", 9, "bold"), fg=self.success_color, bg=self.card_color)
+        self.lbl_about_orb._is_status_pill = True
+        self.lbl_about_orb.pack(side="left")
+        
+        self.lbl_about_text = tk.Label(status_row, text="SpiraMM is Up to Date", font=("Segoe UI", 9, "bold"), bg=self.card_color)
+        self.lbl_about_text.pack(side="left", padx=5)
+        
+        self.btn_about_update = tk.Button(status_row, text="Download Update", command=lambda: webbrowser.open(self.manager_update_url), bg=self.accent_color, fg="white", font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.accent_hover, padx=8, pady=1)
+        
+        self.refresh_about_card_status()
+        
+        links_frame = tk.Frame(self.about_card, bg=self.card_color)
+        links_frame.pack(fill="x", anchor="w")
+        
+        btn_changelog = tk.Button(links_frame, text="📝 View Changelog", command=lambda: ChangelogDialog(self), bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_changelog.pack(side="left", padx=(0, 6))
+        self.bind_hover(btn_changelog)
+        
+        btn_github = tk.Button(links_frame, text="🌐 GitHub Repository", command=lambda: webbrowser.open("https://github.com/odinj2010/FFX-Mod-Manager"), bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_github.pack(side="left", padx=6)
+        self.bind_hover(btn_github)
+        
+        btn_nexus = tk.Button(links_frame, text="✨ Nexus Mods Page", command=lambda: webbrowser.open("https://www.nexusmods.com/finalfantasyxx2hdremaster/mods/327"), bg=self.bg_color, fg=self.text_color, font=("Segoe UI", 8, "bold"), relief="flat", activebackground=self.border_color, padx=10, pady=3)
+        btn_nexus.pack(side="left", padx=6)
+        self.bind_hover(btn_nexus)
+
+    def refresh_about_card_status(self):
+        if not hasattr(self, "lbl_about_orb") or not self.lbl_about_orb.winfo_exists():
+            return
+            
+        if self.has_manager_update:
+            self.lbl_about_orb.config(text="🔴", fg=self.error_color)
+            self.lbl_about_text.config(text=f"Update Available: {self.latest_manager_version}")
+            self.btn_about_update.pack(side="left", padx=10)
+        else:
+            self.lbl_about_orb.config(text="🟢", fg=self.success_color)
+            self.lbl_about_text.config(text="SpiraMM is Up to Date")
+            try:
+                self.btn_about_update.pack_forget()
+            except Exception:
+                pass
+
+
+class ChangelogDialog:
+    def __init__(self, manager):
+        self.manager = manager
+        self.dialog = tk.Toplevel(manager.root)
+        self.dialog.title(f"Release Notes - v{APP_VERSION}")
+        manager.set_window_icon(self.dialog)
+        self.dialog.geometry("600x500")
+        self.dialog.configure(bg=manager.bg_color)
+        
+        # Header Label
+        lbl_header = tk.Label(self.dialog, text=f"What's New in v{APP_VERSION}", font=("Segoe UI", 12, "bold"), fg=manager.accent_color, bg=manager.bg_color)
+        lbl_header._is_title = True
+        lbl_header.pack(anchor="w", padx=20, pady=(15, 10))
+        
+        # Text view container
+        text_frame = tk.Frame(self.dialog, bg=manager.card_color, highlightthickness=1, highlightbackground=manager.border_color)
+        text_frame._is_card = True
+        text_frame.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        
+        txt_view = tk.Text(text_frame, bg=manager.card_color, fg=manager.text_color, insertbackground=manager.text_color, font=("Segoe UI", 10), wrap="word", relief="flat", bd=0, padx=10, pady=10)
+        txt_view.pack(side="left", fill="both", expand=True)
+        
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=txt_view.yview)
+        scrollbar.pack(side="right", fill="y")
+        txt_view.config(yscrollcommand=scrollbar.set)
+        
+        # Load changelog file content
+        content = ""
+        # Fallback sequence: try v{APP_VERSION} first, then vx.x.x
+        paths_to_try = [
+            os.path.join(_base_dir, "changelogs", f"RELEASE_v{APP_VERSION}.md"),
+            os.path.join(_base_dir, "changelogs", "RELEASE_vx.x.x.md")
+        ]
+        
+        # If frozen, also check PyInstaller temp dir
+        if getattr(sys, 'frozen', False):
+            paths_to_try.append(os.path.join(sys._MEIPASS, "changelogs", f"RELEASE_v{APP_VERSION}.md"))
+            paths_to_try.append(os.path.join(sys._MEIPASS, "changelogs", "RELEASE_vx.x.x.md"))
+            
+        for path in paths_to_try:
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    break
+                except Exception:
+                    pass
+                    
+        if not content:
+            content = "Changelog details are currently unavailable."
+            
+        # Configure tags for rendering Markdown
+        txt_view.tag_configure("title", font=("Segoe UI", 13, "bold"), foreground=manager.accent_color)
+        txt_view.tag_configure("header2", font=("Segoe UI", 11, "bold"), foreground=manager.accent_color)
+        txt_view.tag_configure("header3", font=("Segoe UI", 10, "bold"), foreground=manager.text_color)
+        txt_view.tag_configure("bold", font=("Segoe UI", 10, "bold"))
+        txt_view.tag_configure("normal", font=("Segoe UI", 10))
+        txt_view.tag_configure("bullet", font=("Segoe UI", 10))
+        txt_view.tag_configure("separator", font=("Segoe UI", 1, "bold"), background=manager.border_color)
+        
+        # Parse lines
+        lines = content.split("\n")
+        for line in lines:
+            if line.startswith("# "):
+                txt_view.insert("end", line[2:] + "\n", "title")
+            elif line.startswith("## "):
+                txt_view.insert("end", "\n" + line[3:] + "\n", "header2")
+            elif line.startswith("### "):
+                txt_view.insert("end", "\n" + line[4:] + "\n", "header3")
+            elif line.strip() == "---":
+                txt_view.insert("end", "\n", "separator")
+                txt_view.insert("end", "\n")
+            else:
+                # Handle lists
+                is_bullet = False
+                if line.lstrip().startswith("* "):
+                    is_bullet = True
+                    indent = len(line) - len(line.lstrip())
+                    txt_view.insert("end", " " * indent + "•  ", "bullet")
+                    line = line.lstrip()[2:]
+                
+                # Parse bold text **word**
+                parts = line.split("**")
+                for i, part in enumerate(parts):
+                    if i % 2 == 1:
+                        txt_view.insert("end", part, "bold")
+                    else:
+                        txt_view.insert("end", part, "normal")
+                txt_view.insert("end", "\n")
+                
+        txt_view.config(state="disabled")
+        
+        # Close Button
+        btn_close = tk.Button(self.dialog, text="Close", command=self.dialog.destroy, bg=manager.accent_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=manager.accent_hover, padx=20, pady=6)
+        btn_close.pack(pady=(0, 15))
+        manager.bind_hover(btn_close, is_primary=True)
 
 
 class ThemeCreatorDialog:
