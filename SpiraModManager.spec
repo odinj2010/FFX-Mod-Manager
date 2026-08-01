@@ -8,7 +8,7 @@ a = Analysis(
     ['spiramm.py'],
     pathex=[],
     binaries=[],
-    datas=[(dnd_path, 'tkinterdnd2/tkdnd')],
+    datas=[(dnd_path, 'tkinterdnd2/tkdnd'), ('SpiraMM.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

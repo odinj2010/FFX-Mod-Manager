@@ -184,6 +184,17 @@ class FFXModManagerGUI:
         if not is_embedded:
             active_mode = self.config.get("active_game_mode", "FFX")
             self.root.title(f"Spira Mod Manager - {active_mode} Mode")
+            
+            # Set window icon if available
+            icon_path = os.path.join(_base_dir, "SpiraMM.ico")
+            if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
+                icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
+            if os.path.exists(icon_path):
+                try:
+                    self.root.iconbitmap(icon_path)
+                except Exception:
+                    pass
+                    
             self.root.geometry("960x600")
             self.root.minsize(800, 500)
             self.root.configure(bg=self.bg_color)
