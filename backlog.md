@@ -6,46 +6,34 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 
 ## 🖥️ Main App Backlog (Proposed)
 
-### 1. Integrated External Tools Quick-Launcher (Completed)
-* **Goal**: Turn the mod manager into the central hub/toolkit for Spira modding.
-* **Details**: Completed inside settings via the Plugin Toolkit Actions container card.
-
-### 2. Advanced Conflict Resolution Matrix (Proposed)
+### 1. Advanced Conflict Resolution Matrix (Proposed)
 * **Goal**: Provide visual control over overlapping file conflicts.
 * **Details**:
   * Show a clean list/tree-view of colliding file paths across active mods.
   * Allow users to select which mod's version "wins" the priority override per file.
 
-### 3. One-Click Nexus Mod Download Integration (`nxm://` protocol) (Proposed)
+### 2. One-Click Nexus Mod Download Integration (`nxm://` protocol) (Proposed)
 * **Goal**: Register the mod manager with the OS to handle Nexus link downloads.
 * **Details**:
   * Command-line argument handler to download files directly via Nexus API and install them immediately.
 
-### 4. Interactive Character Dashboard Profiles (Proposed)
+### 3. Interactive Character Dashboard Profiles (Proposed)
 * **Goal**: Personalize the manager with FFX/FFX-2 character styles.
 * **Details**: Switch themes based on standard profiles (Tidus, Yuna, Rikku, Auron) and automatically shift the active color schemes, ambient artwork, and background details to match.
 
-### 5. Live Graphic Mod Asset Previewer (Completed)
-* **Goal**: View mod graphics directly in the manager before enabling.
-* **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
-
-### 6. Drag-and-Drop FMOD Music Injector (Proposed)
+### 4. Drag-and-Drop FMOD Music Injector (Proposed)
 * **Goal**: Customize soundtracks easily.
 * **Details**: Convert MP3/WAV files to FMOD bank formats to swap audio files or combine original/arrange tracks.
 
-### 7. Mod Presets and Modpack Bundling (Proposed)
+### 5. Mod Presets and Modpack Bundling (Proposed)
 * **Goal**: Share and download custom configurations.
 * **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
 
-### 8. Local Cloud Save Auto-Sync (Completed)
-* **Goal**: Keep saves backed up to the cloud automatically.
-* **Details**: Completed as a slide-out directory option in settings running a background threaded sync on process closure.
-
-### 9. Nexus Mod Update Checker (Proposed)
+### 6. Nexus Mod Update Checker (Proposed)
 * **Goal**: Verify if installed mods have newer files available.
 * **Details**: Query the Nexus Mods API using metadata IDs to cross-reference versions and display dynamic update notification badges.
 
-### 10. Fahrenheit Integration & Manifest Editor (Proposed)
+### 7. Fahrenheit Integration & Manifest Editor (Proposed)
 * **Goal**: Fully support advanced Fahrenheit manifest customization.
 * **Details**: 
   * Visual manifest editor interface to configure priorities, dependencies (`LoadAfter`), and custom configuration option parameters.
@@ -67,5 +55,6 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **Open Plugin Developer SDK & Extensible Runner**: support raw scripts, executables, dotted path imports, background/utility/listener categories, and a starter template generator. (Next_Release)
 * [x] **Advanced Plugin Developer SDK (Phase 2)**: Dynamic schema settings UI, local socket JSON-RPC server (localhost:8692), direct memory read/write API, automated pip dependency installer, and fine-grained pub/sub events with hot-reloading. (Next_Release)
 * [x] **FFX Codec String Terminator Fix**: resolved premature string cutoff when text command parameters (like colors/variables) were 0x00 (Next_Release).
-* [x] **Integrated External Tools Quick-Launcher (Plugin Toolkit)**: configures and quick-launches FFX modding utilities dynamically. (Next_Release)
+* [x] **Integrated External Tools Quick-Launcher (Plugin Toolkit)**: configures and quick-launches FFX modding utilities dynamically via the Plugin Toolkit Actions card (Next_Release).
 * [x] **Local Cloud Save Auto-Sync**: automatically backs up FFX/FFX-2 saves to Google Drive/OneDrive on game exit (Next_Release).
+* [x] **Live Graphic Mod Asset Previewer**: parse and view texture images inside mod packages in a side panel.
