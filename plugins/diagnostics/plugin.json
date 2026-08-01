@@ -1,7 +1,7 @@
 {
   "name": "Game & Manager Diagnostics",
   "version": "1.0",
-  "creator": "SpiraMM Team",
+  "creator": "NfgOdin",
   "type": "utility",
   "entry_point": "run_diagnostics.py",
   "button_text": "🔍 Run Diagnostics",

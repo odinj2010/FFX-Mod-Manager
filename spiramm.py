@@ -1365,6 +1365,71 @@ class FFXModManagerGUI:
         self.ent_ipc_port.bind("<FocusOut>", save_ipc_port)
         self.ent_ipc_port.bind("<Return>", save_ipc_port)
         
+        # Cloud Save Auto-Sync settings
+        lbl_cloud_path = tk.Label(path_row, text="Cloud Sync Folder:", bg=self.card_color, fg=self.text_color)
+        self.ent_cloud_path = ttk.Entry(path_row, width=40)
+        self.ent_cloud_path.insert(0, self.config.get("cloud_sync_dir", ""))
+        ToolTip(self.ent_cloud_path, "Configure the directory path of your local cloud synchronization folder (Google Drive, OneDrive, Dropbox, etc.).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        def save_custom_cloud_path(event=None):
+            path = self.ent_cloud_path.get().strip()
+            self.config["cloud_sync_dir"] = path
+            self.save_config()
+            self.log(f"Updated Cloud Sync destination folder: {path}", "info")
+            
+        self.ent_cloud_path.bind("<FocusOut>", save_custom_cloud_path)
+        self.ent_cloud_path.bind("<Return>", save_custom_cloud_path)
+        
+        def browse_cloud_folder():
+            folder = filedialog.askdirectory(title="Select Cloud Sync Folder (Google Drive, OneDrive, Dropbox, etc.)")
+            if folder:
+                abspath = os.path.abspath(folder)
+                self.ent_cloud_path.delete(0, tk.END)
+                self.ent_cloud_path.insert(0, abspath)
+                save_custom_cloud_path()
+            else:
+                # If they cancelled and nothing was set, turn off checkbox
+                if not self.config.get("cloud_sync_dir", "").strip():
+                    cloud_enabled_var.set(False)
+                    self.config["cloud_sync_enabled"] = False
+                    self.save_config()
+                    toggle_cloud_sync_visibility()
+                    
+        self.btn_cloud_browse = tk.Button(path_row, text="Browse...", command=browse_cloud_folder, bg=self.bg_color,
+                                           fg=self.text_color, relief="flat", activebackground=self.border_color, padx=10)
+        self.bind_hover(self.btn_cloud_browse)
+        ToolTip(self.btn_cloud_browse, "Browse your computer folders to select the cloud synchronization directory.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        def toggle_cloud_sync_visibility():
+            enabled = cloud_enabled_var.get()
+            self.config["cloud_sync_enabled"] = enabled
+            self.save_config()
+            
+            if enabled:
+                lbl_cloud_path.grid(row=4, column=0, sticky="w", padx=(0, 10), pady=6)
+                self.ent_cloud_path.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=6)
+                self.btn_cloud_browse.grid(row=4, column=2, pady=6)
+                
+                # If no directory configured yet, prompt to browse immediately
+                if not self.config.get("cloud_sync_dir", "").strip():
+                    browse_cloud_folder()
+            else:
+                lbl_cloud_path.grid_forget()
+                self.ent_cloud_path.grid_forget()
+                self.btn_cloud_browse.grid_forget()
+                
+        cloud_enabled_var = tk.BooleanVar(value=self.config.get("cloud_sync_enabled", False))
+        chk_cloud = tk.Checkbutton(path_row, text="Enable Cloud Save Auto-Sync (Backs up saves to cloud folder on game exit)", 
+                                   variable=cloud_enabled_var, command=toggle_cloud_sync_visibility, bg=self.card_color, fg=self.text_color, 
+                                   selectcolor=self.card_color, activebackground=self.card_color, activeforeground=self.text_color)
+        chk_cloud.grid(row=3, column=0, columnspan=3, sticky="w", pady=(8, 4))
+        
+        # Initialize visibility on startup
+        if cloud_enabled_var.get():
+            lbl_cloud_path.grid(row=4, column=0, sticky="w", padx=(0, 10), pady=6)
+            self.ent_cloud_path.grid(row=4, column=1, sticky="ew", padx=(0, 10), pady=6)
+            self.btn_cloud_browse.grid(row=4, column=2, pady=6)
+        
         # Side-by-Side bottom row for Appearance Theme Settings and Safety & Diagnostics
         bottom_cards_row = tk.Frame(self.settings_cards_container, bg=self.bg_color)
         bottom_cards_row.pack(fill="x", pady=10)
@@ -1458,7 +1523,7 @@ class FFXModManagerGUI:
             parent_frame = self.sidebar_buttons_frame
             
         btn = tk.Button(parent_frame, text=f"  {icon}   {text}", font=("Segoe UI", 9, "bold"),
-                        anchor="w", relief="flat", padx=15, pady=8, bg=self.card_color, fg=self.text_color,
+                        anchor="w", justify="left", wraplength=130, relief="flat", padx=15, pady=8, bg=self.card_color, fg=self.text_color,
                         activebackground=self.border_color, activeforeground=self.text_color, bd=0)
         btn._is_sidebar = True
         btn._page_id = page_id
@@ -6378,6 +6443,50 @@ class FFXModManagerGUI:
                 pass
             self._active_game_hProcess = None
         self.broadcast_event("on_game_close")
+        self.perform_cloud_save_sync()
+
+    def perform_cloud_save_sync(self):
+        if not self.config.get("cloud_sync_enabled", False):
+            return
+            
+        cloud_dir = self.config.get("cloud_sync_dir", "")
+        if not cloud_dir or not os.path.exists(cloud_dir):
+            self.log("Cloud Save Sync is enabled, but the destination directory is invalid or not configured.", "warning")
+            return
+            
+        # Determine source saves directory based on active game mode
+        default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X2 HD Remaster\FINAL FANTASY X")
+        default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X2 HD Remaster\FINAL FANTASY X-2")
+        
+        if self.active_game_mode == "FFX-2":
+            src_dir = self.config.get("saves_dir_x2", default_saves_ffx2)
+            dest_subfolder = "FFX-2"
+        else:
+            src_dir = self.config.get("saves_dir", default_saves_ffx)
+            dest_subfolder = "FFX"
+            
+        if not os.path.exists(src_dir):
+            self.log(f"Source saves directory '{src_dir}' does not exist. Skipping cloud sync.", "warning")
+            return
+            
+        target_dir = os.path.join(cloud_dir, dest_subfolder)
+        
+        def run_sync():
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+                copied_count = 0
+                for item in os.listdir(src_dir):
+                    src_path = os.path.join(src_dir, item)
+                    if os.path.isfile(src_path):
+                        dst_path = os.path.join(target_dir, item)
+                        shutil.copy2(src_path, dst_path)
+                        copied_count += 1
+                self.log(f"Cloud Save Sync complete! Successfully backed up {copied_count} saves to '{target_dir}'.", "success")
+            except Exception as e:
+                self.log(f"Cloud Save Sync failed: {e}", "error")
+                
+        import threading
+        threading.Thread(target=run_sync, daemon=True).start()
 
     def on_app_closing(self):
         self.ipc_server_running = False
@@ -6406,6 +6515,7 @@ class FFXModManagerGUI:
             
         self.log(f"Executing utility plugin command '{plugin.get('name')}'...", "info")
         self.execute_plugin_entry_point(plugin, args=[self.game_dir, self.active_game_mode])
+        self.show_log_window()
 
     def refresh_toolkit_actions_ui(self):
         for child in self.toolkit_buttons_container.winfo_children():
@@ -6429,17 +6539,25 @@ class FFXModManagerGUI:
             )
             btn_action.pack(side="left", padx=(0, 10), pady=5)
             self.bind_hover(btn_action)
-            ToolTip(btn_action, f"Launch utility entry point: {plugin.get('entry_point')}", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+            
+            tooltip_msg = plugin.get("description", f"Launch utility entry point: {plugin.get('entry_point')}")
+            ToolTip(btn_action, tooltip_msg, get_theme_colors=lambda: self.themes.get(self.current_theme_name))
             
         if not has_utilities:
             lbl_none = tk.Label(self.toolkit_buttons_container, text="No utility toolkit plugins detected.", fg=self.text_dim, bg=self.card_color, font=("Segoe UI", 9, "italic"))
             lbl_none.pack(anchor="w")
 
     def create_toolkit_and_sdk_settings_cards(self):
+        # Create a side-by-side grid row container for Toolkit Actions and Developer SDK
+        toolkit_sdk_row = tk.Frame(self.settings_cards_container, bg=self.bg_color)
+        toolkit_sdk_row.pack(fill="x", pady=(0, 10))
+        toolkit_sdk_row.columnconfigure(0, weight=1)
+        toolkit_sdk_row.columnconfigure(1, weight=1)
+        
         # 1. Toolkit Actions card
-        self.toolkit_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        self.toolkit_card = tk.Frame(toolkit_sdk_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
         self.toolkit_card._is_card = True
-        self.toolkit_card.pack(fill="x", pady=(0, 10))
+        self.toolkit_card.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
         
         lbl_toolkit_title = tk.Label(self.toolkit_card, text="Plugin Toolkit Actions", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
         lbl_toolkit_title._is_title = True
@@ -6452,15 +6570,15 @@ class FFXModManagerGUI:
         self.refresh_toolkit_actions_ui()
         
         # 2. Developer SDK Template Scaffolder card
-        sdk_card = tk.Frame(self.settings_cards_container, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
+        sdk_card = tk.Frame(toolkit_sdk_row, bg=self.card_color, highlightthickness=1, highlightbackground=self.border_color, padx=15, pady=15)
         sdk_card._is_card = True
-        sdk_card.pack(fill="x", pady=(0, 10))
+        sdk_card.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
         
         lbl_sdk_title = tk.Label(sdk_card, text="Plugin Developer SDK", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.card_color)
         lbl_sdk_title._is_title = True
         lbl_sdk_title.pack(anchor="w", pady=(0, 10))
         
-        lbl_sdk_desc = tk.Label(sdk_card, text="Auto-generate a working starter plugin template inside your plugins folder for immediate customization.", bg=sdk_card.cget("bg"), fg=self.text_color, font=("Segoe UI", 9))
+        lbl_sdk_desc = tk.Label(sdk_card, text="Auto-generate a working starter plugin template inside your plugins folder for immediate customization.", bg=sdk_card.cget("bg"), fg=self.text_color, font=("Segoe UI", 9), justify="left", wraplength=250)
         lbl_sdk_desc.pack(anchor="w", pady=(0, 10))
         
         btn_scaffold = tk.Button(sdk_card, text="🛠️ Generate Starter Plugin Template", command=self.scaffold_starter_plugin, bg=self.accent_color,

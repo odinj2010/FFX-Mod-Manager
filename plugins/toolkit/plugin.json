@@ -1,6 +1,6 @@
 {
   "name": "Developer Toolkit",
-  "icon": "🛠️",
+  "icon": "🔧",
   "version": "1.0",
   "creator": "NfgOdin",
   "entry_point": "gui.ToolkitTab",
