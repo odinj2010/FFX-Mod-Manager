@@ -1,6 +1,6 @@
 # Spira Mod Manager Project Backlog & Brainstorm Memory
 
-This file serves as the long-term memory for tracking feature ideas, polishes, and community requests. Items are split between the Main Application and the Plugin Ecosystem, and remain here until they are either completed or explicitly discarded.
+This file serves as the long-term memory for tracking feature ideas, polishes, and community requests for the main application.
 
 ---
 
@@ -10,7 +10,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Goal**: Turn the mod manager into the central hub/toolkit for Spira modding.
 * **Details**: Completed inside settings via the Plugin Toolkit Actions container card.
 
-## 2. Advanced Conflict Resolution Matrix (Proposed)
+### 2. Advanced Conflict Resolution Matrix (Proposed)
 * **Goal**: Provide visual control over overlapping file conflicts.
 * **Details**:
   * Show a clean list/tree-view of colliding file paths across active mods.
@@ -29,120 +29,27 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Goal**: View mod graphics directly in the manager before enabling.
 * **Details**: Parse `.dds` or `.png` texture files inside mod packages to show visual clothing or UI previews in a side panel.
 
-### 6. Built-in VBF Archive Explorer (Proposed)
-* **Goal**: Native unpacking and editing of main game archives.
-* **Details**: Add a lightweight `.vbf` parser to inspect and patch assets without requiring third-party tools.
-
-### 7. Drag-and-Drop FMOD Music Injector (Proposed)
+### 6. Drag-and-Drop FMOD Music Injector (Proposed)
 * **Goal**: Customize soundtracks easily.
 * **Details**: Convert MP3/WAV files to FMOD bank formats to swap audio files or combine original/arrange tracks.
 
-### 8. Visual Save Game Data Editor (Proposed)
-* **Goal**: Edit player inventory and coordinates natively.
-* **Details**: Embed a visual save modifier into the Saves tab to adjust Gil, stats, sphere grid nodes, and coordinates.
-
-### 9. Mod Presets and Modpack Bundling (Proposed)
+### 7. Mod Presets and Modpack Bundling (Proposed)
 * **Goal**: Share and download custom configurations.
 * **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
 
-### 10. Local Cloud Save Auto-Sync (Completed)
+### 8. Local Cloud Save Auto-Sync (Completed)
 * **Goal**: Keep saves backed up to the cloud automatically.
 * **Details**: Completed as a slide-out directory option in settings running a background threaded sync on process closure.
 
-### 10b. Nexus Mod Update Checker (Proposed)
+### 9. Nexus Mod Update Checker (Proposed)
 * **Goal**: Verify if installed mods have newer files available.
 * **Details**: Query the Nexus Mods API using metadata IDs to cross-reference versions and display dynamic update notification badges.
 
-### 11. Steam Deck / Proton Compatibility Optimization (Proposed)
-* **Goal**: Seamless Linux controller and path mapping.
-* **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
-
-### 11b. Fahrenheit Integration & Manifest Editor (Proposed)
+### 10. Fahrenheit Integration & Manifest Editor (Proposed)
 * **Goal**: Fully support advanced Fahrenheit manifest customization.
 * **Details**: 
   * Visual manifest editor interface to configure priorities, dependencies (`LoadAfter`), and custom configuration option parameters.
   * Integrate custom manifest flags when custom flag options are defined/supported.
-
----
-
-## 🧪 Plugins & Companion Overlays Backlog (Proposed)
-
-### 12. Centralized Settings & Customization for Plugins (Completed)
-* **Goal**: Give players dynamic, GUI-driven control over plugin properties and behaviors.
-* **Details**:
-  * Build a **Global Plugin Settings Card** in the Settings tab of SpiraMM.
-  * **Hotkey Rebinding**: Allow users to customize toggle keys (e.g. rebinding `F8` or `F9`) directly in the manager.
-  * **Overlay Appearance**: Dynamic controls for transparency/opacity, font sizes, snapped screen positioning (Top-Right, Bottom-Left), and click-through lock.
-  * **Toggle Status**: Enable/disable individual trackers on/off dynamically.
-
-### 13. Main Manager & Plugin Inter-Process Communication (IPC) (Completed)
-* **Goal**: Sync status, notifications, and logs between background overlay processes and SpiraMM.
-* **Details**:
-  * Implement a lightweight named pipe or socket IPC hook inside SpiraMM.
-  * **Real-time Status Sync**: Display live plugin stats (e.g. "Achievements: 12/50 unlocked" or "FFX.exe Connected") directly in SpiraMM.
-  * **Unified Logs**: Route warning/error logs from active trackers back to the Mod Manager's central console log window.
-
-### 14. Core Game Memory Hook API (Completed)
-* **Goal**: Consolidate memory scanning and handles inside SpiraMM to simplify plugin code.
-* **Details**:
-  * Run a master background game-hook thread in SpiraMM to manage the process handle and UAC elevation checks.
-  * Expose a clean, high-level wrapper API (e.g. `game.read_int()`) for plugins to scan memory without duplicating hex scanning or `ctypes` code.
-
-### 15. Mod-to-Plugin Integrations (Proposed)
-* **Goal**: Allow active mods to supply custom content directly to active plugins.
-* **Details**:
-  * **Mod-Specific Guides**: Retranslation or story mods can bundle `walkthrough.json` to override the overlay walkthrough dynamically when activated.
-  * **Gameplay Overhaul Compatibility**: Re-balance or recipe mods can bundle custom recipe lists to automatically update the Rikku's Mix Calculator plugin database.
-
-### 16. Open Plugin Developer SDK & Extensible Runner (Completed)
-* **Goal**: Enable any mod creator or community member to write and test plugins easily.
-* **Details**:
-  * **Current State & Limitations**:
-    * Right now, the manager's loader has a specific expectation: it reads `plugin.json` and parses `entry_point` in the format `module_name.class_name` (like `gui.RikkuMixTab`), imports the module, instantiates the class, and passes a Tkinter Frame (`tab_frame`) for the plugin to draw its interface. The `tracker.py` (compiled to `tracker.exe`) is then launched from the GUI class as a background helper process.
-    * If a developer wants to make a plugin that doesn't need a UI tab (like a Discord Rich Presence status updater, an automatic save backup script, or a hotkey overlay that runs completely in the background), they are currently forced to write a dummy Tkinter UI class just to make the manager happy.
-  * **Dynamic Python Runner**: Execute raw `.py` scripts (`tracker.py` / `gui.py`) directly from the manager using a bundled Python interpreter, bypassing PyInstaller compilation requirements.
-  * **Simplified UI Scaffold**: Expose simple theme-aware widgets that automatically match active theme colors and hover animations.
-  * **Flexible Component-Based Architecture**: Make the plugin loader incredibly flexible by defining a `"type"` property inside `plugin.json` (or an array of components). This tells SpiraMM exactly how to handle and execute the plugin:
-    1. **Tab Plugins (Standard)**:
-       * Manifest: `{"name": "Rikku's Mix Calculator", "type": "tab", "entry_point": "gui.RikkuMixTab"}`
-       * Behavior: SpiraMM renders a dedicated sidebar button and loads the UI component.
-    2. **Background Service Plugins (No GUI)**:
-       * Manifest: `{"name": "Discord Rich Presence", "type": "background", "entry_point": "presence.py"}`
-       * Behavior: SpiraMM doesn't create a sidebar tab. Instead, it spins up `presence.py` as an asynchronous background thread or process the moment the manager launches and shuts it down when SpiraMM closes.
-    3. **Command/Utility Plugins (One-click tools)**:
-       * Manifest: `{"name": "Save Game Decryptor", "type": "utility", "entry_point": "decrypt.py", "button_text": "🔓 Decrypt Selected Save"}`
-       * Behavior: SpiraMM adds the action button automatically to a shared "Toolkit" panel. Clicking it simply runs `decrypt.py` with active game context.
-    4. **Event Listener Plugins (Reactive scripts)**:
-       * Manifest: `{"name": "Game Launch Optimizer", "type": "listener", "entry_point": "optimize.py", "events": ["on_game_launch", "on_game_exit"]}`
-       * Behavior: SpiraMM imports the script and triggers its callback functions when the specified events occur.
-  * **Language Portability**: If the entry point is an executable (e.g. `entry_point: "my_tool.exe"`), SpiraMM can spawn it as a subprocess, allowing plugins to be written in C++, C#, Go, Rust, or Python.
-  * **Zero Boilerplate**: If a developer just wants to run a background Python script, their entire plugin is just `plugin.json` and a single script file—no Tkinter code, no GUI wrapping, and no compilers required.
-  * **Legacy Compatibility**: Gracefully auto-wrap older single-entry point plugin manifests into a standard single-tab component internally.
-  * **Template Scaffolder**: A button in Settings to auto-generate a fresh, working starter plugin template for immediate modification.
-
-### 17. Monster Arena Capture Live Overlay (Proposed)
-* **Goal**: Eliminate manual checks at the Calm Lands arena.
-* **Details**: Read live game memory to render a HUD overlay tracking captures (e.g. Calm Lands: 6/10 Coeurls) for active areas.
-
-### 18. Rikku Active Battle Mix Suggester (Proposed)
-* **Goal**: Suggest the best Mixes dynamically during active turns.
-* **Details**: Read in-battle inventory and target enemy vulnerabilities to overlay optimal Rikku Mix combinations.
-
-### 19. Al Bhed Translator and Collection Companion (Proposed)
-* **Goal**: Track missing primers and translate vocabulary.
-* **Details**: Read save data to list missing Primers and provide a side-panel dictionary translator tool.
-
-### 20. Blitzball Scouting and Tech Tracker (Proposed)
-* **Goal**: Assist team building and tech copy alerts.
-* **Details**: Track player contract timers, tech copy availability, and tournament schedules in an active HUD.
-
-### 21. Interactive Sphere Grid Node Planner (Proposed)
-* **Goal**: Design and share character path maps.
-* **Details**: Render standard and expert sphere grid planners, allowing users to calculate SLvs and export build files.
-
-### 22. Live Memory Offset Online Database Sync (Proposed)
-* **Goal**: Auto-update game memory offsets if Steam patches the game.
-* **Details**: Pull latest memory offset JSON maps from a remote GitHub repository to prevent plugins from breaking during game updates.
 
 ---
 
@@ -162,4 +69,3 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **FFX Codec String Terminator Fix**: resolved premature string cutoff when text command parameters (like colors/variables) were 0x00 (Next_Release).
 * [x] **Integrated External Tools Quick-Launcher (Plugin Toolkit)**: configures and quick-launches FFX modding utilities dynamically. (Next_Release)
 * [x] **Local Cloud Save Auto-Sync**: automatically backs up FFX/FFX-2 saves to Google Drive/OneDrive on game exit (Next_Release).
-
