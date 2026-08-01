@@ -6,11 +6,9 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 
 ## 🖥️ Main App Backlog (Proposed)
 
-### 1. Integrated External Tools Quick-Launcher (Proposed)
+### 1. Integrated External Tools Quick-Launcher (Completed)
 * **Goal**: Turn the mod manager into the central hub/toolkit for Spira modding.
-* **Details**:
-  * Add a "Toolkit" section to configure executable paths for tools like *VBF Browser*, *FFXED Save Editor*, *MemorySumChecker*, and *Farplane*.
-  * Launch external utilities directly, passing active mod/save file arguments where applicable.
+* **Details**: Completed inside settings via the Plugin Toolkit Actions container card.
 
 ## 2. Advanced Conflict Resolution Matrix (Proposed)
 * **Goal**: Provide visual control over overlapping file conflicts.
@@ -47,18 +45,22 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * **Goal**: Share and download custom configurations.
 * **Details**: Export active mod directories as single `.ffxpreset` files that automatically download and align dependencies.
 
-### 10. Local Cloud Save Auto-Sync (Proposed)
+### 10. Local Cloud Save Auto-Sync (Completed)
 * **Goal**: Keep saves backed up to the cloud automatically.
-* **Details**: Hook into local Google Drive/OneDrive/Dropbox folders to sync save backups upon game exit.
+* **Details**: Completed as a slide-out directory option in settings running a background threaded sync on process closure.
+
+### 10b. Nexus Mod Update Checker (Proposed)
+* **Goal**: Verify if installed mods have newer files available.
+* **Details**: Query the Nexus Mods API using metadata IDs to cross-reference versions and display dynamic update notification badges.
 
 ### 11. Steam Deck / Proton Compatibility Optimization (Proposed)
 * **Goal**: Seamless Linux controller and path mapping.
 * **Details**: Auto-detect Steam Deck directories and bind UI interactions to standard Proton gamepad events.
 
-### 11b. Fahrenheit Integration Enhancements (Proposed)
-* **Goal**: Fully support advanced Fahrenheit manifest and loading fields.
+### 11b. Fahrenheit Integration & Manifest Editor (Proposed)
+* **Goal**: Fully support advanced Fahrenheit manifest customization.
 * **Details**: 
-  * Add support for `LoadAfter` and `Dependencies` arrays once the formats are finalized by the Fahrenheit crew.
+  * Visual manifest editor interface to configure priorities, dependencies (`LoadAfter`), and custom configuration option parameters.
   * Integrate custom manifest flags when custom flag options are defined/supported.
 
 ---
@@ -157,6 +159,7 @@ This file serves as the long-term memory for tracking feature ideas, polishes, a
 * [x] **Button Theme Colorizations**: styled standard/TTK buttons to match semantic custom themes (Action, Success, Caution, Utility) dynamically (Next_Release).
 * [x] **Open Plugin Developer SDK & Extensible Runner**: support raw scripts, executables, dotted path imports, background/utility/listener categories, and a starter template generator. (Next_Release)
 * [x] **Advanced Plugin Developer SDK (Phase 2)**: Dynamic schema settings UI, local socket JSON-RPC server (localhost:8692), direct memory read/write API, automated pip dependency installer, and fine-grained pub/sub events with hot-reloading. (Next_Release)
-* [x] **Robust File Operations**: added retries to prevent transient Access Denied/PermissionError exceptions on Windows (Next_Release).
 * [x] **FFX Codec String Terminator Fix**: resolved premature string cutoff when text command parameters (like colors/variables) were 0x00 (Next_Release).
+* [x] **Integrated External Tools Quick-Launcher (Plugin Toolkit)**: configures and quick-launches FFX modding utilities dynamically. (Next_Release)
+* [x] **Local Cloud Save Auto-Sync**: automatically backs up FFX/FFX-2 saves to Google Drive/OneDrive on game exit (Next_Release).
 
