@@ -35,3 +35,6 @@ sync_to_github.py
 # Custom Agent configuration and manager backups
 .agents/
 backups/
+
+# Mod Page description drafts
+updated_mod_page.md
