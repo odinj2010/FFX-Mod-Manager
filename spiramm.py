@@ -730,6 +730,16 @@ class FFXModManagerGUI:
         else:
             return "⚠️ Mod Loader DLL NOT Detected! (Mods will not load. Please install External File Loader)", self.error_color
 
+    def set_window_icon(self, window):
+        icon_path = os.path.join(_base_dir, "SpiraMM.ico")
+        if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
+            icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
+        if os.path.exists(icon_path):
+            try:
+                window.iconbitmap(icon_path)
+            except Exception:
+                pass
+
     def show_log_window(self):
         if hasattr(self, "log_window") and self.log_window and self.log_window.winfo_exists():
             try:
@@ -748,16 +758,7 @@ class FFXModManagerGUI:
         self.log_window.bind("<Destroy>", on_log_window_destroy)
         
         self.log_window.title("📜 Spira Mod Manager - System Log")
-        
-        # Set window icon if available
-        icon_path = os.path.join(_base_dir, "SpiraMM.ico")
-        if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
-            icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
-        if os.path.exists(icon_path):
-            try:
-                self.log_window.iconbitmap(icon_path)
-            except Exception:
-                pass
+        self.set_window_icon(self.log_window)
                 
         self.log_window.geometry("700x400")
         self.log_window.configure(bg=self.bg_color)
@@ -2843,6 +2844,7 @@ class FFXModManagerGUI:
         # Build Custom Creator Dialog Window
         dialog = tk.Toplevel(self.root)
         dialog.title("Create New Mod Project")
+        self.set_window_icon(dialog)
         dialog.geometry("450x620")
         dialog.configure(bg=self.bg_color)
         dialog.resizable(False, False)
@@ -3557,6 +3559,7 @@ class FFXModManagerGUI:
         # Build UI Progress Modal
         progress_win = tk.Toplevel(self.root)
         progress_win.title("Extracting Mod...")
+        self.set_window_icon(progress_win)
         progress_win.geometry("450x150")
         progress_win.configure(bg=self.bg_color)
         progress_win.transient(self.root)
@@ -3743,6 +3746,7 @@ class FFXModManagerGUI:
             # No pre-existing metadata. Open custom styled modal dialog.
             dialog = tk.Toplevel(self.root)
             dialog.title("Import Mod Details")
+            self.set_window_icon(dialog)
             dialog.geometry("450x480")
             dialog.configure(bg=self.bg_color)
             dialog.resizable(False, False)
@@ -4086,6 +4090,7 @@ class FFXModManagerGUI:
         # Build UI Progress Modal
         progress_win = tk.Toplevel(self.root)
         progress_win.title("Bulk Importing Mods...")
+        self.set_window_icon(progress_win)
         progress_win.geometry("450x180")
         progress_win.configure(bg=self.bg_color)
         progress_win.transient(self.root)
@@ -4472,6 +4477,7 @@ class FFXModManagerGUI:
         # Create dialog
         dialog = tk.Toplevel(self.root)
         dialog.title("Save File Import Assistant")
+        self.set_window_icon(dialog)
         dialog.geometry("550x380")
         dialog.configure(bg=self.bg_color)
         dialog.resizable(False, False)
@@ -6150,6 +6156,7 @@ class FFXModManagerGUI:
         def choose_download_source():
             dialog = tk.Toplevel(self.root)
             dialog.title("Select Download Source")
+            self.set_window_icon(dialog)
             dialog.geometry("400x180")
             dialog.configure(bg=self.bg_color)
             dialog.transient(self.root)
@@ -7267,6 +7274,7 @@ class ThemeCreatorDialog:
         self.manager = manager
         self.dialog = tk.Toplevel(manager.root)
         self.dialog.title("Create Custom Theme")
+        manager.set_window_icon(self.dialog)
         self.dialog.geometry("920x560")
         self.dialog.configure(bg=manager.bg_color)
         self.dialog.transient(manager.root)
