@@ -2885,9 +2885,9 @@ class FFXModManagerGUI:
 
     def handle_dropped_files(self, file_paths):
         # Filter for zip and rar files
-        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar'))]
+        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar', '.7z'))]
         if not archives:
-            messagebox.showinfo("Import Info", "No compatible mod archives (.zip or .rar) were dropped.")
+            messagebox.showinfo("Import Info", "No compatible mod archives (.zip, .rar, or .7z) were dropped.")
             return
             
         if len(archives) == 1:
@@ -3614,7 +3614,7 @@ class FFXModManagerGUI:
         import re
         
         if not zip_path:
-            zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")])
+            zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar;*.7z"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar"), ("7-Zip Archives", "*.7z")])
         if not zip_path:
             return
             
@@ -3672,8 +3672,8 @@ class FFXModManagerGUI:
                     except Exception:
                         pass
                 return
-        elif ext == ".rar":
-            progress_win.destroy() # Rar decompression relies on external subprocess, we destroy progress_win and run it.
+        elif ext in (".rar", ".7z"):
+            progress_win.destroy() # Rar/7z decompression relies on external subprocess, we destroy progress_win and run it.
             extracted = False
             # Method 1: Check for 7-Zip
             seven_zip_paths = [
@@ -3687,7 +3687,7 @@ class FFXModManagerGUI:
                         res = subprocess.run([sz_path, "x", zip_path, f"-o{temp_dir}", "-y"], capture_output=True)
                         if res.returncode == 0:
                             extracted = True
-                            self.log("Successfully extracted RAR archive using 7-Zip.")
+                            self.log(f"Successfully extracted {ext.upper()[1:]} archive using 7-Zip.")
                             break
                     except Exception:
                         pass
@@ -3708,7 +3708,7 @@ class FFXModManagerGUI:
                                 res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
                             if res.returncode == 0:
                                 extracted = True
-                                self.log("Successfully extracted RAR archive using WinRAR.")
+                                self.log(f"Successfully extracted {ext.upper()[1:]} archive using WinRAR.")
                                 break
                         except Exception:
                             pass
@@ -3720,12 +3720,12 @@ class FFXModManagerGUI:
                     res = subprocess.run(["tar", "-xf", zip_path, "-C", temp_dir], capture_output=True)
                     if res.returncode == 0:
                         extracted = True
-                        self.log("Successfully extracted RAR archive using Windows tar.")
+                        self.log(f"Successfully extracted {ext.upper()[1:]} archive using Windows tar.")
                 except Exception:
                     pass
                     
             if not extracted:
-                self.log("Error: Failed to extract RAR archive. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
+                self.log(f"Error: Failed to extract {ext.upper()[1:]} archive. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
                 if os.path.exists(temp_dir):
                     try:
                         shutil.rmtree(temp_dir)
@@ -3734,7 +3734,7 @@ class FFXModManagerGUI:
                 return
         else:
             progress_win.destroy()
-            self.log(f"Error: Unsupported archive format '{ext}'. Only .zip and .rar are supported.", "error")
+            self.log(f"Error: Unsupported archive format '{ext}'. Only .zip, .rar, and .7z are supported.", "error")
             if os.path.exists(temp_dir):
                 try:
                     shutil.rmtree(temp_dir)
@@ -4154,7 +4154,7 @@ class FFXModManagerGUI:
         if not zip_paths:
             zip_paths = filedialog.askopenfilenames(
                 title="Select Mod Archives for Bulk Import",
-                filetypes=[("Mod Archives", "*.zip;*.rar"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar")]
+                filetypes=[("Mod Archives", "*.zip;*.rar;*.7z"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar"), ("7-Zip Archives", "*.7z")]
             )
         if not zip_paths:
             return
@@ -4220,8 +4220,8 @@ class FFXModManagerGUI:
                         except Exception:
                             pass
                     continue
-            elif ext == ".rar":
-                # Rar decompression checks
+            elif ext in (".rar", ".7z"):
+                # Rar/7z decompression checks
                 seven_zip_paths = [
                     r"C:\Program Files\7-Zip\7z.exe",
                     r"C:\Program Files (x86)\7-Zip\7z.exe"
@@ -4263,7 +4263,7 @@ class FFXModManagerGUI:
                         pass
                         
                 if not extracted:
-                    self.log(f"Error: Failed to extract RAR archive '{archive_name}'. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
+                    self.log(f"Error: Failed to extract {ext.upper()[1:]} archive '{archive_name}'. Ensure 7-Zip, WinRAR, or Windows tar is installed.", "error")
                     error_count += 1
                     if os.path.exists(temp_dir):
                         try:
@@ -4272,7 +4272,7 @@ class FFXModManagerGUI:
                             pass
                     continue
             else:
-                self.log(f"Error: Unsupported archive format '{ext}' for '{archive_name}'. Only .zip and .rar are supported.", "error")
+                self.log(f"Error: Unsupported archive format '{ext}' for '{archive_name}'. Only .zip, .rar, and .7z are supported.", "error")
                 error_count += 1
                 if os.path.exists(temp_dir):
                     try:
