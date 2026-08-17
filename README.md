@@ -8,7 +8,7 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
 
-### [👉 Click here to download the Newest Stable Release (v3.3.0) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.0/SpiraMM.rar)
+### [👉 Click here to download the Newest Stable Release (v3.3.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.1/SpiraMM.rar)
 
 ### 🚀 Easy Installation Steps
 1. **Download** the zip archive using the link above.
@@ -17,20 +17,46 @@ If you are a player looking to download the latest version, click the link below
 
 ---
 
-## 🌟 Key Features
+## ⚡ New in v3.3.1
 
-* **Fahrenheit Framework Support:** Full native compatibility with the modern Fahrenheit Modding Framework. Installs manifests, structures assets, and edits the active load order automatically.
-* **Save Games & Backups Manager:** Track and manage game saves from the dedicated **Saves** tab. Back up your active save files with custom snapshot descriptions, delete obsolete slots, and restore snapshots cleanly.
-* **Save File Import Assistant:** Dynamically extracts and routes extensionless save files (`ffx_###` / `ffx2_###`) inside ZIPs during import, offering interactive slot conflict resolution to prevent overwriting existing progress.
-* **Backward Compatibility:** Seamlessly coexists with traditional **UnX** and **ffgriever EFL** DLL loaders. The manager auto-detects the active loader and configures itself dynamically.
-* **Move-on-Enable Architecture:** Saves massive amounts of disk space. Mod packages are kept in a unified, loader-agnostic repository and moved into active game directories only when enabled.
-* **ZIP & RAR Auto-Unwrapping(Bulk Importing now available):** Automatically extracts, normalizes VBF folder paths, and wraps loose mod files.
-* **Auto-Conflict Resolution & Backups:** Detects file overwrite collisions. Overwritten active files are backed up automatically into their respective owner's repository folder and restored when the overriding mod is disabled.
-* **Glassmorphism UI Overhaul:** Features modern floating card panels, active focus glow outlines matching your theme, and parent background color walking for a unified, clean interface.
-* **Live Theme Creator:** Customize the manager's UI colors and semantic buttons (Accept, Success, Caution, Utility) on the fly, with interactive real-time 4-button hover previews.
-* **Context-Aware Relative Imports:** Automatically determines targets (FFX vs. FFX-2) during mod folder imports and auto-resolves metadata and cover images without prompting.
-* **Theme-Aware Tooltips:** Dynamic, descriptive hover tips integrated into all options, navigation tabs, settings, and fields that dynamically match the active theme colors.
-* **Dynamic Plugin Browser:** Checks the remote GitHub repository index to download, install, and load external python plugins dynamically.
+* **Native .7z Archive Support**: Drag-and-drop or import `.7z` mod archives directly into the manager. Full support across single and bulk import dialogs, routing extraction through 7-Zip, WinRAR, or Windows native `tar` engines.
+* **Executable Version Metadata Alignment**: Synchronized Windows compilation build metadata (`spiramm_version.txt`) to report `v3.3.1.0` in the executable's properties details window.
+
+---
+
+## 🌟 Core Features
+
+* **Nexus Mods Integration & Update Checker**: Configure a personal Nexus Mods API Key securely in Settings to validate connection, check installed mods for updates asynchronously (background threaded), and show visual update badges linking to download pages.
+* **Mod Card Context Menu**: Right-click mod cards to access quick options (Edit Metadata, Check Update, Visit Nexus page, Enable/Disable, Delete).
+* **Local Cloud Save Auto-Sync**: Keep game save files synchronized automatically to a configured local cloud folder (OneDrive, Google Drive, Dropbox, etc.) on game exit.
+* **Settings Layout Realignment**: Realigned Settings page, placing the Nexus settings card on top and splitting Theme and Safety cards into a clean 50/50 split matching the rest of the UI.
+* **About SpiraMM & Live Changelog**: Added an About card footer inside the Settings tab detailing version info and update status, with an offline-compatible styled Markdown release notes popup dialog.
+* **Theme-Aware Checkbuttons**: Added custom formatting for Tkinter Checkbutton widgets to dynamically update their border, checkbox, and select colors on theme swaps.
+* **Fahrenheit Mod Loader Integration**: Full native compatibility with the modern Fahrenheit Modding Framework. Automatically stages manifests (`.manifest.json`), manages dynamic C# mod folders, synchronizes load order priorities, and automatically deactivates standard saves restoration in Fahrenheit mode to prevent game save conflicts.
+* **Dual-Game Partition Isolation**: Fully separates FFX and FFX-2 mod databases, configuration tracks, active/disabled directories, and save directories, ensuring FFX and FFX-2 settings never overlap.
+* **Space-Saving Architecture**: Moves files (cut & paste) between the inactive mod repository (`data/mods_disabled/` or `data/mods_disabled_x2/`) and active game directories on enable/disable, avoiding redundant duplicate file copies.
+* **Robust Windows File Operations**: Features retry-based safety wrappers for file moves and removals to prevent transient Windows locking failures and PermissionErrors.
+* **Advanced Conflict Resolution (Auto-Restore)**: Scans active mods for overlapping files and calculates active load-order priority. When an overriding mod is disabled, the manager automatically restores the previously backed-up mod files. Full support for the unified **.spiramod** format.
+* **Interactive Save File Import Assistant**: Decouples save files (`ffx_###` / `ffx2_###`) from mod archives during import. Displays slot availability and lets you safely remap imported files to free slots via spinbox to prevent overwriting your personal progress.
+* **Unified Saves & Backups Manager**: Creates local backups with custom labels and descriptions (e.g. *"Seymour Battle"*), showing sizes and timestamps, and supports one-click restores of slot snapshots.
+* **Import Progress Indicator Modals**: Replaces frozen screens with a themed, non-blocking progress dialog showing real-time extraction tracking (progress bar, percentages, and current filenames) during archive extraction.
+* **Bulk ZIP, RAR & 7Z Mod Import**: Supports importing multiple mod archives (`.zip`, `.rar`, `.7z`) at once. The manager auto-names mods based on filename, applies defaults, and leaves metadata unlocked. Folder hierarchies (such as loose textures or missing parent structures) are auto-extracted and normalized to conform to the game directory layout.
+* **Automatic UnX Texture Staging**: Detects and translates loose graphics folders and `.dds` texture files, wrapping them properly inside the required `UnX_Res/inject/textures/` structure without requiring manual path corrections.
+* **Live Graphics Preview Card**: Displays cover art and mod screenshots (`preview.png`, `cover.png`, etc.) directly inside the details panel with multi-image variant dropdown support.
+* **Interactive Theme Engine**: Bundles 17 built-in themes (like *Celsius Purple*, *Yuna Summoner*, *Pyreflies Whimsy*) and features a Theme Creator with a 4-button live hover preview matrix for semantic button colors (Accept, Success, Caution, Utility) and independent theme memory for each game mode.
+* **Modern Glassmorphism UI & Navigation**: Built with card-styled floating page panels, dynamic focus outlines, and recursive parent background walking. Features a new split import button layout on the main dashboard for quick access to single or bulk imports, and a persistent bottom action controls grid.
+* **Context-Aware Relative Imports**: Resolves staging directories and assets contextually based on the active target game mode (FFX vs. FFX-2) without redundant path warnings.
+* **Theme-Aware Tooltips**: Custom hover tips integrated into all settings, fields, buttons, and navigation tabs, automatically updating color palettes on theme changes, with custom hover conflict maps.
+* **Safety & Diagnostics Panel**: Monitors storage space, validates write permissions, identifies registry Steam paths, and offers a 1-click safe-mode reset button to disable all mods instantly.
+* **Viewable Console System Log**: Dedicated button in settings to pop out live mod manager logs into a separate, scrollable console log window.
+* **Dotted Class & Python Executable Runner**: Run dotted class imports, raw scripts (`.py`), or pre-compiled binaries (`.exe`) dynamically inside the plugin system.
+* **Installed Plugins Manager**: Double-tabbed notebook layout to browse remote registries or manage installed plugins, supporting toggling plug-in states (enable/disable) and clean plugin deletion.
+* **IPC API Socket Bridge**: Built-in JSON-RPC server (listening on localhost:8692 or custom configured port) to stream logs, synchronize state, and broadcast events to plugins.
+* **Shared Memory Access API**: Read and write game process memory hooks (`ReadProcessMemory` / `WriteProcessMemory`) for trainers, overlays, and live capture helpers.
+* **Auto-Generated Settings UI**: Automatically generates configuration fields (booleans, integers, strings, selects) in the settings panel based on custom schemas defined in `plugin.json`.
+* **Pip Dependency Auto-Installer**: Automatically isolates, installs, and loads required python packages to a local folder during plugin discovery.
+* **Multi-Game Mod Wizard**: Auto-generates starter files, directories, and structures targeted specifically for FFX or FFX-2.
+* **Bulletproof Process Unlocker**: Automatically detects and terminates active plugin processes before updating, reinstalling, or deleting to prevent Windows file lock errors.
 
 ---
 
