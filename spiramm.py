@@ -66,6 +66,18 @@ else:
 CONFIG_FILE = os.path.join(_base_dir, "spiramm_config.json")
 APP_VERSION = "3.3.1"
 
+UI_METADATA_FILES = {
+    "modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json",
+    "preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png",
+    "mod_preview.png", "cover.png"
+}
+
+def is_ui_metadata_file(filename_or_relpath):
+    if not filename_or_relpath:
+        return True
+    base = os.path.basename(str(filename_or_relpath)).lower()
+    return base in UI_METADATA_FILES
+
 def encode_metadata(data_dict):
     try:
         json_str = json.dumps(data_dict, indent=2)
@@ -1817,7 +1829,7 @@ class FFXModManagerGUI:
                                 "link": data.get("link", ""),
                                 "nexus_id": data.get("nexus_id", ""),
                                 "status": "Enabled",
-                                "files": data.get("files", []),
+                                "files": [f for f in data.get("files", []) if not is_ui_metadata_file(f)],
                                 "size": data.get("size", 0)
                             }
                     except Exception:
@@ -1878,7 +1890,7 @@ class FFXModManagerGUI:
                                         "link": data.get("link", ""),
                                         "nexus_id": data.get("nexus_id", ""),
                                         "status": "Enabled",
-                                        "files": data.get("files", []),
+                                        "files": [f for f in data.get("files", []) if not is_ui_metadata_file(f)],
                                         "size": data.get("size", 0)
                                     }
                             except Exception:
@@ -1932,7 +1944,7 @@ class FFXModManagerGUI:
                                     "link": data.get("link", ""),
                                     "nexus_id": data.get("nexus_id", ""),
                                     "status": "Disabled",
-                                    "files": files_list,
+                                    "files": [f for f in data.get("files", []) if not is_ui_metadata_file(f)],
                                     "size": total_size
                                 }
                         except Exception:
@@ -3132,7 +3144,7 @@ class FFXModManagerGUI:
                 rel_files = []
                 for r, d, fs in os.walk(mod_repo_path):
                     for file_item in fs:
-                        if file_item in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                        if is_ui_metadata_file(file_item):
                             continue
                         fpath = os.path.join(r, file_item)
                         rel = os.path.relpath(fpath, mod_repo_path)
@@ -3211,6 +3223,8 @@ class FFXModManagerGUI:
             self.log(f"Failed to delete mod folder: {e}", "error")
 
     def find_active_file_owner(self, rel_path, exclude_mod_id=None):
+        if is_ui_metadata_file(rel_path):
+            return None
         rel_norm = os.path.normpath(rel_path).lower()
         if getattr(self, "is_fahrenheit_mode", False):
             # In Fahrenheit, mods are prioritized according to the load order.
@@ -3293,6 +3307,8 @@ class FFXModManagerGUI:
         active_files_dir = self.get_active_files_dir(mod_id)
             
         for rel in files:
+            if is_ui_metadata_file(rel):
+                continue
             src = os.path.join(mod_repo, rel)
             if rel.lower().replace("\\", "/").startswith("unx_res/"):
                 dest = os.path.join(self.game_dir, rel)
@@ -3460,6 +3476,8 @@ class FFXModManagerGUI:
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
         
         for rel in files:
+            if is_ui_metadata_file(rel):
+                continue
             if rel.lower().replace("\\", "/").startswith("unx_res/"):
                 dest = os.path.join(self.game_dir, rel)
             else:
@@ -3771,7 +3789,7 @@ class FFXModManagerGUI:
         non_save_files = []
         for r, d, fs in os.walk(temp_dir):
             for f in fs:
-                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if is_ui_metadata_file(f):
                     continue
                 full_path = os.path.join(r, f)
                 if full_path not in save_files:
@@ -4038,7 +4056,7 @@ class FFXModManagerGUI:
             # Check if any files are at root or in directories other than ffx-2_data / UnX_Res / ffx_ps2
             loose_files = False
             for f in os.listdir(root_dir):
-                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if is_ui_metadata_file(f):
                     continue
                 if f != "ffx-2_data" and f != "UnX_Res" and f != "ffx_ps2":
                     loose_files = True
@@ -4049,7 +4067,7 @@ class FFXModManagerGUI:
                 wrap_dir = os.path.join(root_dir, "ffx-2_data")
                 os.makedirs(wrap_dir, exist_ok=True)
                 for f in os.listdir(root_dir):
-                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
+                    if is_ui_metadata_file(f) or f in ["ffx-2_data", "ffx_ps2"]:
                         continue
                     src_item = os.path.join(root_dir, f)
                     dest_item = os.path.join(wrap_dir, f)
@@ -4062,7 +4080,7 @@ class FFXModManagerGUI:
         mod_files = []
         for r, d, fs in os.walk(root_dir):
             for f in fs:
-                if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                if is_ui_metadata_file(f):
                     continue
                 fpath = os.path.join(r, f)
                 rel = os.path.relpath(fpath, root_dir)
@@ -4445,7 +4463,7 @@ class FFXModManagerGUI:
                 # Restructure loose files
                 loose_files = False
                 for f in os.listdir(root_dir):
-                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                    if is_ui_metadata_file(f):
                         continue
                     if f != "ffx-2_data" and f != "UnX_Res" and f != "ffx_ps2":
                         loose_files = True
@@ -4454,7 +4472,7 @@ class FFXModManagerGUI:
                     wrap_dir = os.path.join(root_dir, "ffx-2_data")
                     os.makedirs(wrap_dir, exist_ok=True)
                     for f in os.listdir(root_dir):
-                        if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json", "ffx-2_data", "ffx_ps2"]:
+                        if is_ui_metadata_file(f) or f in ["ffx-2_data", "ffx_ps2"]:
                             continue
                         try:
                             shutil.move(os.path.join(root_dir, f), os.path.join(wrap_dir, f))
@@ -4465,7 +4483,7 @@ class FFXModManagerGUI:
             mod_files = []
             for r, d, fs in os.walk(root_dir):
                 for f in fs:
-                    if f in ["modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"]:
+                    if is_ui_metadata_file(f):
                         continue
                     fpath = os.path.join(r, f)
                     rel = os.path.relpath(fpath, root_dir)
