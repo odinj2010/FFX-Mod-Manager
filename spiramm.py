@@ -1820,6 +1820,18 @@ class FFXModManagerGUI:
                     try:
                         with open(modinfo_path, "r") as f:
                             data = decode_metadata(f.read())
+                            repo_info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.spiramod")
+                            repo_legacy_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
+                            repo_read = repo_info_path if os.path.exists(repo_info_path) else repo_legacy_path if os.path.exists(repo_legacy_path) else None
+                            if repo_read:
+                                try:
+                                    with open(repo_read, "r", encoding="utf-8") as rf:
+                                        repo_data = decode_metadata(rf.read())
+                                    for mk in ["nexus_id", "link", "creator", "author", "version", "description"]:
+                                        if not data.get(mk) and repo_data.get(mk):
+                                            data[mk] = repo_data[mk]
+                                except Exception:
+                                    pass
                             mods[mod_id] = {
                                 "name": data.get("name", mod_id),
                                 "creator": data.get("author", data.get("creator", "Unknown")),
@@ -1881,6 +1893,18 @@ class FFXModManagerGUI:
                             try:
                                 with open(os.path.join(self.mods_dir, file), "r") as f:
                                     data = decode_metadata(f.read())
+                                    repo_info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.spiramod")
+                                    repo_legacy_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
+                                    repo_read = repo_info_path if os.path.exists(repo_info_path) else repo_legacy_path if os.path.exists(repo_legacy_path) else None
+                                    if repo_read:
+                                        try:
+                                            with open(repo_read, "r", encoding="utf-8") as rf:
+                                                repo_data = decode_metadata(rf.read())
+                                            for mk in ["nexus_id", "link", "creator", "author", "version", "description"]:
+                                                if not data.get(mk) and repo_data.get(mk):
+                                                    data[mk] = repo_data[mk]
+                                        except Exception:
+                                            pass
                                     mods[mod_id] = {
                                         "name": data.get("name", mod_id),
                                         "creator": data.get("author", data.get("creator", "Unknown")),
@@ -3356,7 +3380,14 @@ class FFXModManagerGUI:
                 
         tracker = {
             "name": info.get("name", mod_id),
+            "author": info.get("author", info.get("creator", "Unknown")),
+            "creator": info.get("author", info.get("creator", "Unknown")),
+            "version": info.get("version", "1.0"),
+            "description": info.get("description", ""),
             "category": info.get("category", "General"),
+            "nexus_id": info.get("nexus_id", ""),
+            "link": info.get("link", info.get("url", "")),
+            "credits_locked": info.get("credits_locked", False),
             "files": files,
             "size": total_size
         }
@@ -7515,7 +7546,21 @@ while True:
             messagebox.showinfo("Nexus Mods Key Required", "Please configure your Nexus Mods API Key in the Settings tab to check for updates.")
             return
             
-        n_id = info.get("nexus_id", "").strip()
+        # Re-fetch live mod info in case card closure dictionary was stale
+        info = getattr(self, "mods", {}).get(mod_id, info)
+        n_id = str(info.get("nexus_id", "")).strip()
+        
+        # Fallback to entry field if currently selected mod
+        if not n_id and getattr(self, "selected_mod_id", "") == mod_id and hasattr(self, "ent_nexus_id"):
+            n_id = self.ent_nexus_id.get().strip()
+            
+        # Extract numeric digits if full URL or formatted string was passed
+        if n_id and not n_id.isdigit():
+            import re
+            m = re.search(r"(\d+)", n_id)
+            if m:
+                n_id = m.group(1)
+            
         if not n_id:
             messagebox.showinfo("No Nexus Mod ID", "This mod does not have a configured Nexus Mod ID. You can add one in the details panel on the right.")
             return
