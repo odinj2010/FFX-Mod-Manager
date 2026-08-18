@@ -2961,16 +2961,25 @@ class FFXModManagerGUI:
             self.log(f"Failed to save metadata: {e}", "error")
 
     def handle_dropped_files(self, file_paths):
-        # Filter for zip and rar files
-        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar', '.7z'))]
-        if not archives:
-            messagebox.showinfo("Import Info", "No compatible mod archives (.zip, .rar, or .7z) were dropped.")
+        if not file_paths:
             return
             
-        if len(archives) == 1:
-            self.import_zip_mod(zip_path=archives[0])
-        else:
-            self.import_bulk_zips(zip_paths=archives)
+        # 1. Check for dropped save files
+        saves = [p for p in file_paths if os.path.isfile(p) and (os.path.basename(p).lower().startswith(("ffx_", "ffx2_")) or p.lower().endswith((".dat", ".sav")))]
+        if saves and len(saves) == len(file_paths):
+            self.show_save_import_dialog(saves)
+            return
+
+        # 2. Check for mod archives
+        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar', '.7z'))]
+        if archives:
+            if len(archives) == 1:
+                self.import_zip_mod(zip_path=archives[0])
+            else:
+                self.import_bulk_zips(zip_paths=archives)
+            return
+            
+        messagebox.showinfo("Import Info", "No compatible mod archives (.zip, .rar, .7z) or save files were dropped.")
 
     def handle_dnd_drop(self, event):
         try:
@@ -3282,6 +3291,7 @@ class FFXModManagerGUI:
         try:
             shutil.rmtree(mod_repo_path, ignore_errors=True)
             self.selected_mod_id = "" # Clear selection since mod is deleted
+            self.clear_metadata_fields()
             self.log(f"Deleted mod '{mod_id}' successfully.", "success")
             self.scan_mods()
         except Exception as e:
@@ -3793,9 +3803,7 @@ class FFXModManagerGUI:
                         try:
                             import subprocess
                             if "unrar" in wr_path.lower():
-                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
-                            else:
-                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
+                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir + os.sep], capture_output=True)
                             if res.returncode == 0:
                                 extracted = True
                                 self.log(f"Successfully extracted {ext.upper()[1:]} archive using WinRAR.")
@@ -4336,7 +4344,7 @@ class FFXModManagerGUI:
                         if os.path.exists(wr_path):
                             try:
                                 import subprocess
-                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir], capture_output=True)
+                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir + os.sep], capture_output=True)
                                 if res.returncode == 0:
                                     extracted = True
                                     break

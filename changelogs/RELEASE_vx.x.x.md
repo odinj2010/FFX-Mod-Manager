@@ -10,6 +10,7 @@ This document contains a running log of all changes made since the official rele
 *   **Semantic Version Comparison Engine**: Rebuilt the version comparison logic to use padded numeric segments, preventing false "Update Available" prompts between equal versions (e.g. `1.0` vs `1.0.0`).
 *   **Atomic Cloud Save Sync**: Safeguarded save backups against data corruption by staging copies to `.tmp` files before atomic replacement and awaiting sync thread completion on application exit.
 *   **Fahrenheit Load Order Mod Rename Sync**: Ensured that renaming a mod's folder ID in metadata seamlessly updates `fahrenheit/mods/loadorder` and active load priority.
+*   **Drag-and-Drop Save File Auto-Routing**: Added automatic detection for dropped save game files to route directly into the Save Import Assistant.
 
 ---
 
@@ -20,6 +21,7 @@ This document contains a running log of all changes made since the official rele
 *   Filtered all indexing loops (`scan_mods`, `import_zip_mod`, `import_bulk_zips`, `create_mod_wizard`) to exclude UI metadata from `files` arrays in `modinfo.spiramod`.
 *   Safeguarded `enable_mod_logic`, `disable_mod_logic`, and `find_active_file_owner` to skip UI metadata files during enable, disable, and backup restoration loops.
 *   Added auto-cleansing in `scan_mods` to strip lingering UI metadata entries from active trackers on startup.
+*   Added automatic metadata panel reset (`clear_metadata_fields`) upon deleting a mod from disk.
 
 ### 🌐 Nexus Mods Integration & Update Checker
 *   Updated `enable_mod_logic` to preserve `nexus_id`, `version`, `author`, `description`, `link`, and `credits_locked` inside active tracking manifests (`modinfo.spiramod`).
@@ -31,7 +33,9 @@ This document contains a running log of all changes made since the official rele
 *   Upgraded `perform_cloud_save_sync` to write save files to `.tmp` staging before atomic `os.replace` replacement.
 *   Added graceful cloud sync thread joining in `on_app_closing` to prevent partial/interrupted save writes on rapid manager exit.
 *   Fixed save slot detection in `show_save_import_dialog` to parse numeric slot digits directly, preventing digit truncation on cross-game save imports.
+*   Enabled instant drag-and-drop save file import in `handle_dropped_files`.
 
 ### ⚙️ Engine, Loader & Plugin System
 *   Added automatic load order synchronization when renaming mod folder IDs in Fahrenheit mode.
 *   Added dynamic Python executable discovery (`shutil.which`) for plugin script execution when running as a standalone compiled executable.
+*   Added trailing separator to extraction destination paths for WinRAR/UnRAR compatibility across all WinRAR versions.
