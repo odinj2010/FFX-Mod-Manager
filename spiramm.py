@@ -3136,11 +3136,7 @@ class FFXModManagerGUI:
                     if not rel and master_path:
                         rel = self.resolve_mod_relative_path(os.path.join(master_path, os.path.basename(fpath)), target_game_mode=target_game_var.get())
                     if not rel:
-                        rel = simpledialog.askstring(
-                            "Relative Game Path",
-                            f"Could not automatically resolve game path for:\n{os.path.basename(fpath)}\n\nEnter relative path (e.g. ffx_data/gamedata/abc.bin):",
-                            parent=dialog
-                        )
+                        rel = os.path.relpath(fpath, path)
                     if rel:
                         rel = rel.replace("\\", "/").strip().lstrip("/")
                         imported_files[fpath] = rel
@@ -4945,7 +4941,7 @@ class FFXModManagerGUI:
 
     def load_saves_backups(self):
         self.tree_backups.delete(*self.tree_backups.get_children())
-        backup_base = os.path.join("backups", "ffx2" if self.active_game_mode == "FFX-2" else "ffx")
+        backup_base = os.path.join(_base_dir, "backups", "ffx2" if self.active_game_mode == "FFX-2" else "ffx")
         os.makedirs(backup_base, exist_ok=True)
         
         meta_file = os.path.join(backup_base, "backups_meta.json")
@@ -4985,7 +4981,7 @@ class FFXModManagerGUI:
         label = label.strip() or f"Manual Backup Slot {slot}"
         
         backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
-        backup_base = os.path.join("backups", backup_sub)
+        backup_base = os.path.join(_base_dir, "backups", backup_sub)
         os.makedirs(backup_base, exist_ok=True)
         
         import time
@@ -5032,7 +5028,7 @@ class FFXModManagerGUI:
         
         # Look up backup file from metadata JSON
         backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
-        backup_base = os.path.join("backups", backup_sub)
+        backup_base = os.path.join(_base_dir, "backups", backup_sub)
         meta_file = os.path.join(backup_base, "backups_meta.json")
         if not os.path.exists(meta_file):
             return
@@ -5085,7 +5081,7 @@ class FFXModManagerGUI:
             return
             
         backup_sub = "ffx2" if self.active_game_mode == "FFX-2" else "ffx"
-        backup_base = os.path.join("backups", backup_sub)
+        backup_base = os.path.join(_base_dir, "backups", backup_sub)
         meta_file = os.path.join(backup_base, "backups_meta.json")
         if not os.path.exists(meta_file):
             return
@@ -6146,6 +6142,9 @@ class FFXModManagerGUI:
             self.write_load_order(order)
 
     def move_mod_up(self):
+        if not getattr(self, "is_fahrenheit_mode", False):
+            messagebox.showinfo("Fahrenheit Feature", "Load order priority sorting is active when using the Fahrenheit Mod Loader.")
+            return
         mod_id = self.selected_mod_id
         if not mod_id:
             messagebox.showwarning("Warning", "Select an enabled mod to move.")
@@ -6167,6 +6166,9 @@ class FFXModManagerGUI:
             self.select_mod(mod_id)
 
     def move_mod_down(self):
+        if not getattr(self, "is_fahrenheit_mode", False):
+            messagebox.showinfo("Fahrenheit Feature", "Load order priority sorting is active when using the Fahrenheit Mod Loader.")
+            return
         mod_id = self.selected_mod_id
         if not mod_id:
             messagebox.showwarning("Warning", "Select an enabled mod to move.")

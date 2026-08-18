@@ -35,6 +35,11 @@ class ToolTip:
     def show(self):
         if not self.text:
             return
+        try:
+            if not self.widget or not self.widget.winfo_exists():
+                return
+        except Exception:
+            return
             
         # Determine colors dynamically
         bg = "#1e1e1e"

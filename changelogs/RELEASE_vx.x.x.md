@@ -22,6 +22,8 @@ This document contains a running log of all changes made since the official rele
 *   Safeguarded `enable_mod_logic`, `disable_mod_logic`, and `find_active_file_owner` to skip UI metadata files during enable, disable, and backup restoration loops.
 *   Added auto-cleansing in `scan_mods` to strip lingering UI metadata entries from active trackers on startup.
 *   Added automatic metadata panel reset (`clear_metadata_fields`) upon deleting a mod from disk.
+*   Streamlined folder import in the Mod Creation Wizard to default unmapped paths to `os.path.relpath`, preventing popup prompt loops.
+*   Protected tooltip timers against `TclError` window destruction race conditions during rapid tab switching.
 
 ### 🌐 Nexus Mods Integration & Update Checker
 *   Updated `enable_mod_logic` to preserve `nexus_id`, `version`, `author`, `description`, `link`, and `credits_locked` inside active tracking manifests (`modinfo.spiramod`).
@@ -34,8 +36,10 @@ This document contains a running log of all changes made since the official rele
 *   Added graceful cloud sync thread joining in `on_app_closing` to prevent partial/interrupted save writes on rapid manager exit.
 *   Fixed save slot detection in `show_save_import_dialog` to parse numeric slot digits directly, preventing digit truncation on cross-game save imports.
 *   Enabled instant drag-and-drop save file import in `handle_dropped_files`.
+*   Anchored all local save backup directory paths (`load_saves_backups`, `create_save_backup`, `restore_save_backup`, `delete_save_backup`) to application root `_base_dir`.
 
 ### ⚙️ Engine, Loader & Plugin System
 *   Added automatic load order synchronization when renaming mod folder IDs in Fahrenheit mode.
+*   Added informative feedback when clicking load order priority buttons in Standard (Direct Staging) mode.
 *   Added dynamic Python executable discovery (`shutil.which`) for plugin script execution when running as a standalone compiled executable.
 *   Added trailing separator to extraction destination paths for WinRAR/UnRAR compatibility across all WinRAR versions.
