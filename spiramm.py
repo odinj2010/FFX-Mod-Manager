@@ -78,6 +78,37 @@ def is_ui_metadata_file(filename_or_relpath):
     base = os.path.basename(str(filename_or_relpath)).lower()
     return base in UI_METADATA_FILES
 
+def is_newer_version(local_str, remote_str):
+    if not remote_str or not local_str:
+        return False
+    l_str = str(local_str).strip()
+    r_str = str(remote_str).strip()
+    if l_str.lower() == r_str.lower():
+        return False
+    
+    def parse_v(v):
+        cleaned = re.sub(r'^[vV]', '', str(v).strip())
+        parts = []
+        for segment in cleaned.split('.'):
+            nums = re.findall(r'\d+', segment)
+            if nums:
+                parts.append(int(nums[0]))
+            else:
+                parts.append(0)
+        while len(parts) < 3:
+            parts.append(0)
+        return parts
+
+    try:
+        lp = parse_v(l_str)
+        rp = parse_v(r_str)
+        max_len = max(len(lp), len(rp))
+        lp += [0] * (max_len - len(lp))
+        rp += [0] * (max_len - len(rp))
+        return rp > lp
+    except Exception:
+        return r_str != l_str
+
 def encode_metadata(data_dict):
     try:
         json_str = json.dumps(data_dict, indent=2)
@@ -2833,6 +2864,16 @@ class FFXModManagerGUI:
                     except Exception:
                         pass
                         
+                # Update load order file with renamed ID
+                if new_mod_id != mod_id:
+                    try:
+                        order = self.read_load_order()
+                        if mod_id in order:
+                            new_order = [new_mod_id if x == mod_id else x for x in order]
+                            self.write_load_order(new_order)
+                    except Exception as e:
+                        self.log(f"Failed to update loadorder for renamed mod: {e}", "warning")
+                        
                 sync_tracker = tracker_path if os.path.exists(tracker_path) else legacy_tracker_path if os.path.exists(legacy_tracker_path) else tracker_path
                 if os.path.exists(sync_tracker):
                     try:
@@ -4682,9 +4723,10 @@ class FFXModManagerGUI:
         # Populate rows
         for idx, save_path in enumerate(save_files):
             orig_name = os.path.basename(save_path)
-            suffix = orig_name[len(prefix):]
-            slot_digits = "".join(c for c in suffix if c.isdigit())
-            orig_slot = int(slot_digits) if slot_digits else 0
+            slot_digits = "".join(c for c in orig_name if c.isdigit())
+            orig_slot = int(slot_digits) if slot_digits else 1
+            if orig_slot <= 0:
+                orig_slot = 1
 
             # Find a non-conflicting default slot
             default_slot = find_free_slot(orig_slot) if orig_slot in existing_slots else orig_slot
@@ -6630,22 +6672,33 @@ class FFXModManagerGUI:
                 copied_count = 0
                 for item in os.listdir(src_dir):
                     src_path = os.path.join(src_dir, item)
-                    if os.path.isfile(src_path):
+                    if os.path.isfile(src_path) and not item.endswith(".tmp"):
                         dst_path = os.path.join(target_dir, item)
-                        shutil.copy2(src_path, dst_path)
+                        tmp_path = dst_path + ".tmp"
+                        shutil.copy2(src_path, tmp_path)
+                        os.replace(tmp_path, dst_path)
                         copied_count += 1
                 self.log(f"Cloud Save Sync complete! Successfully backed up {copied_count} saves to '{target_dir}'.", "success")
             except Exception as e:
                 self.log(f"Cloud Save Sync failed: {e}", "error")
                 
         import threading
-        threading.Thread(target=run_sync, daemon=True).start()
+        self.cloud_sync_thread = threading.Thread(target=run_sync, daemon=True)
+        self.cloud_sync_thread.start()
 
     def on_app_closing(self):
         self.ipc_server_running = False
         self.log("Exiting Spira Mod Manager. Terminating background plugins...", "info")
         # Terminate game-based trackers
         self.on_game_closed()
+        
+        # Ensure active cloud save sync finishes cleanly
+        sync_th = getattr(self, "cloud_sync_thread", None)
+        if sync_th and sync_th.is_alive():
+            try:
+                sync_th.join(timeout=2.0)
+            except Exception:
+                pass
         
         # Terminate launcher background service processes
         for proc in getattr(self, "background_plugins", []):
@@ -6894,7 +6947,7 @@ while True:
                 self.log(f"Python script entry point missing: {script_path}", "error")
                 return None
             try:
-                python_exe = sys.executable if not getattr(sys, 'frozen', False) else "pythonw"
+                python_exe = sys.executable if not getattr(sys, 'frozen', False) else (shutil.which("pythonw") or shutil.which("python") or "pythonw")
                 cmd = [python_exe, script_path] + args
                 p = subprocess.Popen(
                     cmd,
@@ -7513,23 +7566,10 @@ while True:
                 with urllib.request.urlopen(req, timeout=5) as response:
                     data = json.loads(response.read().decode('utf-8'))
                     remote_version = data.get("version", "").strip()
-                    if remote_version and remote_version != local_version:
-                        # Simple check to see if remote is newer
-                        # (split on dots, compare numeric values if possible)
-                        is_newer = False
-                        try:
-                            l_parts = [int(x) for x in local_version.replace("v", "").split(".") if x.isdigit()]
-                            r_parts = [int(x) for x in remote_version.replace("v", "").split(".") if x.isdigit()]
-                            if r_parts > l_parts:
-                                is_newer = True
-                        except Exception:
-                            if remote_version != local_version:
-                                is_newer = True
-                                
-                        if is_newer:
-                            self.mod_updates[m_id] = remote_version
-                            updates_found += 1
-                            self.log(f"Update found for mod '{getattr(self, 'mods', {}).get(m_id, {}).get('name')}'! Latest: v{remote_version}", "success")
+                    if is_newer_version(local_version, remote_version):
+                        self.mod_updates[m_id] = remote_version
+                        updates_found += 1
+                        self.log(f"Update found for mod '{getattr(self, 'mods', {}).get(m_id, {}).get('name')}'! Latest: v{remote_version}", "success")
                 time.sleep(0.5)  # rate limit pause
             except Exception as e:
                 self.log(f"Failed to check update for mod ID {n_id}: {e}", "error")
@@ -7584,17 +7624,7 @@ while True:
                     data = json.loads(response.read().decode('utf-8'))
                     remote_version = data.get("version", "").strip()
                     local_version = info.get("version", "1.0.0")
-                    is_newer = False
-                    try:
-                        l_parts = [int(x) for x in local_version.replace("v", "").split(".") if x.isdigit()]
-                        r_parts = [int(x) for x in remote_version.replace("v", "").split(".") if x.isdigit()]
-                        if r_parts > l_parts:
-                            is_newer = True
-                    except Exception:
-                        if remote_version != local_version:
-                            is_newer = True
-                            
-                    if is_newer:
+                    if is_newer_version(local_version, remote_version):
                         self.mod_updates[mod_id] = remote_version
                         self.root.after(0, self.refresh_list)
                         self.root.after(0, lambda: messagebox.showinfo("Update Available", f"A new version is available for '{info.get('name')}'!\n\nLocal Version: {local_version}\nLatest Version: {remote_version}"))
