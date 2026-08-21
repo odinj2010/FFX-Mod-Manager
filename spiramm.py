@@ -1,6 +1,15 @@
+import sys
+import ctypes
+
+# Explicit Windows AppUserModelID must be set before any GUI/COM/Tkinter imports
+if sys.platform == "win32":
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("NfgOdin.SpiraModManager.FFX")
+    except Exception:
+        pass
+
 import os
 import re
-import sys
 import json
 import shutil
 import time
@@ -44,6 +53,7 @@ import ctypes
 import ctypes.wintypes
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from tooltip import ToolTip
+from PIL import Image, ImageTk
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -64,19 +74,114 @@ if getattr(sys, 'frozen', False):
 else:
     _base_dir = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(_base_dir, "spiramm_config.json")
-APP_VERSION = "3.3.1"
+
+def resolve_app_icon():
+    candidates = [
+        os.path.join(getattr(sys, "_MEIPASS", ""), "SpiraMM.ico") if getattr(sys, 'frozen', False) else None,
+        os.path.join(_base_dir, "SpiraMM.ico"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "SpiraMM.ico"),
+        os.path.abspath("SpiraMM.ico")
+    ]
+    for c in candidates:
+        if c and os.path.exists(c):
+            return c
+    if getattr(sys, 'frozen', False) and hasattr(sys, 'executable') and os.path.exists(sys.executable):
+        return sys.executable
+    return None
+APP_VERSION = "3.3.2"
+
+PREVIEW_IMAGE_PATTERNS = re.compile(
+    r'^(preview|cover|screenshot|mod_preview|modpreview|thumb|thumbnail)(?:[_-]?[1-5])?\.(png|jpg|jpeg|webp|bmp|gif)$',
+    re.IGNORECASE
+)
+
+def is_preview_image_filename(filename):
+    if not filename:
+        return False
+    base = os.path.basename(str(filename)).strip().lower()
+    return bool(PREVIEW_IMAGE_PATTERNS.match(base))
 
 UI_METADATA_FILES = {
-    "modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json",
-    "preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png",
-    "mod_preview.png", "cover.png"
+    "modinfo.spiramod", "modinfo.ffxmod", "modinfo.json", "mod.json"
 }
+
+DEFAULT_CATEGORIES = [
+    "Armour and Clothing",
+    "Audio",
+    "Body, Face, Hair",
+    "Gameplay and Balancing",
+    "General",
+    "Miscellaneous",
+    "Models and Textures",
+    "Saved Games",
+    "User Interface",
+    "Utilities",
+    "Visuals and Graphics"
+]
+
+CATEGORY_ALIASES = {
+    "TEXTURE": "Models and Textures",
+    "TEXTURES": "Models and Textures",
+    "MODELS & TEXTURES": "Models and Textures",
+    "MODELS AND TEXTURES": "Models and Textures",
+    "MODEL": "Models and Textures",
+    "MODELS": "Models and Textures",
+    "UI": "User Interface",
+    "USER INTERFACE": "User Interface",
+    "GAMEPLAY": "Gameplay and Balancing",
+    "GAMEPLAY & BALANCING": "Gameplay and Balancing",
+    "GAMEPLAY AND BALANCING": "Gameplay and Balancing",
+    "BALANCING": "Gameplay and Balancing",
+    "SCRIPT": "Utilities",
+    "SCRIPTS": "Utilities",
+    "UTILITY": "Utilities",
+    "UTILITIES": "Utilities",
+    "TOOLS": "Utilities",
+    "TOOL": "Utilities",
+    "GRAPHICS": "Visuals and Graphics",
+    "VISUALS": "Visuals and Graphics",
+    "VISUALS & GRAPHICS": "Visuals and Graphics",
+    "VISUALS AND GRAPHICS": "Visuals and Graphics",
+    "AUDIO": "Audio",
+    "MUSIC": "Audio",
+    "SOUND": "Audio",
+    "SOUNDS": "Audio",
+    "SAVES": "Saved Games",
+    "SAVED GAMES": "Saved Games",
+    "SAVE GAMES": "Saved Games",
+    "SAVE": "Saved Games",
+    "CLOTHING": "Armour and Clothing",
+    "ARMOUR": "Armour and Clothing",
+    "ARMOR": "Armour and Clothing",
+    "ARMOUR AND CLOTHING": "Armour and Clothing",
+    "ARMOR AND CLOTHING": "Armour and Clothing",
+    "ARMOUR & CLOTHING": "Armour and Clothing",
+    "ARMOR & CLOTHING": "Armour and Clothing",
+    "HAIR": "Body, Face, Hair",
+    "FACE": "Body, Face, Hair",
+    "BODY": "Body, Face, Hair",
+    "BODY, FACE, HAIR": "Body, Face, Hair",
+    "BODY FACE HAIR": "Body, Face, Hair",
+    "RETRANSLATION": "Miscellaneous",
+    "TRANSLATION": "Miscellaneous",
+    "MISC": "Miscellaneous",
+    "MISCELLANEOUS": "Miscellaneous",
+    "GENERAL": "General"
+}
+
+def normalize_category(cat_str):
+    if not cat_str:
+        return "General"
+    cleaned = str(cat_str).strip()
+    return CATEGORY_ALIASES.get(cleaned.upper(), cleaned)
 
 def is_ui_metadata_file(filename_or_relpath):
     if not filename_or_relpath:
         return True
-    base = os.path.basename(str(filename_or_relpath)).lower()
-    return base in UI_METADATA_FILES
+    base = os.path.basename(str(filename_or_relpath)).strip().lower()
+    if base in UI_METADATA_FILES:
+        return True
+    return is_preview_image_filename(base)
 
 def is_newer_version(local_str, remote_str):
     if not remote_str or not local_str:
@@ -233,15 +338,15 @@ class FFXModManagerGUI:
             active_mode = self.config.get("active_game_mode", "FFX")
             self.root.title(f"Spira Mod Manager - {active_mode} Mode")
             
-            # Set window icon if available
-            icon_path = os.path.join(_base_dir, "SpiraMM.ico")
-            if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
-                icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
-            if os.path.exists(icon_path):
-                try:
-                    self.root.iconbitmap(icon_path)
-                except Exception:
-                    pass
+            # Register Windows AppUserModelID so Windows taskbar groups and shows custom icon
+            try:
+                if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "shell32"):
+                    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("NfgOdin.SpiraModManager.FFX")
+            except Exception:
+                pass
+
+            # Apply 3-layer window and taskbar icon
+            self.set_window_icon(self.root, is_root=True)
                     
             self.root.geometry("960x600")
             self.root.minsize(800, 500)
@@ -726,6 +831,7 @@ class FFXModManagerGUI:
             self.log(f"Config save failed: {e}", "error")
 
     def get_steam_install_path(self):
+        # 1. Windows Registry detection
         try:
             import winreg
             for key_path in [
@@ -742,10 +848,69 @@ class FFXModManagerGUI:
         except Exception:
             pass
         
-        fallback = r"C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster"
-        if os.path.exists(fallback):
-            return fallback
+        # 2. Windows Standard Drive Fallbacks
+        win_candidates = [
+            r"C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster",
+            r"C:\Program Files\Steam\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster",
+            r"D:\SteamLibrary\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster",
+            r"E:\SteamLibrary\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster",
+            r"F:\SteamLibrary\steamapps\common\FINAL FANTASY FFX&FFX-2 HD Remaster"
+        ]
+        for p in win_candidates:
+            if os.path.exists(p):
+                return p
+
+        # 3. Linux / Steam Deck / Proton Native & SD Card Paths
+        home = os.path.expanduser("~")
+        linux_candidates = [
+            os.path.join(home, ".local/share/Steam/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster"),
+            os.path.join(home, ".steam/steam/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster"),
+            os.path.join(home, ".steam/root/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster"),
+            "/home/deck/.local/share/Steam/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster",
+            "/home/deck/.steam/steam/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster",
+            "/run/media/mmcblk0p1/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster",
+            "/run/media/deck/mmcblk0p1/steamapps/common/FINAL FANTASY FFX&FFX-2 HD Remaster"
+        ]
+        for p in linux_candidates:
+            if os.path.exists(p):
+                return p
         return ""
+
+    def get_default_save_path(self, game_mode="FFX"):
+        game_sub = "FINAL FANTASY X-2" if game_mode == "FFX-2" else "FINAL FANTASY X"
+        home = os.path.expanduser("~")
+        
+        # 1. Standard Windows Documents Paths
+        win_candidates = [
+            os.path.join(home, "Documents", "SQUARE ENIX", "FINAL FANTASY X&X-2 HD Remaster", game_sub),
+            os.path.join(home, "Documents", "SQUARE ENIX", "FINAL FANTASY X&X2 HD Remaster", game_sub),
+            os.path.join(home, "OneDrive", "Documents", "SQUARE ENIX", "FINAL FANTASY X&X-2 HD Remaster", game_sub),
+            os.path.join(home, "OneDrive", "Documents", "SQUARE ENIX", "FINAL FANTASY X&X2 HD Remaster", game_sub)
+        ]
+        for p in win_candidates:
+            if os.path.exists(p):
+                return p
+
+        # 2. Steam Deck / Proton virtualized prefix paths (AppID 359870)
+        proton_roots = [
+            os.path.join(home, ".local/share/Steam/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents"),
+            os.path.join(home, ".steam/steam/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents"),
+            os.path.join(home, ".steam/root/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents"),
+            "/home/deck/.local/share/Steam/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents",
+            "/home/deck/.steam/steam/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents",
+            "/run/media/mmcblk0p1/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents",
+            "/run/media/deck/mmcblk0p1/steamapps/compatdata/359870/pfx/drive_c/users/steamuser/Documents"
+        ]
+        for p_root in proton_roots:
+            p_cand1 = os.path.join(p_root, "SQUARE ENIX", "FINAL FANTASY X&X-2 HD Remaster", game_sub)
+            if os.path.exists(p_cand1):
+                return p_cand1
+            p_cand2 = os.path.join(p_root, "SQUARE ENIX", "FINAL FANTASY X&X2 HD Remaster", game_sub)
+            if os.path.exists(p_cand2):
+                return p_cand2
+
+        # Default fallback
+        return win_candidates[0]
 
     def init_paths(self):
         # Default Game Dir auto-detect
@@ -807,15 +972,81 @@ class FFXModManagerGUI:
         else:
             return "⚠️ Mod Loader DLL NOT Detected! (Mods will not load. Please install External File Loader)", self.error_color
 
-    def set_window_icon(self, window):
-        icon_path = os.path.join(_base_dir, "SpiraMM.ico")
-        if not os.path.exists(icon_path) and getattr(sys, 'frozen', False):
-            icon_path = os.path.join(sys._MEIPASS, "SpiraMM.ico")
-        if os.path.exists(icon_path):
-            try:
-                window.iconbitmap(icon_path)
-            except Exception:
-                pass
+    def set_window_icon(self, window, is_root=False):
+        icon_target = resolve_app_icon()
+        if not icon_target:
+            return
+            
+        # 1. Tkinter native iconbitmap
+        try:
+            window.iconbitmap(icon_target)
+            if is_root:
+                window.iconbitmap(default=icon_target)
+        except Exception:
+            pass
+
+        # 2. Tkinter iconphoto (using PIL if available, or PhotoImage)
+        try:
+            from PIL import Image, ImageTk
+            ico_file = icon_target if icon_target.lower().endswith(".ico") else None
+            if not ico_file:
+                for cand in [os.path.join(_base_dir, "SpiraMM.ico"), os.path.join(getattr(sys, "_MEIPASS", ""), "SpiraMM.ico")]:
+                    if cand and os.path.exists(cand):
+                        ico_file = cand
+                        break
+            if ico_file and os.path.exists(ico_file):
+                ico_img = Image.open(ico_file)
+                photo_big = ImageTk.PhotoImage(ico_img.resize((32, 32)))
+                photo_sm = ImageTk.PhotoImage(ico_img.resize((16, 16)))
+                window.iconphoto(True, photo_big, photo_sm)
+                if not hasattr(window, "_icon_refs"):
+                    window._icon_refs = []
+                window._icon_refs.extend([photo_big, photo_sm])
+        except Exception:
+            pass
+
+        # 3. Direct Win32 OS Window Class & WM_SETICON to top-level HWND
+        try:
+            if sys.platform == "win32" and ctypes and hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
+                window.update_idletasks()
+                GA_ROOT = 2
+                hwnd = ctypes.windll.user32.GetAncestor(window.winfo_id(), GA_ROOT) or ctypes.windll.user32.GetParent(window.winfo_id()) or window.winfo_id()
+                if hwnd:
+                    hicon_big = None
+                    hicon_sm = None
+                    if icon_target.lower().endswith(".ico"):
+                        IMAGE_ICON = 1
+                        LR_LOADFROMFILE = 0x00000010
+                        hicon_big = ctypes.windll.user32.LoadImageW(0, icon_target, IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
+                        hicon_sm = ctypes.windll.user32.LoadImageW(0, icon_target, IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
+                    else:
+                        phicon_large = (ctypes.wintypes.HICON * 1)()
+                        phicon_small = (ctypes.wintypes.HICON * 1)()
+                        ctypes.windll.shell32.ExtractIconExW(icon_target, 0, phicon_large, phicon_small, 1)
+                        if phicon_large and phicon_large[0]:
+                            hicon_big = phicon_large[0]
+                        if phicon_small and phicon_small[0]:
+                            hicon_sm = phicon_small[0]
+
+                    # Replace Window Class Icon (GCLP_HICON / GCLP_HICONSM)
+                    GCLP_HICON = -14
+                    GCLP_HICONSM = -34
+                    SetClassLongPtr = getattr(ctypes.windll.user32, 'SetClassLongPtrW', ctypes.windll.user32.SetClassLongW)
+                    SetClassLongPtr.argtypes = [ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+                    SetClassLongPtr.restype = ctypes.c_void_p
+
+                    if hicon_big:
+                        SetClassLongPtr(hwnd, GCLP_HICON, hicon_big)
+                    if hicon_sm:
+                        SetClassLongPtr(hwnd, GCLP_HICONSM, hicon_sm)
+
+                    WM_SETICON = 0x0080
+                    if hicon_big:
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 1, hicon_big)
+                    if hicon_sm:
+                        ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, 0, hicon_sm)
+        except Exception:
+            pass
 
     def show_log_window(self):
         if hasattr(self, "log_window") and self.log_window and self.log_window.winfo_exists():
@@ -945,7 +1176,12 @@ class FFXModManagerGUI:
         
         # Navigation Buttons Container (Bottom)
         self.sidebar_bottom_frame = tk.Frame(self.sidebar, bg=self.card_color)
-        self.sidebar_bottom_frame.pack(side="bottom", fill="x", pady=15)
+        self.sidebar_bottom_frame.pack(side="bottom", fill="x", pady=10)
+        
+        self.lbl_storage_space = tk.Label(self.sidebar_bottom_frame, text="💽 Drive: -- Free", font=("Segoe UI", 8),
+                                          fg=self.text_dim, bg=self.card_color, pady=2)
+        self.lbl_storage_space._is_muted = True
+        self.lbl_storage_space.pack(side="bottom", fill="x", padx=10)
         
         self.sidebar_buttons_frame = tk.Frame(self.sidebar, bg=self.card_color)
         self.sidebar_buttons_frame.pack(fill="x", padx=15, pady=5)
@@ -1013,9 +1249,9 @@ class FFXModManagerGUI:
         left_frame = ttk.Frame(paned, style="Card.TFrame")
         paned.add(left_frame, weight=1)
         
-        lbl_mod = tk.Label(left_frame, text="Available Mods", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
-        lbl_mod._is_title = True
-        lbl_mod.pack(anchor="w", pady=(0, 5))
+        self.lbl_mod_header = tk.Label(left_frame, text="Available Mods", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
+        self.lbl_mod_header._is_title = True
+        self.lbl_mod_header.pack(anchor="w", pady=(0, 5))
         
         # Search Bar
         search_frame = ttk.Frame(left_frame, style="Card.TFrame")
@@ -1025,16 +1261,37 @@ class FFXModManagerGUI:
         lbl_search.pack(side="left", padx=(0, 5))
         
         self.ent_search = ttk.Entry(search_frame, textvariable=self.mod_search_var)
-        self.ent_search.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self.ent_search.pack(side="left", fill="x", expand=True, padx=(0, 2))
         ToolTip(self.ent_search, "Type mod name here to filter the list in real-time.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        self.btn_clear_search = tk.Button(search_frame, text="✕", font=("Segoe UI", 8, "bold"), relief="flat",
+                                          command=self.clear_search, bg=self.card_color, fg=self.text_dim,
+                                          activebackground=self.border_color, activeforeground=self.accent_color, bd=0, padx=5, cursor="hand2")
+        self.bind_hover(self.btn_clear_search)
+        ToolTip(self.btn_clear_search, "Clear search filter", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         self.cmb_category = ttk.Combobox(search_frame, textvariable=self.mod_category_var, state="readonly", width=12)
         self.cmb_category["values"] = ["All Categories"]
-        self.cmb_category.pack(side="left")
+        self.cmb_category.pack(side="left", padx=(0, 4))
         self.cmb_category.bind("<<ComboboxSelected>>", lambda e: self.refresh_list())
         ToolTip(self.cmb_category, "Filter the mod list by specific category.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        self.mod_search_var.trace_add("write", lambda *args: self.refresh_list())
+        self.mod_sort_var = tk.StringVar(value="Default Order")
+        self.cmb_sort_by = ttk.Combobox(search_frame, textvariable=self.mod_sort_var, state="readonly", width=12)
+        self.cmb_sort_by["values"] = ["Default Order", "Name (A-Z)", "Name (Z-A)", "Status (Enabled First)", "Size (Largest First)", "Category"]
+        self.cmb_sort_by.pack(side="left")
+        self.cmb_sort_by.bind("<<ComboboxSelected>>", lambda e: self.refresh_list())
+        ToolTip(self.cmb_sort_by, "Sort the mod list by name, enabled status, file size, or category.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        def on_search_update(*args):
+            val = self.mod_search_var.get()
+            if val and len(val.strip()) > 0:
+                self.btn_clear_search.pack(side="left", padx=(0, 4), before=self.cmb_category)
+            else:
+                self.btn_clear_search.pack_forget()
+            self.refresh_list()
+            
+        self.mod_search_var.trace_add("write", on_search_update)
 
         # Profile management row
         profile_row = ttk.Frame(left_frame, style="Card.TFrame")
@@ -1093,6 +1350,7 @@ class FFXModManagerGUI:
         btn_new.pack(side="left", fill="x", expand=True, padx=2)
         self.bind_hover(btn_new, is_primary=True)
         ToolTip(btn_new, "Initialize a new empty local mod structure folder with an auto-generated manifest.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
         # Split Import Button Frame
         import_frame = ttk.Frame(row1, style="Card.TFrame")
         import_frame.pack(side="left", fill="x", expand=True, padx=(2, 0))
@@ -1181,25 +1439,27 @@ class FFXModManagerGUI:
         self.cards_canvas.bind("<Enter>", bind_cards_mouse)
         self.cards_canvas.bind("<Leave>", unbind_cards_mouse)
         
-        # Right Panel - Mod Details
-        right_frame = ttk.Frame(paned, padding=(15, 0, 0, 0), style="Card.TFrame")
-        paned.add(right_frame, weight=1)
+        # Keyboard Arrow Navigation for mod cards
+        self.cards_canvas.bind("<Up>", lambda e: self.navigate_mod_selection(-1))
+        self.cards_canvas.bind("<Down>", lambda e: self.navigate_mod_selection(1))
+
+        # Right Panel - Mod Details Notebook
+        right_frame = ttk.Frame(paned, style="Card.TFrame")
+        paned.add(right_frame, weight=2)
         
         self.lbl_mod_title = tk.Label(right_frame, text="Selected Mod: <None>", font=("Segoe UI", 11, "bold"), fg=self.accent_color, bg=self.bg_color)
         self.lbl_mod_title._is_title = True
         self.lbl_mod_title.pack(anchor="w", pady=(0, 5))
         
-        # Notebook for Mod Details
         self.mod_details_notebook = ttk.Notebook(right_frame)
         self.mod_details_notebook.pack(fill="both", expand=True)
         
-        # Tab 1: Information
+        # Tab 1: Info / Metadata
         self.tab_info = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
         self.mod_details_notebook.add(self.tab_info, text=" Information ")
         
-        # Metadata Card (now inside tab_info)
-        meta_frame = ttk.LabelFrame(self.tab_info, text=" Mod Metadata ", padding=10)
-        meta_frame.pack(fill="x", pady=(0, 10))
+        meta_frame = ttk.Frame(self.tab_info, style="Card.TFrame")
+        meta_frame.pack(fill="x", pady=(0, 5))
         
         ttk.Label(meta_frame, text="Mod Name:").grid(row=0, column=0, sticky="w", pady=2)
         self.ent_mod_name = ttk.Entry(meta_frame, width=30)
@@ -1222,7 +1482,7 @@ class FFXModManagerGUI:
         ToolTip(self.ent_mod_desc, "Short description summarizing what this mod changes in-game.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         ttk.Label(meta_frame, text="Category:").grid(row=4, column=0, sticky="w", pady=2)
-        self.cmb_mod_category = ttk.Combobox(meta_frame, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], width=28)
+        self.cmb_mod_category = ttk.Combobox(meta_frame, values=DEFAULT_CATEGORIES, width=28)
         self.cmb_mod_category.grid(row=4, column=1, sticky="w", padx=5, pady=2)
         ToolTip(self.cmb_mod_category, "The classification group this mod belongs to.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
@@ -1245,11 +1505,17 @@ class FFXModManagerGUI:
         self.bind_hover(btn_visit)
         ToolTip(btn_visit, "Open the mod's URL link in your web browser.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        btn_save_meta = tk.Button(meta_frame, text="Save Details", command=self.save_mod_metadata, bg=self.card_color,
-                                  fg=self.text_color, relief="flat", activebackground=self.border_color)
-        btn_save_meta.grid(row=7, column=1, sticky="w", padx=5, pady=5)
-        self.bind_hover(btn_save_meta)
-        ToolTip(btn_save_meta, "Save modifications made to this mod's metadata fields to its local manifest file.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        self.btn_save_meta = tk.Button(meta_frame, text="Save Details", command=self.save_mod_metadata, bg=self.card_color,
+                                       fg=self.text_color, relief="flat", activebackground=self.border_color)
+        self.btn_save_meta.grid(row=7, column=1, sticky="w", padx=5, pady=5)
+        self.bind_hover(self.btn_save_meta)
+        ToolTip(self.btn_save_meta, "Save modifications made to this mod's metadata fields (Enter or Ctrl+S).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Keyboard shortcuts for quick metadata saving
+        for ent in [self.ent_mod_name, self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.cmb_mod_category, self.ent_nexus_id, self.ent_mod_link]:
+            ent.bind("<Return>", lambda e: self.save_mod_metadata())
+            ent.bind("<Control-s>", lambda e: self.save_mod_metadata())
+            ent.bind("<Control-S>", lambda e: self.save_mod_metadata())
         
         # Visual Preview Card (inside tab_info, under metadata)
         self.preview_card = ttk.LabelFrame(self.tab_info, text=" Visual Preview ", padding=10)
@@ -1259,18 +1525,44 @@ class FFXModManagerGUI:
         self.preview_select_row = ttk.Frame(self.preview_card, style="Card.TFrame")
         self.preview_select_row.pack(fill="x", pady=(0, 5))
         
-        lbl_preview_sel = ttk.Label(self.preview_select_row, text="Asset:")
-        lbl_preview_sel.pack(side="left", padx=(0, 5))
+        self.btn_prev_img = tk.Button(self.preview_select_row, text="◀", font=("Segoe UI", 8, "bold"),
+                                      width=3, relief="flat", command=lambda: self.navigate_preview(-1),
+                                      bg=self.card_color, fg=self.text_color, activebackground=self.border_color)
+        self.btn_prev_img.pack(side="left", padx=(0, 3))
+        self.bind_hover(self.btn_prev_img)
+        ToolTip(self.btn_prev_img, "Previous screenshot / cover image (Left Arrow)", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        self.cmb_preview_file = ttk.Combobox(self.preview_select_row, state="readonly", width=30)
+        self.cmb_preview_file = ttk.Combobox(self.preview_select_row, state="readonly", width=20)
         self.cmb_preview_file.pack(side="left", fill="x", expand=True)
         self.cmb_preview_file.bind("<<ComboboxSelected>>", self.on_preview_file_selected)
-        ToolTip(self.cmb_preview_file, "Choose which PNG image to preview from the mod's files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        self.cmb_preview_file.bind("<Left>", lambda e: self.navigate_preview(-1))
+        self.cmb_preview_file.bind("<Right>", lambda e: self.navigate_preview(1))
+        ToolTip(self.cmb_preview_file, "Choose which screenshot / cover image to preview.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        # Image label
+        self.btn_next_img = tk.Button(self.preview_select_row, text="▶", font=("Segoe UI", 8, "bold"),
+                                      width=3, relief="flat", command=lambda: self.navigate_preview(1),
+                                      bg=self.card_color, fg=self.text_color, activebackground=self.border_color)
+        self.btn_next_img.pack(side="left", padx=(3, 5))
+        self.bind_hover(self.btn_next_img)
+        ToolTip(self.btn_next_img, "Next screenshot / cover image (Right Arrow)", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        self.lbl_preview_count = ttk.Label(self.preview_select_row, text="1 / 1", font=("Segoe UI", 8))
+        self.lbl_preview_count.pack(side="left", padx=(0, 4))
+        
+        self.btn_zoom_img = tk.Button(self.preview_select_row, text="🔍", font=("Segoe UI", 8, "bold"),
+                                      width=3, relief="flat", command=self.open_fullscreen_preview,
+                                      bg=self.card_color, fg=self.text_color, activebackground=self.border_color)
+        self.btn_zoom_img.pack(side="left", padx=(0, 2))
+        self.bind_hover(self.btn_zoom_img)
+        ToolTip(self.btn_zoom_img, "View full-resolution original image (Double-click image).", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
+        # Image label with 3-zone click navigation (Left: Prev, Center: Zoom, Right: Next)
         self.lbl_preview_img = tk.Label(self.preview_card, text="No preview available", font=("Segoe UI", 9, "italic"), fg=self.text_dim)
         self.lbl_preview_img.pack(fill="both", expand=True)
         self.lbl_preview_img.bind("<Configure>", self.on_preview_resize)
+        self.lbl_preview_img.bind("<Button-1>", self.on_preview_click)
+        self.lbl_preview_img.bind("<Motion>", self.on_preview_motion)
+        ToolTip(self.lbl_preview_img, "Click Left ◀: Previous  |  Click Center 🔍: Full Zoom  |  Click Right ▶: Next", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
         # Tab 2: Files
         self.tab_files = ttk.Frame(self.mod_details_notebook, padding=10, style="Card.TFrame")
@@ -1285,6 +1577,7 @@ class FFXModManagerGUI:
         self.tree_files.column("relpath", width=250, anchor="w")
         self.tree_files.column("size", width=80, anchor="e")
         self.tree_files.pack(fill="both", expand=True, side="left")
+        self.tree_files.bind("<Button-3>", self.show_tree_files_context_menu)
         
         scroll_f = ttk.Scrollbar(files_frame, command=self.tree_files.yview)
         scroll_f.pack(fill="y", side="right")
@@ -1327,6 +1620,7 @@ class FFXModManagerGUI:
         self.tree_conflicts.column("mod", width=120)
         self.tree_conflicts.column("file", width=200)
         self.tree_conflicts.pack(fill="both", expand=True)
+        self.tree_conflicts.bind("<Button-3>", self.show_tree_conflicts_context_menu)
         
         scroll_c = ttk.Scrollbar(self.tab_conflicts, command=self.tree_conflicts.yview)
         scroll_c.pack(fill="y", side="right")        # ----------------------------------------------------
@@ -1409,8 +1703,8 @@ class FFXModManagerGUI:
         self.ent_saves_path.grid(row=1, column=1, sticky="ew", padx=(0, 10), pady=6)
         ToolTip(self.ent_saves_path, "Configure the Documents folder path where the game keeps its save files.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
-        default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
-        default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+        default_saves_ffx = self.get_default_save_path("FFX")
+        default_saves_ffx2 = self.get_default_save_path("FFX-2")
         if self.active_game_mode == "FFX-2":
             configured_saves = self.config.get("saves_dir_x2", default_saves_ffx2)
         else:
@@ -1746,8 +2040,8 @@ class FFXModManagerGUI:
             # Update saves directory entry field in Settings tab dynamically
             if hasattr(self, "ent_saves_path") and self.ent_saves_path:
                 self.ent_saves_path.delete(0, tk.END)
-                default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
-                default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+                default_saves_ffx = self.get_default_save_path("FFX")
+                default_saves_ffx2 = self.get_default_save_path("FFX-2")
                 if new_mode == "FFX-2":
                     configured_saves = self.config.get("saves_dir_x2", default_saves_ffx2)
                 else:
@@ -1866,7 +2160,7 @@ class FFXModManagerGUI:
                             mods[mod_id] = {
                                 "name": data.get("name", mod_id),
                                 "creator": data.get("author", data.get("creator", "Unknown")),
-                                "category": data.get("category", "General"),
+                                "category": normalize_category(data.get("category", "General")),
                                 "version": data.get("version", "1.0"),
                                 "description": data.get("description", ""),
                                 "link": data.get("link", ""),
@@ -1887,7 +2181,7 @@ class FFXModManagerGUI:
                             mods[mod_id] = {
                                 "name": data.get("Name", mod_id),
                                 "creator": data.get("Authors", "Unknown"),
-                                "category": data.get("Category", "General"),
+                                "category": normalize_category(data.get("Category", "General")),
                                 "version": data.get("Version", data.get("version", "1.0")),
                                 "description": data.get("Desc", data.get("Description", "")),
                                 "link": data.get("Link", data.get("URL", "")),
@@ -1939,7 +2233,7 @@ class FFXModManagerGUI:
                                     mods[mod_id] = {
                                         "name": data.get("name", mod_id),
                                         "creator": data.get("author", data.get("creator", "Unknown")),
-                                        "category": data.get("category", "General"),
+                                        "category": normalize_category(data.get("category", "General")),
                                         "version": data.get("version", "1.0"),
                                         "description": data.get("description", ""),
                                         "link": data.get("link", ""),
@@ -1984,16 +2278,17 @@ class FFXModManagerGUI:
                                     continue
                                     
                                 files_list = data.get("files", [])
-                                total_size = 0
-                                for rel in files_list:
-                                    fpath = os.path.join(dpath, rel)
-                                    if os.path.exists(fpath):
-                                        total_size += os.path.getsize(fpath)
+                                total_size = data.get("size", 0)
+                                if not total_size and files_list:
+                                    for rel in files_list[:50]:
+                                        fpath = os.path.join(dpath, rel)
+                                        if os.path.exists(fpath):
+                                            total_size += os.path.getsize(fpath)
                                         
                                 mods[d] = {
                                     "name": data.get("name", d),
                                     "creator": data.get("author", data.get("creator", "Unknown")),
-                                    "category": data.get("category", "General"),
+                                    "category": normalize_category(data.get("category", "General")),
                                     "version": data.get("version", "1.0"),
                                     "description": data.get("description", ""),
                                     "link": data.get("link", ""),
@@ -2025,13 +2320,13 @@ class FFXModManagerGUI:
         # 3. Dynamic Category Population
         all_categories = set()
         for info in mods.values():
-            cat = info.get("category", "General").strip()
+            cat = normalize_category(info.get("category", "General"))
             if cat:
                 all_categories.add(cat)
         
-        # Standard categories to ensure we always have some defaults in the editor
-        base_categories = {"General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"}
-        cat_list = ["All Categories"] + sorted(list(all_categories))
+        # Standard categories to ensure we always have all official Nexus defaults in the editor
+        base_categories = set(DEFAULT_CATEGORIES)
+        cat_list = ["All Categories"] + sorted(list(base_categories.union(all_categories)))
         
         if hasattr(self, "cmb_category"):
             self.cmb_category["values"] = cat_list
@@ -2058,11 +2353,41 @@ class FFXModManagerGUI:
                     filtered_mods[m_id] = info
             mods = filtered_mods
             
+        # 5. Apply Sorting
+        sort_mode = getattr(self, "mod_sort_var", None)
+        sort_choice = sort_mode.get() if sort_mode else "Default Order"
+        
+        if sort_choice == "Name (A-Z)":
+            mods = dict(sorted(mods.items(), key=lambda item: item[1].get("name", item[0]).lower()))
+        elif sort_choice == "Name (Z-A)":
+            mods = dict(sorted(mods.items(), key=lambda item: item[1].get("name", item[0]).lower(), reverse=True))
+        elif sort_choice == "Status (Enabled First)":
+            mods = dict(sorted(mods.items(), key=lambda item: (0 if item[1].get("status") == "Enabled" else 1, item[1].get("name", item[0]).lower())))
+        elif sort_choice == "Size (Largest First)":
+            mods = dict(sorted(mods.items(), key=lambda item: item[1].get("size", 0), reverse=True))
+        elif sort_choice == "Category":
+            mods = dict(sorted(mods.items(), key=lambda item: (item[1].get("category", "General").lower(), item[1].get("name", item[0]).lower())))
+            
+        # Track currently visible mod IDs for keyboard arrow navigation
+        self.current_visible_mod_ids = list(mods.keys())
+            
         # Render Mod Cards
         card_count = 0
         for mod_id, info in mods.items():
             self.create_mod_card(mod_id, info)
             card_count += 1
+            
+        # Update dynamic header count label
+        total_unfiltered = len(self.mods)
+        enabled_count = sum(1 for inf in self.mods.values() if inf.get("status") == "Enabled")
+        disabled_count = total_unfiltered - enabled_count
+        if hasattr(self, "lbl_mod_header"):
+            if query or (cat_filter and cat_filter != "All Categories"):
+                self.lbl_mod_header.config(text=f"Available Mods ({len(mods)} shown / {enabled_count} Enabled • {total_unfiltered} Total)")
+            else:
+                self.lbl_mod_header.config(text=f"Available Mods ({enabled_count} Enabled, {disabled_count} Disabled • {total_unfiltered} Total)")
+                
+        self.update_storage_indicator()
             
         # Trigger dynamic canvas resize config update
         self.cards_canvas.configure(scrollregion=self.cards_canvas.bbox("all"))
@@ -2102,18 +2427,30 @@ class FFXModManagerGUI:
         middle_row = tk.Frame(card, bg=self.card_color)
         middle_row.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=1)
         
-        category = info.get("category", "General").upper()
+        category_raw = info.get("category", "General")
+        category_norm = normalize_category(category_raw)
+        category = category_norm.upper()
         # Pill colors depending on category
         cat_colors = {
-            "TEXTURE": ("#1e3a8a", "#3b82f6"),
-            "AUDIO": ("#312e81", "#6366f1"),
-            "SCRIPT": ("#065f46", "#10b981"),
-            "UI": ("#5b21b6", "#8b5cf6"),
-            "GAMEPLAY": ("#7c2d12", "#f97316")
+            "MODELS AND TEXTURES": ("#1e3a8a", "#60a5fa"),
+            "TEXTURE": ("#1e3a8a", "#60a5fa"),
+            "VISUALS AND GRAPHICS": ("#0f766e", "#2dd4bf"),
+            "ARMOUR AND CLOTHING": ("#701a75", "#f472b6"),
+            "BODY, FACE, HAIR": ("#831843", "#fb7185"),
+            "GAMEPLAY AND BALANCING": ("#7c2d12", "#fb923c"),
+            "GAMEPLAY": ("#7c2d12", "#fb923c"),
+            "USER INTERFACE": ("#581c87", "#c084fc"),
+            "UI": ("#581c87", "#c084fc"),
+            "AUDIO": ("#312e81", "#818cf8"),
+            "UTILITIES": ("#065f46", "#34d399"),
+            "SCRIPT": ("#065f46", "#34d399"),
+            "SAVED GAMES": ("#1e293b", "#94a3b8"),
+            "MISCELLANEOUS": ("#374151", "#cbd5e1"),
+            "GENERAL": ("#27272a", "#a1a1aa")
         }
         bg_c, fg_c = cat_colors.get(category, ("#374151", self.text_dim))
         
-        lbl_cat = tk.Label(middle_row, text=f" {category} ", font=("Segoe UI", 7, "bold"), fg=fg_c, bg=bg_c, padx=4, pady=1)
+        lbl_cat = tk.Label(middle_row, text=f" {category_norm} ", font=("Segoe UI", 7, "bold"), fg=fg_c, bg=bg_c, padx=4, pady=1)
         lbl_cat._is_status_pill = True
         lbl_cat.pack(side="left", padx=(0, 5))
         
@@ -2142,10 +2479,27 @@ class FFXModManagerGUI:
         lbl_info.bind("<Button-1>", select_click)
         lbl_cat.bind("<Button-1>", select_click)
         
+        # Double-click binding to quickly toggle Enable / Disable
+        def toggle_mod_click(event, m_id=mod_id, inf=info):
+            self.select_mod(m_id)
+            if inf.get("status") == "Enabled":
+                self.disable_mod()
+            else:
+                self.enable_mod()
+                
+        card.bind("<Double-Button-1>", toggle_mod_click)
+        top_row.bind("<Double-Button-1>", toggle_mod_click)
+        middle_row.bind("<Double-Button-1>", toggle_mod_click)
+        lbl_name.bind("<Double-Button-1>", toggle_mod_click)
+        lbl_status.bind("<Double-Button-1>", toggle_mod_click)
+        lbl_info.bind("<Double-Button-1>", toggle_mod_click)
+        lbl_cat.bind("<Double-Button-1>", toggle_mod_click)
+        
         # Right click binding for context menu
         def show_context_menu(event, m_id=mod_id, inf=info):
             self.select_mod(m_id)
             menu = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+            menu.add_command(label="📁 Open File Location", command=lambda: self.open_mod_folder(m_id))
             menu.add_command(label="📝 Edit Metadata", command=lambda: self.ent_nexus_id.focus_set())
             menu.add_command(label="✨ Check Update", command=lambda: self.check_single_mod_update(m_id, inf))
             if inf.get("link") or inf.get("nexus_id"):
@@ -2200,6 +2554,31 @@ class FFXModManagerGUI:
         lbl_info.bind("<Leave>", on_leave, add="+")
         lbl_cat.bind("<Enter>", on_enter, add="+")
         lbl_cat.bind("<Leave>", on_leave, add="+")
+
+    def open_mod_folder(self, mod_id=None):
+        if not mod_id:
+            mod_id = getattr(self, "selected_mod_id", None)
+        if not mod_id:
+            return
+            
+        target_dir = os.path.join(self.mods_disabled_dir, mod_id)
+        if getattr(self, "is_fahrenheit_mode", False):
+            fh_path = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id)
+            if os.path.exists(fh_path):
+                target_dir = fh_path
+                
+        if not os.path.exists(target_dir):
+            os.makedirs(target_dir, exist_ok=True)
+            
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(target_dir)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", target_dir])
+            else:
+                subprocess.Popen(["xdg-open", target_dir])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open mod folder:\n{e}")
 
     def select_mod(self, mod_id):
         self.selected_mod_id = mod_id
@@ -2301,13 +2680,22 @@ class FFXModManagerGUI:
         
         mod_status = self.get_mod_status(mod_id)
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
+        active_dir = self.get_active_files_dir(mod_id)
+        target_dir = mod_repo_path if mod_status == "Disabled" else active_dir
         
-        for rel in files_list:
-            # Check size from repo if disabled, or active mods folder if enabled
+        MAX_DISPLAY_FILES = 300
+        for i, rel in enumerate(files_list):
+            if i >= MAX_DISPLAY_FILES:
+                remaining = len(files_list) - MAX_DISPLAY_FILES
+                self.tree_files.insert("", tk.END, values=(f"... and {remaining} more file(s) ({len(files_list)} total)", ""))
+                break
             fsize = 0
-            src_path = os.path.join(mod_repo_path if mod_status == "Disabled" else self.get_active_files_dir(mod_id), rel)
+            src_path = os.path.join(target_dir, rel)
             if os.path.exists(src_path):
-                fsize = os.path.getsize(src_path)
+                try:
+                    fsize = os.path.getsize(src_path)
+                except Exception:
+                    pass
             self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
             
         # Update Conflict Tab
@@ -2318,7 +2706,10 @@ class FFXModManagerGUI:
 
     def update_mod_preview(self, mod_id):
         # Reset image reference
+        self.original_preview_image = None
         self.active_preview_image = None
+        self.current_preview_factor = None
+        self.current_preview_images = []
         self.lbl_preview_img.config(image="", text="No preview available")
         
         # Always scan the mod files inside the local mod repository directory
@@ -2328,44 +2719,50 @@ class FFXModManagerGUI:
             self.preview_select_row.pack_forget()
             return
             
-        png_files = []
-        # Strictly allow preview cover filenames up to 5 images total
-        allowed_names = {"preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png", "mod_preview.png", "cover.png"}
+        img_files = []
         for root, dirs, files in os.walk(mod_dir):
             for file in files:
-                if file.lower() in allowed_names:
+                if is_preview_image_filename(file):
                     full_p = os.path.join(root, file)
                     rel = os.path.relpath(full_p, mod_dir)
                     # Use forward slashes for cross-platform and cleaner presentation
-                    png_files.append(rel.replace("\\", "/"))
+                    img_files.append(rel.replace("\\", "/"))
                     
-        if not png_files:
+        if not img_files:
+            self.original_preview_image = None
+            self.active_preview_image = None
+            self.current_preview_factor = None
             self.preview_select_row.pack_forget()
-            self.lbl_preview_img.config(text="No preview files (e.g. preview.png, preview1.png) found.")
+            self.lbl_preview_img.config(image="", text="No preview files (e.g. preview.png, cover.png) found.")
             return
             
-        # Sort sequentially: base cover/previews first, then numbered variants
-        priority_files = ["preview.png", "mod_preview.png", "cover.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png"]
-        
-        def score_file(rel_path):
-            name = os.path.basename(rel_path).lower()
-            if name in priority_files:
-                return priority_files.index(name)
-            return len(priority_files)
+        def preview_sort_key(rel_path):
+            base = os.path.basename(rel_path).lower()
+            prefix_order = ["preview", "cover", "mod_preview", "modpreview", "screenshot", "thumb", "thumbnail"]
+            m = re.match(r'^([a-z_]+?)(?:[_-]?(\d+))?\.[a-z0-9]+$', base)
+            if m:
+                pfx, num_str = m.group(1), m.group(2)
+                pfx_score = prefix_order.index(pfx) if pfx in prefix_order else 99
+                num_score = int(num_str) if num_str else 0
+                return (pfx_score, num_score, base)
+            return (100, 0, base)
             
-        png_files.sort(key=score_file)
+        img_files.sort(key=preview_sort_key)
+        self.current_preview_images = img_files
         
         # Set combobox values
-        self.cmb_preview_file["values"] = png_files
-        self.cmb_preview_file.set(png_files[0])
+        self.cmb_preview_file["values"] = img_files
+        self.cmb_preview_file.set(img_files[0])
+        if hasattr(self, "lbl_preview_count"):
+            self.lbl_preview_count.config(text=f"1 / {len(img_files)}")
         
-        if len(png_files) > 1:
-            self.preview_select_row.pack(fill="x", pady=(0, 5))
+        if len(img_files) > 1:
+            self.preview_select_row.pack(side="top", fill="x", pady=(0, 5), before=self.lbl_preview_img)
         else:
             self.preview_select_row.pack_forget()
             
         # Display prioritized image
-        self.display_preview_image(mod_dir, png_files[0])
+        self.display_preview_image(mod_dir, img_files[0])
         
     def display_preview_image(self, base_dir, rel_path):
         img_path = os.path.join(base_dir, rel_path)
@@ -2404,7 +2801,7 @@ class FFXModManagerGUI:
             self.lbl_preview_img.config(image="", text=f"Failed to render image: {e}")
             
     def on_preview_resize(self, event):
-        if not hasattr(self, "original_preview_image") or not self.original_preview_image:
+        if not getattr(self, "original_preview_image", None):
             return
             
         lbl_w = event.width
@@ -2438,7 +2835,212 @@ class FFXModManagerGUI:
             
         selected_rel = self.cmb_preview_file.get()
         if selected_rel:
+            images = getattr(self, "current_preview_images", [])
+            if selected_rel in images:
+                idx = images.index(selected_rel)
+                if hasattr(self, "lbl_preview_count"):
+                    self.lbl_preview_count.config(text=f"{idx + 1} / {len(images)}")
             self.display_preview_image(mod_dir, selected_rel)
+
+    def navigate_preview(self, direction):
+        images = getattr(self, "current_preview_images", [])
+        if not images:
+            return
+        current = self.cmb_preview_file.get()
+        try:
+            curr_idx = images.index(current)
+        except ValueError:
+            curr_idx = 0
+        new_idx = (curr_idx + direction) % len(images)
+        self.cmb_preview_file.set(images[new_idx])
+        if hasattr(self, "lbl_preview_count"):
+            self.lbl_preview_count.config(text=f"{new_idx + 1} / {len(images)}")
+        if hasattr(self, "selected_mod_id") and self.selected_mod_id:
+            mod_dir = os.path.join(self.mods_disabled_dir, self.selected_mod_id)
+            self.display_preview_image(mod_dir, images[new_idx])
+
+    def on_preview_click(self, event):
+        images = getattr(self, "current_preview_images", [])
+        if not images:
+            return
+            
+        # If only 1 image exists, clicking anywhere opens the zoom viewer
+        if len(images) <= 1:
+            self.open_fullscreen_preview()
+            return
+            
+        width = self.lbl_preview_img.winfo_width()
+        left_bound = width * 0.25
+        right_bound = width * 0.75
+        
+        if event.x < left_bound:
+            self.navigate_preview(-1)
+        elif event.x > right_bound:
+            self.navigate_preview(1)
+        else:
+            self.open_fullscreen_preview()
+
+    def on_preview_motion(self, event):
+        images = getattr(self, "current_preview_images", [])
+        if not images:
+            self.lbl_preview_img.config(cursor="")
+            return
+        self.lbl_preview_img.config(cursor="hand2")
+
+    def clear_search(self):
+        self.mod_search_var.set("")
+        if hasattr(self, "btn_clear_search"):
+            self.btn_clear_search.pack_forget()
+        if hasattr(self, "ent_search"):
+            self.ent_search.focus_set()
+        self.refresh_list()
+
+    def open_fullscreen_preview(self):
+        if not getattr(self, "selected_mod_id", None):
+            return
+        mod_dir = os.path.join(self.mods_disabled_dir, self.selected_mod_id)
+        selected_rel = self.cmb_preview_file.get() if hasattr(self, "cmb_preview_file") else None
+        if not selected_rel and getattr(self, "current_preview_images", []):
+            selected_rel = self.current_preview_images[0]
+        if not selected_rel:
+            return
+        img_path = os.path.join(mod_dir, selected_rel)
+        if not os.path.exists(img_path):
+            return
+            
+        win = tk.Toplevel(self.root)
+        win.title(f"Full Preview: {os.path.basename(selected_rel)} — {self.selected_mod_id}")
+        self.set_window_icon(win)
+        win.configure(bg="#111116")
+        win.geometry("900x700")
+        
+        try:
+            pil_img = Image.open(img_path)
+            orig_w, orig_h = pil_img.size
+            
+            top_bar = tk.Frame(win, bg="#1a1a24", padx=10, pady=6)
+            top_bar.pack(fill="x", side="top")
+            
+            lbl_title = tk.Label(top_bar, text=f"📷 {os.path.basename(selected_rel)}  ({orig_w} × {orig_h})", font=("Segoe UI", 9, "bold"), fg="#ffffff", bg="#1a1a24")
+            lbl_title.pack(side="left")
+            
+            btn_close = tk.Button(top_bar, text="✕ Close", command=win.destroy, font=("Segoe UI", 8, "bold"), relief="flat", bg="#27273a", fg="#ffffff", activebackground="#3b3b55", activeforeground="#ffffff", padx=8, pady=2)
+            btn_close.pack(side="right")
+            self.bind_hover(btn_close)
+            
+            canvas_frame = tk.Frame(win, bg="#111116")
+            canvas_frame.pack(fill="both", expand=True)
+            
+            canvas = tk.Canvas(canvas_frame, bg="#111116", highlightthickness=0)
+            hbar = ttk.Scrollbar(canvas_frame, orient="horizontal", command=canvas.xview)
+            vbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+            canvas.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+            
+            hbar.pack(side="bottom", fill="x")
+            vbar.pack(side="right", fill="y")
+            canvas.pack(side="left", fill="both", expand=True)
+            
+            tk_full_photo = ImageTk.PhotoImage(pil_img)
+            win._full_img_ref = tk_full_photo  # keep reference
+            
+            canvas.create_image(0, 0, anchor="nw", image=tk_full_photo)
+            canvas.config(scrollregion=(0, 0, orig_w, orig_h))
+            
+            win.bind("<Escape>", lambda e: win.destroy())
+            win.focus_set()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load full image:\n{e}", parent=win)
+
+    def copy_to_clipboard(self, text):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            self.root.update()
+        except Exception:
+            pass
+
+    def show_tree_files_context_menu(self, event):
+        item = self.tree_files.identify_row(event.y)
+        if not item:
+            return
+        self.tree_files.selection_set(item)
+        values = self.tree_files.item(item, "values")
+        if not values:
+            return
+        rel_path = values[0]
+        if str(rel_path).startswith("... and"):
+            return
+            
+        menu = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+        menu.add_command(label="📋 Copy Relative Path", command=lambda: self.copy_to_clipboard(rel_path))
+        menu.add_command(label="📁 Open Folder Location", command=self.open_folder)
+        menu.post(event.x_root, event.y_root)
+
+    def show_tree_conflicts_context_menu(self, event):
+        item = self.tree_conflicts.identify_row(event.y)
+        if not item:
+            return
+        self.tree_conflicts.selection_set(item)
+        values = self.tree_conflicts.item(item, "values")
+        if not values or len(values) < 2:
+            return
+        file_path = values[1]
+        
+        menu = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+        menu.add_command(label="📋 Copy File Path", command=lambda: self.copy_to_clipboard(file_path))
+        menu.post(event.x_root, event.y_root)
+
+    def open_saves_folder(self):
+        save_dir = self.ffx_save_dir if getattr(self, "current_game_mode", "FFX") == "FFX" else getattr(self, "ffx2_save_dir", None)
+        if not save_dir or not os.path.exists(save_dir):
+            messagebox.showinfo("Save Directory", f"Save directory not found:\n{save_dir}")
+            return
+        try:
+            if hasattr(os, "startfile"):
+                os.startfile(save_dir)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", save_dir])
+            else:
+                subprocess.Popen(["xdg-open", save_dir])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open saves folder:\n{e}")
+
+    def update_storage_indicator(self):
+        target = self.game_dir if (self.game_dir and os.path.exists(self.game_dir)) else _base_dir
+        try:
+            total, used, free = shutil.disk_usage(target)
+            drive_letter = os.path.splitdrive(os.path.abspath(target))[0] or "Disk"
+            free_str = self.get_friendly_size(free)
+            if hasattr(self, "lbl_storage_space"):
+                self.lbl_storage_space.config(text=f"💽 {drive_letter} {free_str} Free")
+        except Exception:
+            pass
+
+    def navigate_mod_selection(self, direction):
+        visible = getattr(self, "current_visible_mod_ids", [])
+        if not visible:
+            return
+        curr_id = getattr(self, "selected_mod_id", None)
+        if curr_id in visible:
+            idx = visible.index(curr_id)
+            new_idx = max(0, min(len(visible) - 1, idx + direction))
+        else:
+            new_idx = 0 if direction > 0 else len(visible) - 1
+            
+        target_id = visible[new_idx]
+        self.select_mod(target_id)
+        
+        # Scroll cards canvas to keep target card in view
+        if hasattr(self, "mod_cards_container") and hasattr(self, "cards_canvas"):
+            for child in self.mod_cards_container.winfo_children():
+                if getattr(child, "_mod_id", None) == target_id:
+                    card_y = child.winfo_y()
+                    cont_h = self.mod_cards_container.winfo_height()
+                    canv_h = self.cards_canvas.winfo_height()
+                    if cont_h > canv_h > 0:
+                        fraction = max(0.0, min(1.0, (card_y - 20) / cont_h))
+                        self.cards_canvas.yview_moveto(fraction)
+                    break
 
     def check_for_conflicts(self, mod_id):
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
@@ -2457,11 +3059,18 @@ class FFXModManagerGUI:
             return {}
             
         files = info.get("files", [])
+        if not files:
+            return {}
+            
+        active_index = self.get_active_files_index(exclude_mod_id=mod_id)
         conflicts = {} # {other_mod_id: [file1, file2, ...]}
         
         for rel in files:
-            other_owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
-            if other_owner:
+            if is_ui_metadata_file(rel):
+                continue
+            norm = os.path.normpath(rel).lower()
+            if norm in active_index:
+                other_owner = active_index[norm]
                 if other_owner not in conflicts:
                     conflicts[other_owner] = []
                 conflicts[other_owner].append(rel)
@@ -2496,9 +3105,18 @@ class FFXModManagerGUI:
             except Exception:
                 pass
             
+            MAX_CONFLICT_ROWS = 300
+            inserted = 0
             for other_id, files in conflicts.items():
                 for f in files:
+                    if inserted >= MAX_CONFLICT_ROWS:
+                        break
                     self.tree_conflicts.insert("", tk.END, values=(other_id, f))
+                    inserted += 1
+                if inserted >= MAX_CONFLICT_ROWS:
+                    remaining = total_files - MAX_CONFLICT_ROWS
+                    self.tree_conflicts.insert("", tk.END, values=("...", f"... and {remaining} more conflicting file(s)"))
+                    break
 
     def auto_import_loose_files(self):
         if not self.mods_dir or getattr(self, "is_fahrenheit_mode", False):
@@ -2584,126 +3202,15 @@ class FFXModManagerGUI:
         self.scan_mods()
  
     def on_mod_selected(self, event=None):
-        sel = self.tree_mods.selection()
+        sel = self.tree_mods.selection() if hasattr(self, "tree_mods") else []
         if not sel:
             self.lbl_mod_title.config(text="Selected Mod: <None>")
             self.clear_metadata_fields()
-            self.tree_files.delete(*self.tree_mods.get_children())
+            self.tree_files.delete(*self.tree_files.get_children())
             return
             
         mod_id = sel[0]
-        self.lbl_mod_title.config(text=f"Selected Mod: {mod_id}")
-        
-        # Load mod details from repo modinfo
-        info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.spiramod")
-        legacy_info_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.ffxmod")
-        fallback_path = os.path.join(self.mods_disabled_dir, mod_id, "modinfo.json")
-        read_path = info_path if os.path.exists(info_path) else legacy_info_path if os.path.exists(legacy_info_path) else fallback_path if os.path.exists(fallback_path) else info_path
-        
-        info = {}
-        if os.path.exists(read_path):
-            try:
-                with open(read_path, "r") as f:
-                    info = decode_metadata(f.read())
-            except Exception:
-                pass
-                
-        # If not in repo, try active tracker
-        if not info:
-            if self.is_fahrenheit_mode:
-                read_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.spiramod")
-                legacy_tracker = os.path.join(self.game_dir, "fahrenheit", "mods", mod_id, "modinfo.ffxmod")
-                if os.path.exists(read_tracker):
-                    pass
-                elif os.path.exists(legacy_tracker):
-                    read_tracker = legacy_tracker
-            else:
-                tracker_path = os.path.join(self.mods_dir, f"{mod_id}.spiramod")
-                legacy_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.ffxmod")
-                old_tracker_path = os.path.join(self.mods_dir, f"{mod_id}.json")
-                if os.path.exists(tracker_path):
-                    read_tracker = tracker_path
-                elif os.path.exists(legacy_tracker_path):
-                    read_tracker = legacy_tracker_path
-                elif os.path.exists(old_tracker_path):
-                    read_tracker = old_tracker_path
-                else:
-                    read_tracker = tracker_path
-                
-            if os.path.exists(read_tracker):
-                try:
-                    with open(read_tracker, "r") as f:
-                        info = decode_metadata(f.read())
-                except Exception:
-                    pass
-                    
-        # Temp enable all to insert values
-        for entry in [self.ent_mod_name, self.ent_mod_creator, self.ent_mod_version, self.ent_mod_desc, self.ent_nexus_id, self.ent_mod_link]:
-            entry.config(state="normal")
-            entry.delete(0, tk.END)
-            
-        name_val = info.get("name", mod_id)
-        self.ent_mod_name.insert(0, name_val)
-        self.ent_mod_name.config(state="readonly")
-            
-        creator_name = info.get("creator", info.get("author", ""))
-        self.ent_mod_creator.insert(0, creator_name)
-        if creator_name.strip().lower() in ["", "user"]:
-            self.ent_mod_creator.config(state="normal")
-        else:
-            self.ent_mod_creator.config(state="readonly")
-            
-        version_val = info.get("version", "0.0")
-        self.ent_mod_version.insert(0, version_val)
-        if version_val.strip().lower() in ["", "0.0"]:
-            self.ent_mod_version.config(state="normal")
-        else:
-            self.ent_mod_version.config(state="readonly")
-            
-        desc_val = info.get("description", "")
-        self.ent_mod_desc.insert(0, desc_val)
-        if desc_val.strip() == "":
-            self.ent_mod_desc.config(state="normal")
-        else:
-            self.ent_mod_desc.config(state="readonly")
-            
-        self.cmb_mod_category.set(info.get("category", "General"))
-        
-        nexus_id_val = info.get("nexus_id", "")
-        self.ent_nexus_id.insert(0, nexus_id_val)
-        if nexus_id_val.strip() == "":
-            self.ent_nexus_id.config(state="normal")
-        else:
-            self.ent_nexus_id.config(state="readonly")
-            
-        link_val = info.get("link", info.get("url", ""))
-        self.ent_mod_link.insert(0, link_val)
-        if link_val.strip() == "":
-            self.ent_mod_link.config(state="normal")
-        else:
-            self.ent_mod_link.config(state="readonly")
-        
-        # Populate files list
-        self.tree_files.delete(*self.tree_files.get_children())
-        files_list = info.get("files", [])
-        
-        mod_status = self.get_mod_status(mod_id)
-        mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
-        
-        for rel in files_list:
-            # Check size from repo if disabled, or active mods folder if enabled
-            fsize = 0
-            if mod_status == "Disabled":
-                src_path = os.path.join(mod_repo_path, rel)
-            else:
-                src_path = os.path.join(self.get_active_files_dir(mod_id), rel)
-                    
-            if os.path.exists(src_path):
-                fsize = os.path.getsize(src_path)
-            self.tree_files.insert("", tk.END, values=(rel, self.get_friendly_size(fsize)))
-            
-        # Update Conflict Tab
-        self.update_conflict_ui(mod_id)
+        self.select_mod(mod_id)
  
     def get_mod_status(self, mod_id):
         if getattr(self, "is_fahrenheit_mode", False):
@@ -2957,6 +3464,14 @@ class FFXModManagerGUI:
             self.log(f"Saved metadata for mod '{new_mod_id}' successfully.", "success")
             self.scan_mods()
             self.select_mod(new_mod_id)
+            
+            # Flash Save Button with Saved! indicator
+            if hasattr(self, "btn_save_meta") and self.btn_save_meta:
+                try:
+                    self.btn_save_meta.config(text="✔️ Saved!", bg=self.success_color, fg="#ffffff")
+                    self.root.after(1500, lambda: self.btn_save_meta.config(text="Save Details", bg=self.card_color, fg=self.text_color) if hasattr(self, "btn_save_meta") and self.btn_save_meta.winfo_exists() else None)
+                except Exception:
+                    pass
         except Exception as e:
             self.log(f"Failed to save metadata: {e}", "error")
 
@@ -2971,7 +3486,7 @@ class FFXModManagerGUI:
             return
 
         # 2. Check for mod archives
-        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar', '.7z'))]
+        archives = [p for p in file_paths if p.lower().endswith(('.zip', '.rar', '.7z', '.spirapack'))]
         if archives:
             if len(archives) == 1:
                 self.import_zip_mod(zip_path=archives[0])
@@ -2979,7 +3494,7 @@ class FFXModManagerGUI:
                 self.import_bulk_zips(zip_paths=archives)
             return
             
-        messagebox.showinfo("Import Info", "No compatible mod archives (.zip, .rar, .7z) or save files were dropped.")
+        messagebox.showinfo("Import Info", "No compatible mod archives (.spirapack, .zip, .rar, .7z) or save files were dropped.")
 
     def handle_dnd_drop(self, event):
         try:
@@ -3046,7 +3561,7 @@ class FFXModManagerGUI:
 
         # Category
         tk.Label(form, text="Category:", fg=self.text_color, bg=self.bg_color).grid(row=4, column=0, sticky="w", pady=6)
-        cmb_cat = ttk.Combobox(form, values=["General", "Texture", "Script", "Audio", "UI", "Gameplay", "Retranslation"], state="readonly")
+        cmb_cat = ttk.Combobox(form, values=DEFAULT_CATEGORIES, state="readonly")
         cmb_cat.grid(row=4, column=1, sticky="ew", padx=(10, 0), pady=6)
         cmb_cat.set("General")
 
@@ -3286,6 +3801,7 @@ class FFXModManagerGUI:
         mod_repo_path = os.path.join(self.mods_disabled_dir, mod_id)
         try:
             shutil.rmtree(mod_repo_path, ignore_errors=True)
+            self.cleanup_conflict_registry_for_mod(mod_id)
             self.selected_mod_id = "" # Clear selection since mod is deleted
             self.clear_metadata_fields()
             self.log(f"Deleted mod '{mod_id}' successfully.", "success")
@@ -3293,16 +3809,12 @@ class FFXModManagerGUI:
         except Exception as e:
             self.log(f"Failed to delete mod folder: {e}", "error")
 
-    def find_active_file_owner(self, rel_path, exclude_mod_id=None):
-        if is_ui_metadata_file(rel_path):
-            return None
-        rel_norm = os.path.normpath(rel_path).lower()
+    def get_active_files_index(self, exclude_mod_id=None):
+        """Returns a dict mapping normalized_file_path -> owner_mod_id for all currently enabled mods."""
+        active_index = {}
         if getattr(self, "is_fahrenheit_mode", False):
-            # In Fahrenheit, mods are prioritized according to the load order.
-            # The mod listed LATEST in loadorder takes priority (overrides earlier ones).
-            # So the active file owner is the enabled mod that comes LAST in loadorder containing this file.
+            # In Fahrenheit, the mod listed LATEST in loadorder takes priority
             order = self.read_load_order()
-            active_owner = None
             for other_mod_id in order:
                 if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
                     continue
@@ -3313,35 +3825,167 @@ class FFXModManagerGUI:
                     try:
                         with open(read_tracker, "r", encoding="utf-8") as tf:
                             track = decode_metadata(tf.read())
-                        track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
-                        if rel_norm in track_files:
-                            active_owner = other_mod_id
+                        for f in track.get("files", []):
+                            if not is_ui_metadata_file(f):
+                                active_index[os.path.normpath(f).lower()] = other_mod_id
                     except Exception:
                         pass
-            return active_owner
         else:
-            if not self.mods_dir or not os.path.exists(self.mods_dir):
-                return None
-            for f in os.listdir(self.mods_dir):
-                if f.endswith((".spiramod", ".ffxmod", ".json")) and not f.startswith("modinfo"):
-                    if f.endswith(".spiramod"):
-                        other_mod_id = f[:-9]
-                    elif f.endswith(".ffxmod"):
-                        other_mod_id = f[:-7]
-                    else:
-                        other_mod_id = f[:-5]
-                    if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
-                        continue
-                    tracker_path = os.path.join(self.mods_dir, f)
-                    try:
-                        with open(tracker_path, "r", encoding="utf-8") as tf:
-                            track = decode_metadata(tf.read())
-                        track_files = [os.path.normpath(x).lower() for x in track.get("files", [])]
-                        if rel_norm in track_files:
-                            return other_mod_id
-                    except Exception:
-                        pass
+            if self.mods_dir and os.path.exists(self.mods_dir):
+                for f in os.listdir(self.mods_dir):
+                    if f.endswith((".spiramod", ".ffxmod", ".json")) and not f.startswith("modinfo"):
+                        if f.endswith(".spiramod"):
+                            other_mod_id = f[:-9]
+                        elif f.endswith(".ffxmod"):
+                            other_mod_id = f[:-7]
+                        else:
+                            other_mod_id = f[:-5]
+                        if exclude_mod_id and other_mod_id.lower() == exclude_mod_id.lower():
+                            continue
+                        tracker_path = os.path.join(self.mods_dir, f)
+                        try:
+                            with open(tracker_path, "r", encoding="utf-8") as tf:
+                                track = decode_metadata(tf.read())
+                            for x in track.get("files", []):
+                                if not is_ui_metadata_file(x):
+                                    active_index[os.path.normpath(x).lower()] = other_mod_id
+                        except Exception:
+                            pass
+        return active_index
+
+    def find_active_file_owner(self, rel_path, exclude_mod_id=None):
+        if is_ui_metadata_file(rel_path):
             return None
+        rel_norm = os.path.normpath(rel_path).lower()
+        active_index = self.get_active_files_index(exclude_mod_id=exclude_mod_id)
+        return active_index.get(rel_norm)
+
+    def load_conflict_registry(self):
+        reg_path = os.path.join(self.game_dir, "data", "conflict_registry.json") if self.game_dir else ""
+        if reg_path and os.path.exists(reg_path):
+            try:
+                with open(reg_path, "r", encoding="utf-8") as f:
+                    return decode_metadata(f.read())
+            except Exception:
+                pass
+        return {}
+
+    def save_conflict_registry(self, registry):
+        reg_path = os.path.join(self.game_dir, "data", "conflict_registry.json") if self.game_dir else ""
+        if not reg_path:
+            return
+        try:
+            os.makedirs(os.path.dirname(reg_path), exist_ok=True)
+            with open(reg_path, "w", encoding="utf-8") as f:
+                f.write(encode_metadata(registry))
+        except Exception:
+            pass
+
+    def push_conflict_layer(self, rel_norm, mod_id, original_dest_path):
+        """Register that mod_id is overwriting rel_norm. Preserves baseline vanilla or prior mod layers."""
+        if not self.game_dir:
+            return
+        registry = self.load_conflict_registry()
+        stack = registry.get(rel_norm, [])
+        
+        # If stack is empty and the destination file physically exists, stash it as pristine vanilla baseline
+        if not stack and os.path.exists(original_dest_path):
+            vanilla_backup_dir = os.path.join(self.game_dir, "data", "backups", "vanilla")
+            vanilla_dest = os.path.join(vanilla_backup_dir, rel_norm)
+            try:
+                os.makedirs(os.path.dirname(vanilla_dest), exist_ok=True)
+                if not os.path.exists(vanilla_dest):
+                    shutil.copy2(original_dest_path, vanilla_dest)
+                stack.append({"source": "vanilla", "path": vanilla_dest})
+            except Exception as e:
+                self.log(f"Failed to stash vanilla baseline for '{rel_norm}': {e}", "error")
+                
+        # Remove mod_id if already present to prevent duplicate layer entries
+        stack = [layer for layer in stack if layer.get("source") != mod_id]
+        
+        # Push this mod as the active top layer
+        mod_src_path = os.path.join(self.mods_disabled_dir, mod_id, rel_norm)
+        stack.append({"source": mod_id, "path": mod_src_path})
+        registry[rel_norm] = stack
+        self.save_conflict_registry(registry)
+
+    def pop_conflict_layer(self, rel_norm, mod_id, active_dest_path):
+        """Remove mod_id from the conflict stack and restore the next layer down (previous mod or vanilla baseline)."""
+        if not self.game_dir:
+            return
+        registry = self.load_conflict_registry()
+        stack = registry.get(rel_norm, [])
+        if not stack:
+            # No conflict stack: remove active file
+            if os.path.exists(active_dest_path):
+                try:
+                    if os.path.isdir(active_dest_path) and not os.path.islink(active_dest_path):
+                        shutil.rmtree(active_dest_path)
+                    else:
+                        os.remove(active_dest_path)
+                except Exception:
+                    pass
+            return
+            
+        # Filter out mod_id
+        stack = [layer for layer in stack if layer.get("source") != mod_id]
+        
+        if stack:
+            top = stack[-1]
+            source = top.get("source")
+            backup_p = top.get("path")
+            
+            if source != "vanilla":
+                mod_repo_path = os.path.join(self.mods_disabled_dir, source, rel_norm)
+                if os.path.exists(mod_repo_path):
+                    backup_p = mod_repo_path
+                    
+            if backup_p and os.path.exists(backup_p):
+                try:
+                    os.makedirs(os.path.dirname(active_dest_path), exist_ok=True)
+                    if os.path.exists(active_dest_path):
+                        if os.path.isdir(active_dest_path) and not os.path.islink(active_dest_path):
+                            shutil.rmtree(active_dest_path)
+                        else:
+                            os.remove(active_dest_path)
+                    shutil.copy2(backup_p, active_dest_path)
+                    self.log(f"[Conflict Resolution] Restored previous layer '{source}' for '{rel_norm}'.", "info")
+                except Exception as e:
+                    self.log(f"[Conflict Error] Failed to restore layer '{source}' for '{rel_norm}': {e}", "error")
+            registry[rel_norm] = stack
+        else:
+            if rel_norm in registry:
+                del registry[rel_norm]
+            if os.path.exists(active_dest_path):
+                try:
+                    if os.path.isdir(active_dest_path) and not os.path.islink(active_dest_path):
+                        shutil.rmtree(active_dest_path)
+                    else:
+                        os.remove(active_dest_path)
+                except Exception:
+                    pass
+                    
+        self.save_conflict_registry(registry)
+
+    def cleanup_conflict_registry_for_mod(self, mod_id):
+        """Remove a deleted mod from all registered conflict stacks."""
+        if not self.game_dir:
+            return
+        registry = self.load_conflict_registry()
+        changed = False
+        to_delete = []
+        for rel_norm, stack in registry.items():
+            new_stack = [layer for layer in stack if layer.get("source") != mod_id]
+            if len(new_stack) != len(stack):
+                changed = True
+                if new_stack:
+                    registry[rel_norm] = new_stack
+                else:
+                    to_delete.append(rel_norm)
+        for rel in to_delete:
+            del registry[rel]
+        if changed:
+            self.save_conflict_registry(registry)
 
     def enable_mod_logic(self, mod_id):
         mod_repo = os.path.join(self.mods_disabled_dir, mod_id)
@@ -3388,6 +4032,10 @@ class FFXModManagerGUI:
             if os.path.exists(src):
                 try:
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    rel_norm = os.path.normpath(rel).lower()
+                    if not self.is_fahrenheit_mode:
+                        self.push_conflict_layer(rel_norm, mod_id, dest)
+                        
                     if os.path.lexists(dest):
                         # Find owner of the active file to avoid losing it
                         owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
@@ -3575,17 +4223,21 @@ class FFXModManagerGUI:
                     shutil.move(dest, src_back)
                     remove_count += 1
                     
-                    # Auto-Restore logic: Check if another active mod lists this file path
-                    other_owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
-                    if other_owner:
-                        other_src = os.path.join(self.mods_disabled_dir, other_owner, rel)
-                        if os.path.exists(other_src):
-                            try:
-                                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                                shutil.move(other_src, dest)
-                                self.log(f"[Conflict] Restored overwritten file '{rel}' from '{other_owner}' repository.", "info")
-                            except Exception as re:
-                                self.log(f"[Conflict Error] Failed to restore file '{rel}' for '{other_owner}': {re}", "error")
+                    rel_norm = os.path.normpath(rel).lower()
+                    if not self.is_fahrenheit_mode:
+                        self.pop_conflict_layer(rel_norm, mod_id, dest)
+                    else:
+                        # Auto-Restore logic for Fahrenheit if applicable
+                        other_owner = self.find_active_file_owner(rel, exclude_mod_id=mod_id)
+                        if other_owner:
+                            other_src = os.path.join(self.mods_disabled_dir, other_owner, rel)
+                            if os.path.exists(other_src):
+                                try:
+                                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                                    shutil.move(other_src, dest)
+                                    self.log(f"[Conflict] Restored overwritten file '{rel}' from '{other_owner}' repository.", "info")
+                                except Exception as re:
+                                    self.log(f"[Conflict Error] Failed to restore file '{rel}' for '{other_owner}': {re}", "error")
                                 
                     parent = os.path.dirname(dest)
                     limit_dir = self.game_dir if rel.lower().replace("\\", "/").startswith("unx_res/") else active_files_dir
@@ -3710,7 +4362,7 @@ class FFXModManagerGUI:
         import re
         
         if not zip_path:
-            zip_path = filedialog.askopenfilename(filetypes=[("Mod Archives", "*.zip;*.rar;*.7z"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar"), ("7-Zip Archives", "*.7z")])
+            zip_path = filedialog.askopenfilename(filetypes=[("Spira Modpacks (*.spirapack)", "*.spirapack"), ("Mod Archives", "*.spirapack;*.zip;*.rar;*.7z"), ("Zip Archives", "*.zip"), ("RAR Archives", "*.rar"), ("7-Zip Archives", "*.7z")])
         if not zip_path:
             return
             
@@ -3746,7 +4398,7 @@ class FFXModManagerGUI:
         lbl_percent.pack(pady=5, padx=20, anchor="e")
         self.root.update()
 
-        if ext == ".zip":
+        if ext in (".zip", ".spirapack"):
             try:
                 with zipfile.ZipFile(zip_path, "r") as z:
                     list_files = z.infolist()
@@ -3798,8 +4450,7 @@ class FFXModManagerGUI:
                     if os.path.exists(wr_path):
                         try:
                             import subprocess
-                            if "unrar" in wr_path.lower():
-                                res = subprocess.run([wr_path, "x", zip_path, "-y", temp_dir + os.sep], capture_output=True)
+                            res = subprocess.run([wr_path, "x", "-y", zip_path, temp_dir + "\\"], capture_output=True)
                             if res.returncode == 0:
                                 extracted = True
                                 self.log(f"Successfully extracted {ext.upper()[1:]} archive using WinRAR.")
@@ -3828,7 +4479,7 @@ class FFXModManagerGUI:
                 return
         else:
             progress_win.destroy()
-            self.log(f"Error: Unsupported archive format '{ext}'. Only .zip, .rar, and .7z are supported.", "error")
+            self.log(f"Error: Unsupported archive format '{ext}'. Only .spirapack, .zip, .rar, and .7z are supported.", "error")
             if os.path.exists(temp_dir):
                 try:
                     shutil.rmtree(temp_dir)
@@ -3841,12 +4492,20 @@ class FFXModManagerGUI:
         except Exception:
             pass
             
+        # Check if this archive is a Spira Modpack
+        if os.path.exists(os.path.join(temp_dir, "modpack.spiramod")) or os.path.exists(os.path.join(temp_dir, "modpack.json")):
+            self.import_modpack_from_dir(temp_dir, zip_path)
+            return
+
         # Analyze the extracted contents
         # Strip single top-level folder wrapper if present
         root_dir = temp_dir
         subdirs = [x for x in os.listdir(temp_dir) if not x.startswith(".") and x != "__MACOSX"]
         if len(subdirs) == 1 and os.path.isdir(os.path.join(temp_dir, subdirs[0])):
             root_dir = os.path.join(temp_dir, subdirs[0])
+            if os.path.exists(os.path.join(root_dir, "modpack.spiramod")) or os.path.exists(os.path.join(root_dir, "modpack.json")):
+                self.import_modpack_from_dir(root_dir, zip_path)
+                return
             
         # Check for save files
         prefix = "ffx2_" if self.active_game_mode == "FFX-2" else "ffx_"
@@ -4229,8 +4888,11 @@ class FFXModManagerGUI:
         self.scan_mods()
 
     def show_import_dropdown(self):
-        menu = tk.Menu(self.root, tearoff=0, bg=self.bg_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
+        menu = tk.Menu(self.root, tearoff=0, bg=self.card_color, fg=self.text_color, activebackground=self.accent_color, activeforeground="white")
         menu.add_command(label="📥 Import Multiple (Bulk)...", command=self.import_bulk_zips)
+        menu.add_separator()
+        menu.add_command(label="📦 Export Modpack (.spirapack / .zip)...", command=self.export_modpack_dialog)
+        menu.add_command(label="📦 Import Modpack (.spirapack)...", command=self.import_zip_mod)
         
         try:
             x = self.btn_import_arrow.winfo_rootx()
@@ -4238,6 +4900,395 @@ class FFXModManagerGUI:
             menu.post(x, y)
         except Exception:
             pass
+
+    def export_modpack_dialog(self):
+        from tkinter import filedialog
+        import re
+        
+        if not self.mods:
+            messagebox.showinfo("Export Modpack", "No mods found to export.")
+            return
+            
+        win = tk.Toplevel(self.root)
+        win.title("📦 Export Modpack (.spirapack)")
+        self.set_window_icon(win)
+        win.geometry("560x640")
+        win.configure(bg=self.bg_color)
+        win.transient(self.root)
+        win.grab_set()
+        
+        # Header
+        hdr = tk.Frame(win, bg=self.card_color, padx=15, pady=10)
+        hdr.pack(fill="x")
+        lbl_title = tk.Label(hdr, text="📦 Export Spira Modpack", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_title.pack(anchor="w")
+        lbl_sub = tk.Label(hdr, text="Package your enabled mods, load order, and configs into a shareable bundle.", font=("Segoe UI", 8), fg=self.text_dim, bg=self.card_color)
+        lbl_sub.pack(anchor="w")
+        
+        body = tk.Frame(win, bg=self.bg_color, padx=15, pady=10)
+        body.pack(fill="both", expand=True)
+        
+        # Modpack Info Fields
+        meta_box = ttk.LabelFrame(body, text=" Modpack Details ", padding=10)
+        meta_box.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(meta_box, text="Pack Name:").grid(row=0, column=0, sticky="w", pady=2)
+        ent_pack_name = ttk.Entry(meta_box, width=32)
+        ent_pack_name.insert(0, f"Spira_{self.active_game_mode}_Modpack")
+        ent_pack_name.grid(row=0, column=1, sticky="w", padx=5, pady=2)
+        
+        ttk.Label(meta_box, text="Author:").grid(row=1, column=0, sticky="w", pady=2)
+        ent_pack_author = ttk.Entry(meta_box, width=32)
+        ent_pack_author.insert(0, "NfgOdin")
+        ent_pack_author.grid(row=1, column=1, sticky="w", padx=5, pady=2)
+        
+        ttk.Label(meta_box, text="Version:").grid(row=2, column=0, sticky="w", pady=2)
+        ent_pack_version = ttk.Entry(meta_box, width=15)
+        ent_pack_version.insert(0, "1.0.0")
+        ent_pack_version.grid(row=2, column=1, sticky="w", padx=5, pady=2)
+        
+        ttk.Label(meta_box, text="Description:").grid(row=3, column=0, sticky="nw", pady=2)
+        txt_pack_desc = tk.Text(meta_box, width=30, height=3, font=("Segoe UI", 9), bg=self.card_color, fg=self.text_color, bd=1, relief="solid")
+        txt_pack_desc.insert("1.0", "A custom collection of mods for Final Fantasy X.")
+        txt_pack_desc.grid(row=3, column=1, sticky="w", padx=5, pady=2)
+        
+        # Mod Checklist Box
+        list_box = ttk.LabelFrame(body, text=" Select Mods to Include ", padding=10)
+        list_box.pack(fill="both", expand=True, pady=(0, 10))
+        
+        # Quick Selection Buttons
+        q_row = ttk.Frame(list_box, style="Card.TFrame")
+        q_row.pack(fill="x", pady=(0, 5))
+        
+        mod_vars = {}
+        
+        def set_all(state):
+            for v in mod_vars.values():
+                v.set(state)
+                
+        def set_enabled_only():
+            for m_id, v in mod_vars.items():
+                is_en = (self.mods.get(m_id, {}).get("status") == "Enabled")
+                v.set(is_en)
+                
+        btn_all = tk.Button(q_row, text="Select All", font=("Segoe UI", 8), command=lambda: set_all(True), bg=self.card_color, fg=self.text_color, relief="flat", padx=6, pady=2)
+        btn_all.pack(side="left", padx=(0, 4))
+        self.bind_hover(btn_all)
+        
+        btn_en = tk.Button(q_row, text="Enabled Only", font=("Segoe UI", 8), command=set_enabled_only, bg=self.card_color, fg=self.text_color, relief="flat", padx=6, pady=2)
+        btn_en.pack(side="left", padx=4)
+        self.bind_hover(btn_en)
+        
+        btn_none = tk.Button(q_row, text="Deselect All", font=("Segoe UI", 8), command=lambda: set_all(False), bg=self.card_color, fg=self.text_color, relief="flat", padx=6, pady=2)
+        btn_none.pack(side="left", padx=4)
+        self.bind_hover(btn_none)
+        
+        # Scrollable Mod Checkbox Container
+        chk_canvas = tk.Canvas(list_box, bg=self.card_color, highlightthickness=0)
+        chk_scroll = ttk.Scrollbar(list_box, orient="vertical", command=chk_canvas.yview)
+        chk_frame = tk.Frame(chk_canvas, bg=self.card_color)
+        
+        chk_canvas.configure(yscrollcommand=chk_scroll.set)
+        chk_scroll.pack(side="right", fill="y")
+        chk_canvas.pack(side="left", fill="both", expand=True)
+        
+        chk_win_id = chk_canvas.create_window((0, 0), window=chk_frame, anchor="nw")
+        chk_frame.bind("<Configure>", lambda e: chk_canvas.configure(scrollregion=chk_canvas.bbox("all")))
+        chk_canvas.bind("<Configure>", lambda e: chk_canvas.itemconfig(chk_win_id, width=e.width))
+        
+        for m_id, info in self.mods.items():
+            is_en = (info.get("status") == "Enabled")
+            var = tk.BooleanVar(value=is_en)
+            mod_vars[m_id] = var
+            
+            row = tk.Frame(chk_frame, bg=self.card_color, pady=2)
+            row.pack(fill="x", padx=5)
+            
+            cb = ttk.Checkbutton(row, text=f"{info.get('name', m_id)} ({self.get_friendly_size(info.get('size', 0))})", variable=var)
+            cb.pack(side="left", fill="x", expand=True)
+            
+            status_txt = "⚡ Enabled" if is_en else "Disabled"
+            status_fg = self.success_color if is_en else self.text_dim
+            lbl_st = tk.Label(row, text=status_txt, font=("Segoe UI", 8, "bold"), fg=status_fg, bg=self.card_color)
+            lbl_st.pack(side="right", padx=5)
+            
+        # Action Bar (Bottom)
+        act_row = tk.Frame(win, bg=self.card_color, padx=15, pady=10)
+        act_row.pack(fill="x", side="bottom")
+        
+        def run_export():
+            selected_ids = [m_id for m_id, v in mod_vars.items() if v.get()]
+            if not selected_ids:
+                messagebox.showwarning("Warning", "Please select at least one mod to export.", parent=win)
+                return
+                
+            pack_name = ent_pack_name.get().strip() or f"Spira_{self.active_game_mode}_Modpack"
+            sanitized_name = re.sub(r'[^a-zA-Z0-9_-]', '_', pack_name)
+            
+            save_path = filedialog.asksaveasfilename(
+                parent=win,
+                title="Save Modpack Archive",
+                initialfile=f"{sanitized_name}.spirapack",
+                filetypes=[("Spira Modpack (*.spirapack)", "*.spirapack"), ("Zip Archive (*.zip)", "*.zip")]
+            )
+            if not save_path:
+                return
+                
+            win.withdraw()
+            self.execute_modpack_export(
+                save_path=save_path,
+                pack_name=pack_name,
+                author=ent_pack_author.get().strip() or "NfgOdin",
+                version=ent_pack_version.get().strip() or "1.0.0",
+                description=txt_pack_desc.get("1.0", "end").strip(),
+                mod_ids=selected_ids,
+                parent_win=win
+            )
+            
+        btn_export_act = tk.Button(act_row, text="📦 Export Archive", command=run_export, bg=self.accent_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=5)
+        btn_export_act._is_primary = True
+        btn_export_act.pack(side="right", padx=(5, 0))
+        self.bind_hover(btn_export_act, is_primary=True)
+        
+        btn_cancel = tk.Button(act_row, text="Cancel", command=win.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9), relief="flat", activebackground=self.border_color, padx=10, pady=5)
+        btn_cancel.pack(side="right")
+        self.bind_hover(btn_cancel)
+
+    def execute_modpack_export(self, save_path, pack_name, author, version, description, mod_ids, parent_win=None):
+        import zipfile
+        import threading
+        
+        # Build UI Progress Modal
+        prog_win = tk.Toplevel(self.root)
+        prog_win.title("Exporting Modpack...")
+        self.set_window_icon(prog_win)
+        prog_win.geometry("450x160")
+        prog_win.configure(bg=self.bg_color)
+        prog_win.transient(self.root)
+        prog_win.grab_set()
+        
+        lbl_msg = tk.Label(prog_win, text=f"Creating {os.path.basename(save_path)}...", font=("Segoe UI", 10), fg=self.text_color, bg=self.bg_color)
+        lbl_msg.pack(pady=(15, 5), padx=20, anchor="w")
+        
+        progress = ttk.Progressbar(prog_win, orient="horizontal", mode="determinate", length=400)
+        progress.pack(pady=5, padx=20, fill="x")
+        
+        lbl_pct = tk.Label(prog_win, text="0%", font=("Segoe UI", 9, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_pct.pack(pady=5, padx=20, anchor="e")
+        self.root.update()
+        
+        def worker():
+            try:
+                modpack_meta = {
+                    "format": "spirapack_v1",
+                    "type": "spiramod_modpack",
+                    "name": pack_name,
+                    "author": author,
+                    "version": version,
+                    "game": self.active_game_mode,
+                    "description": description,
+                    "mods": [],
+                    "load_order": [m for m in getattr(self, "load_order_list", []) if m in mod_ids]
+                }
+                
+                file_tuples = []
+                for m_id in mod_ids:
+                    mod_repo_dir = os.path.join(self.mods_disabled_dir, m_id)
+                    if not os.path.exists(mod_repo_dir):
+                        continue
+                    info = self.mods.get(m_id, {})
+                    modpack_meta["mods"].append({
+                        "id": m_id,
+                        "name": info.get("name", m_id),
+                        "creator": info.get("creator", "Unknown"),
+                        "version": info.get("version", "1.0"),
+                        "category": info.get("category", "General"),
+                        "description": info.get("description", ""),
+                        "link": info.get("link", ""),
+                        "nexus_id": info.get("nexus_id", "")
+                    })
+                    for root_d, _, files in os.walk(mod_repo_dir):
+                        for f in files:
+                            abs_p = os.path.join(root_d, f)
+                            rel_to_mod = os.path.relpath(abs_p, mod_repo_dir)
+                            arc_name = f"mods/{m_id}/{rel_to_mod}".replace("\\", "/")
+                            file_tuples.append((abs_p, arc_name))
+                            
+                total_files = len(file_tuples) + 1
+                
+                with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as z:
+                    manifest_data = encode_metadata(modpack_meta)
+                    z.writestr("modpack.spiramod", manifest_data)
+                    
+                    for idx, (abs_p, arc_name) in enumerate(file_tuples):
+                        z.write(abs_p, arc_name)
+                        pct = int((idx + 1) / total_files * 100)
+                        self.root.after(0, lambda p=pct, fn=arc_name: [
+                            lbl_msg.config(text=f"Packaging: {os.path.basename(fn)}"),
+                            lbl_pct.config(text=f"{p}%"),
+                            progress.configure(value=p)
+                        ])
+                        
+                final_size = os.path.getsize(save_path)
+                size_str = self.get_friendly_size(final_size)
+                self.log(f"Exported Modpack '{pack_name}' ({len(mod_ids)} mods, {size_str}) to {save_path}", "success")
+                
+                def on_done():
+                    prog_win.destroy()
+                    if parent_win and parent_win.winfo_exists():
+                        parent_win.destroy()
+                    messagebox.showinfo("Export Complete", f"Modpack successfully created!\n\nName: {pack_name}\nMods: {len(mod_ids)}\nSize: {size_str}\n\nSaved to:\n{save_path}")
+                    
+                self.root.after(0, on_done)
+            except Exception as e:
+                def on_err():
+                    prog_win.destroy()
+                    if parent_win and parent_win.winfo_exists():
+                        parent_win.deiconify()
+                    messagebox.showerror("Export Failed", f"Failed to export modpack:\n{e}")
+                self.root.after(0, on_err)
+                
+        threading.Thread(target=worker, daemon=True).start()
+
+    def import_modpack_from_dir(self, temp_dir, source_archive, progress_win=None):
+        import shutil
+        import re
+        
+        if progress_win and progress_win.winfo_exists():
+            progress_win.destroy()
+            
+        manifest_path = os.path.join(temp_dir, "modpack.spiramod")
+        fallback_manifest = os.path.join(temp_dir, "modpack.json")
+        read_path = manifest_path if os.path.exists(manifest_path) else fallback_manifest
+        
+        meta = {}
+        if os.path.exists(read_path):
+            try:
+                with open(read_path, "r", encoding="utf-8") as f:
+                    meta = decode_metadata(f.read())
+            except Exception:
+                pass
+                
+        pack_name = meta.get("name") or os.path.splitext(os.path.basename(source_archive))[0]
+        author = meta.get("author", "Unknown")
+        version = meta.get("version", "1.0.0")
+        desc = meta.get("description", "No description provided.")
+        game_mode = meta.get("game", self.active_game_mode)
+        
+        # Discover mods inside the extracted mods/ folder
+        mods_folder = os.path.join(temp_dir, "mods")
+        found_mod_dirs = []
+        if os.path.exists(mods_folder):
+            for entry in os.scandir(mods_folder):
+                if entry.is_dir():
+                    found_mod_dirs.append(entry.path)
+                    
+        if not found_mod_dirs:
+            for entry in os.scandir(temp_dir):
+                if entry.is_dir() and not entry.name.startswith("_") and entry.name != "__MACOSX":
+                    found_mod_dirs.append(entry.path)
+                    
+        if not found_mod_dirs:
+            messagebox.showerror("Import Modpack", "No mod folders found inside the modpack archive.")
+            return
+            
+        # Display Modpack Import Confirmation Modal
+        c_win = tk.Toplevel(self.root)
+        c_win.title(f"Import Modpack: {pack_name}")
+        self.set_window_icon(c_win)
+        c_win.geometry("520x480")
+        c_win.configure(bg=self.bg_color)
+        c_win.transient(self.root)
+        c_win.grab_set()
+        
+        hdr = tk.Frame(c_win, bg=self.card_color, padx=15, pady=10)
+        hdr.pack(fill="x")
+        lbl_h = tk.Label(hdr, text=f"📦 {pack_name} (v{version})", font=("Segoe UI", 12, "bold"), fg=self.accent_color, bg=self.card_color)
+        lbl_h.pack(anchor="w")
+        lbl_sub = tk.Label(hdr, text=f"By: {author}  •  Target: {game_mode}  •  {len(found_mod_dirs)} Mods Included", font=("Segoe UI", 9), fg=self.text_dim, bg=self.card_color)
+        lbl_sub.pack(anchor="w")
+        
+        body = tk.Frame(c_win, bg=self.bg_color, padx=15, pady=10)
+        body.pack(fill="both", expand=True)
+        
+        lbl_d = tk.Label(body, text=f"Description:\n{desc}", font=("Segoe UI", 9), fg=self.text_color, bg=self.bg_color, wraplength=480, justify="left")
+        lbl_d.pack(anchor="w", pady=(0, 10))
+        
+        lbl_mlist = tk.Label(body, text="Bundled Mods:", font=("Segoe UI", 9, "bold"), fg=self.accent_color, bg=self.bg_color)
+        lbl_mlist.pack(anchor="w", pady=(0, 5))
+        
+        tree_frame = ttk.Frame(body, style="Card.TFrame")
+        tree_frame.pack(fill="both", expand=True)
+        
+        tree_m = ttk.Treeview(tree_frame, columns=("name", "id"), show="headings", height=6)
+        tree_m.heading("name", text="Mod Name")
+        tree_m.heading("id", text="Folder ID")
+        tree_m.column("name", width=260)
+        tree_m.column("id", width=180)
+        tree_m.pack(side="left", fill="both", expand=True)
+        
+        scroll_m = ttk.Scrollbar(tree_frame, orient="vertical", command=tree_m.yview)
+        scroll_m.pack(side="right", fill="y")
+        tree_m.config(yscrollcommand=scroll_m.set)
+        
+        for m_dir in found_mod_dirs:
+            m_id = os.path.basename(m_dir)
+            m_name = m_id
+            m_info_p = os.path.join(m_dir, "modinfo.spiramod")
+            if os.path.exists(m_info_p):
+                try:
+                    with open(m_info_p, "r", encoding="utf-8") as f:
+                        m_data = decode_metadata(f.read())
+                        m_name = m_data.get("name", m_id)
+                except Exception:
+                    pass
+            tree_m.insert("", "end", values=(m_name, m_id))
+            
+        act_frame = tk.Frame(c_win, bg=self.card_color, padx=15, pady=10)
+        act_frame.pack(fill="x", side="bottom")
+        
+        def execute_install():
+            installed_count = 0
+            for m_dir in found_mod_dirs:
+                m_id = os.path.basename(m_dir)
+                dest_dir = os.path.join(self.mods_disabled_dir, m_id)
+                if os.path.exists(dest_dir):
+                    shutil.rmtree(dest_dir)
+                shutil.move(m_dir, dest_dir)
+                installed_count += 1
+                
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
+                    
+            try:
+                prof_name = re.sub(r'[^a-zA-Z0-9_-]', '_', pack_name)
+                saved_mods = [os.path.basename(md) for md in found_mod_dirs]
+                self.profiles[prof_name] = saved_mods
+                self.save_profiles_data()
+                if hasattr(self, "profile_combobox"):
+                    vals = list(self.profiles.keys())
+                    self.profile_combobox["values"] = vals
+                    self.profile_combobox.set(prof_name)
+            except Exception:
+                pass
+                
+            c_win.destroy()
+            self.scan_mods()
+            self.refresh_list()
+            self.log(f"Successfully imported Modpack '{pack_name}' ({installed_count} mods installed, Profile '{pack_name}' created).", "success")
+            messagebox.showinfo("Modpack Imported", f"Successfully imported '{pack_name}'!\n\n• {installed_count} mods installed.\n• Mod Profile '{pack_name}' created.")
+            
+        btn_install = tk.Button(act_frame, text="📥 Install All Mods", command=execute_install, bg=self.accent_color, fg="#ffffff", font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.accent_hover, padx=15, pady=5)
+        btn_install._is_primary = True
+        btn_install.pack(side="right", padx=(5, 0))
+        self.bind_hover(btn_install, is_primary=True)
+        
+        btn_close = tk.Button(act_frame, text="Cancel", command=c_win.destroy, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9), relief="flat", activebackground=self.border_color, padx=10, pady=5)
+        btn_close.pack(side="right")
+        self.bind_hover(btn_close)
 
     def import_bulk_zips(self, zip_paths=None):
         from tkinter import filedialog
@@ -4848,6 +5899,11 @@ class FFXModManagerGUI:
         self.bind_hover(btn_refresh_s)
         ToolTip(btn_refresh_s, "Scan the documents folder and local backup logs to update lists.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
         
+        btn_open_saves = tk.Button(self.saves_ctrl_frame, text="📁 Open Folder", command=self.open_saves_folder, bg=self.card_color, fg=self.text_color, font=("Segoe UI", 9, "bold"), relief="flat", activebackground=self.border_color, padx=12, pady=6)
+        btn_open_saves.pack(side="left", padx=5)
+        self.bind_hover(btn_open_saves)
+        ToolTip(btn_open_saves, "Open the active game save directory in Windows File Explorer.", get_theme_colors=lambda: self.themes.get(self.current_theme_name))
+        
         btn_delete_b = tk.Button(self.saves_ctrl_frame, text="🗑️ Delete", command=self.delete_save_backup, bg=self.error_color, fg="white", font=("Segoe UI", 9, "bold"), relief="flat", activebackground="#dc2626", padx=12, pady=6)
         btn_delete_b.pack(side="right")
         self.bind_hover(btn_delete_b)
@@ -4892,10 +5948,10 @@ class FFXModManagerGUI:
 
     def get_saves_dir(self):
         if self.active_game_mode == "FFX-2":
-            default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X-2")
+            default_path = self.get_default_save_path("FFX-2")
             return self.config.get("saves_dir_x2", default_path)
         else:
-            default_path = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X-2 HD Remaster\FINAL FANTASY X")
+            default_path = self.get_default_save_path("FFX")
             return self.config.get("saves_dir", default_path)
 
     def refresh_saves_lists(self):
@@ -5677,7 +6733,7 @@ class FFXModManagerGUI:
         
         # If it is a recognized mod preview/cover image, resolve it directly to the mod root
         filename = os.path.basename(abs_path).lower()
-        if filename in {"preview.png", "preview1.png", "preview2.png", "preview3.png", "preview4.png", "mod_preview.png", "cover.png"}:
+        if is_preview_image_filename(filename):
             return os.path.basename(abs_path)
             
         parts = abs_path.split("/")
@@ -6660,8 +7716,8 @@ class FFXModManagerGUI:
             return
             
         # Determine source saves directory based on active game mode
-        default_saves_ffx = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X2 HD Remaster\FINAL FANTASY X")
-        default_saves_ffx2 = os.path.expanduser(r"~\Documents\SQUARE ENIX\FINAL FANTASY X&X2 HD Remaster\FINAL FANTASY X-2")
+        default_saves_ffx = self.get_default_save_path("FFX")
+        default_saves_ffx2 = self.get_default_save_path("FFX-2")
         
         if self.active_game_mode == "FFX-2":
             src_dir = self.config.get("saves_dir_x2", default_saves_ffx2)
@@ -8054,9 +9110,68 @@ class ThemeCreatorDialog:
 
 
 if __name__ == "__main__":
+    try:
+        if hasattr(ctypes, "windll") and hasattr(ctypes.windll, "shell32"):
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("NfgOdin.SpiraModManager.FFX")
+    except Exception:
+        pass
     if HAS_DND2:
         root = TkinterDnD.Tk()
     else:
         root = tk.Tk()
+
+    # Pre-bind icon before window mapping
+    icon_target = resolve_app_icon()
+    if icon_target:
+        try:
+            root.iconbitmap(icon_target)
+            root.iconbitmap(default=icon_target)
+            ico_file = icon_target if icon_target.lower().endswith(".ico") else None
+            if not ico_file:
+                for cand in [os.path.join(_base_dir, "SpiraMM.ico"), os.path.join(getattr(sys, "_MEIPASS", ""), "SpiraMM.ico")]:
+                    if cand and os.path.exists(cand):
+                        ico_file = cand
+                        break
+            if ico_file and os.path.exists(ico_file):
+                from PIL import Image, ImageTk
+                ico_img = Image.open(ico_file)
+                _p_big = ImageTk.PhotoImage(ico_img.resize((32, 32)))
+                _p_sm = ImageTk.PhotoImage(ico_img.resize((16, 16)))
+                root.iconphoto(True, _p_big, _p_sm)
+                root._icon_refs = [_p_big, _p_sm]
+        except Exception:
+            pass
+            
+        try:
+            if sys.platform == "win32" and ctypes and hasattr(ctypes, "windll") and hasattr(ctypes.windll, "user32"):
+                root.update_idletasks()
+                GA_ROOT = 2
+                hwnd = ctypes.windll.user32.GetAncestor(root.winfo_id(), GA_ROOT) or ctypes.windll.user32.GetParent(root.winfo_id()) or root.winfo_id()
+                if hwnd:
+                    h_big = None
+                    h_sm = None
+                    if icon_target.lower().endswith(".ico"):
+                        h_big = ctypes.windll.user32.LoadImageW(0, icon_target, 1, 32, 32, 0x0010)
+                        h_sm = ctypes.windll.user32.LoadImageW(0, icon_target, 1, 16, 16, 0x0010)
+                    else:
+                        p_l = (ctypes.wintypes.HICON * 1)()
+                        p_s = (ctypes.wintypes.HICON * 1)()
+                        ctypes.windll.shell32.ExtractIconExW(icon_target, 0, p_l, p_s, 1)
+                        if p_l and p_l[0]:
+                            h_big = p_l[0]
+                        if p_s and p_s[0]:
+                            h_sm = p_s[0]
+                    SetClassLongPtr = getattr(ctypes.windll.user32, 'SetClassLongPtrW', ctypes.windll.user32.SetClassLongW)
+                    SetClassLongPtr.argtypes = [ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+                    SetClassLongPtr.restype = ctypes.c_void_p
+                    if h_big:
+                        SetClassLongPtr(hwnd, -14, h_big)
+                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, h_big)
+                    if h_sm:
+                        SetClassLongPtr(hwnd, -34, h_sm)
+                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, h_sm)
+        except Exception:
+            pass
+
     app = FFXModManagerGUI(root)
     root.mainloop()

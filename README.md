@@ -8,23 +8,31 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
 
-### [👉 Click here to download the Newest Stable Release (v3.3.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.1/SpiraMM.rar)
+### [👉 Click here to download the Newest Stable Release (v3.3.2) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.2/SpiraMM.rar)
 
 ### 🚀 Easy Installation Steps
-1. **Download** the zip archive using the link above.
+1. **Download** the archive using the link above.
 2. **Extract** the files (The entire Spira Mod Manager folder, it has the `SpiraModManager.exe`, `themes/` folder and `plugins/` folder inside it) **anywhere on your computer** (you do not have to place it inside the main game directory; you can simply select your game directory on first launch).
 3. **Run** `SpiraModManager.exe` to launch the manager!
 
 ---
 
-## ⚡ New in v3.3.1
+## ⚡ New in v3.3.2
 
-* **Native .7z Archive Support**: Drag-and-drop or import `.7z` mod archives directly into the manager. Full support across single and bulk import dialogs, routing extraction through 7-Zip, WinRAR, or Windows native `tar` engines.
-* **Executable Version Metadata Alignment**: Synchronized Windows compilation build metadata (`spiramm_version.txt`) to report `v3.3.1.0` in the executable's properties details window.
+* **Universal Preview Gallery & Zoom Viewer**: Added multi-screenshot support (`preview1`–`5`, `cover1`–`5`, `screenshot1`–`5`) across PNG, JPG, JPEG, WEBP, BMP with 3-zone click navigation (Left/Right to step, Center to zoom) and a full-resolution Pan & Zoom modal viewer.
+* **Spira Modpack Engine (`.spirapack` / `.zip`)**: Package entire collections of installed mods, metadata, and load orders into shareable archives with 1-click import and automatic Profile creation.
+* **Multi-Tier LIFO Conflict Registry**: Stack-based collision engine that protects pristine vanilla game files (in `data/backups/vanilla/`) and cascades previous mod layers back when disabling overlapping mods.
+* **Steam Deck & Linux/Proton Auto-Detection**: Native auto-discovery of Steam game libraries and virtualized Proton Documents save folders (`compatdata/359870/pfx/...`) for zero-configuration modding on Steam Deck.
+* **Official Nexus Categories & Badges**: Full category synchronization across all editors and filters with bespoke, vibrant category badges on mod cards.
+* **Mod List "Sort By" Engine**: Added 1-click sorting for Name (A–Z / Z–A), Status (Enabled First), Size (Largest First), Category, and Default Order.
+* **Ultra-Fast Startup & Conflict Engine**: Rebuilt active file indexing with an in-memory hash map, dropping conflict resolution latency on 10,000+ file mods from 15+ seconds down to under 2ms!
+* **Quality of Life Polish**: Quick-clear search button (`✕`), double-click mod card toggle, keyboard navigation (`▲`/`▼`), metadata shortcuts (`Ctrl+S`/`Enter`), "✔️ Saved!" visual flash, dynamic list counter, and 1-click "Open Folder" in Save Manager.
 
 ---
 
 ## 🌟 Core Features
+
+* **Native .7z Archive Support**: Drag-and-drop or import `.7z` mod archives directly into the manager. Full support across single and bulk import dialogs, routing extraction through 7-Zip, WinRAR, or Windows native `tar` engines.
 
 * **Nexus Mods Integration & Update Checker**: Configure a personal Nexus Mods API Key securely in Settings to validate connection, check installed mods for updates asynchronously (background threaded), and show visual update badges linking to download pages.
 * **Mod Card Context Menu**: Right-click mod cards to access quick options (Edit Metadata, Check Update, Visit Nexus page, Enable/Disable, Delete).
@@ -103,17 +111,19 @@ The manager features a live graphical preview card in the mod details panel to d
 
 ### Staging Preview Images
 To add visual previews to your mods:
-1. Save your screenshots as standard **`.png`** files.
-2. Name them using any of the following supported filenames:
-   * `preview.png` (primary preview)
-   * `mod_preview.png`
-   * `cover.png`
-   * `preview1.png`, `preview2.png`, `preview3.png`, `preview4.png` (for up to 5 sequentially numbered images)
-3. Place these image files **directly in the root** of your mod's directory (alongside `modinfo.ffxmod`). 
+1. Save your screenshots using any standard image format (**`.png`**, **`.jpg`**, **`.jpeg`**, **`.webp`**, **`.bmp`**).
+2. Name them using any of the following supported conventions:
+   * **Primary Hero Covers**: `preview.png`, `cover.png`, `mod_preview.png`
+   * **Numbered Sequences (1–5)**: Up to 5 additional screenshots using `preview`, `cover`, `screenshot`, or `mod_preview`.
+   * **Flexible Number Separators**: You can use an underscore (`_`), a hyphen (`-`), or no separator at all!
+     * *Direct numbering*: `preview1.png`, `cover2.png`, `screenshot3.png`
+     * *With underscore*: `preview_1.png`, `cover_2.png`, `screenshot_3.png`
+     * *With hyphen*: `preview-1.png`, `cover-2.png`, `screenshot-3.png`
+3. Place these image files **directly in the root** of your mod's directory (alongside `modinfo.spiramod`).
 
 ### Dropdown & Resolution
-* **Automatic Import Resolution**: During ZIP or folder imports, the manager recognizes these filenames and stages them at the root automatically without raising path-alignment warnings.
-* **Selection Combobox**: If multiple matching PNG images are found, the preview card renders a dropdown selector allowing users to switch between screenshots in real-time.
+* **Automatic Import Resolution**: During ZIP or folder imports, the manager recognizes all standard preview image conventions and stages them at the root automatically without raising path-alignment warnings.
+* **Selection Combobox**: If multiple matching preview images are found, the preview card renders a dropdown selector sorted in natural numerical and priority order, allowing users to flip between screenshots in real-time.
 
 ---
 
