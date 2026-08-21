@@ -8,7 +8,7 @@ A clean, fast, and secure standalone mod manager for **Final Fantasy X / X-2 HD 
 
 If you are a player looking to download the latest version, click the link below to get the ready-to-use mod manager file immediately:
 
-### [👉 Click here to download the Newest Stable Release (v3.3.2) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.2/SpiraMM.rar)
+### [👉 Click here to download the Newest Stable Release (v3.3.1) 👈](https://github.com/odinj2010/FFX-Mod-Manager/releases/download/v3.3.1/SpiraMM.rar)
 
 ### 🚀 Easy Installation Steps
 1. **Download** the archive using the link above.
@@ -17,22 +17,14 @@ If you are a player looking to download the latest version, click the link below
 
 ---
 
-## ⚡ New in v3.3.2
+## ⚡ New in v3.3.1
 
-* **Universal Preview Gallery & Zoom Viewer**: Added multi-screenshot support (`preview1`–`5`, `cover1`–`5`, `screenshot1`–`5`) across PNG, JPG, JPEG, WEBP, BMP with 3-zone click navigation (Left/Right to step, Center to zoom) and a full-resolution Pan & Zoom modal viewer.
-* **Spira Modpack Engine (`.spirapack` / `.zip`)**: Package entire collections of installed mods, metadata, and load orders into shareable archives with 1-click import and automatic Profile creation.
-* **Multi-Tier LIFO Conflict Registry**: Stack-based collision engine that protects pristine vanilla game files (in `data/backups/vanilla/`) and cascades previous mod layers back when disabling overlapping mods.
-* **Steam Deck & Linux/Proton Auto-Detection**: Native auto-discovery of Steam game libraries and virtualized Proton Documents save folders (`compatdata/359870/pfx/...`) for zero-configuration modding on Steam Deck.
-* **Official Nexus Categories & Badges**: Full category synchronization across all editors and filters with bespoke, vibrant category badges on mod cards.
-* **Mod List "Sort By" Engine**: Added 1-click sorting for Name (A–Z / Z–A), Status (Enabled First), Size (Largest First), Category, and Default Order.
-* **Ultra-Fast Startup & Conflict Engine**: Rebuilt active file indexing with an in-memory hash map, dropping conflict resolution latency on 10,000+ file mods from 15+ seconds down to under 2ms!
-* **Quality of Life Polish**: Quick-clear search button (`✕`), double-click mod card toggle, keyboard navigation (`▲`/`▼`), metadata shortcuts (`Ctrl+S`/`Enter`), "✔️ Saved!" visual flash, dynamic list counter, and 1-click "Open Folder" in Save Manager.
+* **Native .7z Archive Support**: Drag-and-drop or import `.7z` mod archives directly into the manager. Full support across single and bulk import dialogs, routing extraction through 7-Zip, WinRAR, or Windows native `tar` engines.
+* **Executable Version Metadata Alignment**: Synchronized Windows compilation build metadata (`spiramm_version.txt`) to report `v3.3.1.0` in the executable's properties details window.
 
 ---
 
 ## 🌟 Core Features
-
-* **Native .7z Archive Support**: Drag-and-drop or import `.7z` mod archives directly into the manager. Full support across single and bulk import dialogs, routing extraction through 7-Zip, WinRAR, or Windows native `tar` engines.
 
 * **Nexus Mods Integration & Update Checker**: Configure a personal Nexus Mods API Key securely in Settings to validate connection, check installed mods for updates asynchronously (background threaded), and show visual update badges linking to download pages.
 * **Mod Card Context Menu**: Right-click mod cards to access quick options (Edit Metadata, Check Update, Visit Nexus page, Enable/Disable, Delete).
